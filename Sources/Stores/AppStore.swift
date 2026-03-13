@@ -19,6 +19,27 @@ final class AppStore {
     private(set) var isRunning = false
     private var lastReconcileDate: Date = .distantPast
 
+    /// Whether global system-level shortcuts (Cmd+M / Cmd+1-9 / etc.) are enabled.
+    /// This controls whether the CGEvent tap is active.
+    var areHotkeysEnabled: Bool = {
+        if UserDefaults.standard.object(forKey: "areHotkeysEnabled") != nil {
+            return UserDefaults.standard.bool(forKey: "areHotkeysEnabled")
+        }
+        // Default to true for existing users.
+        return true
+    }() {
+        didSet {
+            UserDefaults.standard.set(areHotkeysEnabled, forKey: "areHotkeysEnabled")
+            if areHotkeysEnabled {
+                if hasCompletedOnboarding {
+                    hotkeyManager.start()
+                }
+            } else {
+                hotkeyManager.stop()
+            }
+        }
+    }
+
     /// Called when a Claude Code event is received — wire to OverlayManager.handleEvent
     var onEventForOverlay: ((ClaudeEvent) -> Void)?
     /// Called when a custom input is received via POST /input
@@ -286,7 +307,9 @@ final class AppStore {
         // Only request permissions if onboarding is done.
         // During onboarding, each permission is requested by its dedicated step.
         if hasCompletedOnboarding {
-            hotkeyManager.start()
+            if areHotkeysEnabled {
+                hotkeyManager.start()
+            }
             await notificationService.requestPermission()
 
             // Auto-upgrade IDE extension if a newer version is bundled
@@ -316,8 +339,9 @@ final class AppStore {
                     self.lastReconcileDate = now
                     self.sessionStore.reconcileIfNeeded()
                 }
-                // Retry hotkey manager if not yet active (user may have just granted Accessibility)
-                if !self.hotkeyManager.isActive {
+                // Retry hotkey manager if not yet active (user may have just granted Accessibility),
+                // but only when global shortcuts are enabled.
+                if self.areHotkeysEnabled && !self.hotkeyManager.isActive {
                     self.hotkeyManager.start()
                 }
             }
