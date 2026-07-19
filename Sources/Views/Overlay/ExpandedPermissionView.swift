@@ -52,6 +52,16 @@ struct ExpandedPermissionView: View {
         return session.projectName
     }
 
+    private var supportsOverlayResponses: Bool {
+        let caps = permission.transport.capabilities
+        return caps.contains(.permissionResponse)
+            || caps.contains(.updatedInput)
+            || caps.contains(.updatedPermissions)
+    }
+    private var isOpenTerminalFallback: Bool {
+        !supportsOverlayResponses && permission.transport.capabilities.contains(.openTerminal)
+    }
+
     private let planOptions = [
         "Yes, clear context and auto-accept edits",
         "Yes, auto-accept edits",
@@ -67,7 +77,9 @@ struct ExpandedPermissionView: View {
 
             // Content area
             ScrollView(.vertical, showsIndicators: true) {
-                if isPlan {
+                if isOpenTerminalFallback {
+                    terminalFallbackContent
+                } else if isPlan {
                     planContent
                 } else if isQuestion {
                     questionContent
@@ -81,7 +93,9 @@ struct ExpandedPermissionView: View {
 
             // Action bar
             VStack(spacing: 12) {
-                if isPlan {
+                if isOpenTerminalFallback {
+                    terminalFallbackActions
+                } else if isPlan {
                     planActions
                 } else if isQuestion {
                     questionActions
@@ -195,6 +209,39 @@ struct ExpandedPermissionView: View {
             }
         }
         .padding(24)
+    }
+
+    private var terminalFallbackContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(permission.event.message ?? "This agent requires a response in the terminal.")
+                .font(Constants.body(size: 14))
+                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+            Text("This agent can't accept a decision from here. Open the terminal to respond.")
+                .font(.system(size: 12))
+                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(24)
+    }
+
+    private var terminalFallbackActions: some View {
+        Button {
+            focusTerminal(
+                pid: permission.event.terminalPid,
+                shellPid: permission.event.shellPid,
+                projectDir: permission.event.cwd,
+                sessionId: permission.event.sessionId,
+                sessions: sessionStore.sessions
+            )
+        } label: {
+            Text("Open Terminal")
+                .font(Constants.heading(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color(red: 249/255, green: 93/255, blue: 2/255), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 
     private var standardContent: some View {
