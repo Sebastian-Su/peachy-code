@@ -23,6 +23,11 @@ final class EventProcessor {
         eventStore.append(event)
         sessionStore.recordEvent(event)
 
+        // 会话结束时清理 CodexHookLiveness，防止 liveSessions 集合无限增长
+        if event.eventType == .sessionEnd, let sessionId = event.sessionId {
+            CodexHookLiveness.shared.clear(sessionId: sessionId)
+        }
+
         if let notification = createNotification(from: event) {
             if notification.category != .permissionRequest {
                 notificationStore.append(notification)
