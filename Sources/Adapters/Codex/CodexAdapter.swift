@@ -43,7 +43,12 @@ final class CodexAdapter: AgentAdapter {
 
     func start() throws {
         monitor.onEventReceived = { [weak self] event in
-            self?.route(event)
+            Task { @MainActor in
+                guard let self else { return }
+                // 该会话已有真 hooks → 轮询事件全部静默，避免重复
+                if CodexHookLiveness.shared.isLive(sessionId: event.sessionId) { return }
+                self.route(event)
+            }
         }
         monitor.start()
     }
