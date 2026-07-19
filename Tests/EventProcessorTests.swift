@@ -1,5 +1,5 @@
 import XCTest
-@testable import masko_code
+@testable import peachy_code
 
 @MainActor
 final class EventProcessorTests: XCTestCase {

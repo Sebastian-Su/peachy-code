@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import masko_code
+@testable import peachy_code
 
 final class PendingPermissionStoreTests: XCTestCase {
     func testResolveAllowSendsDecision() throws {

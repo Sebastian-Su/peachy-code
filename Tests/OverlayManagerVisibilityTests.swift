@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import masko_code
+@testable import peachy_code
 
 final class OverlayManagerVisibilityTests: XCTestCase {
     @MainActor
