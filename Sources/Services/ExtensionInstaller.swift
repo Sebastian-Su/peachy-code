@@ -6,8 +6,8 @@ enum ExtensionInstaller {
 
     // MARK: - Constants
 
-    private static let extensionId = "masko.masko-terminal-focus"
-    private static let jetbrainsPluginId = "ai.masko.terminal-focus"
+    private static let extensionId = "peachy.peachy-terminal-focus"
+    private static let jetbrainsPluginId = "ai.peachy.terminal-focus"
 
     /// VS Code-family IDEs: (bundleId, CLI command, URI scheme, common CLI paths, skipAutoInstall)
     private static let vscodeConfigs: [(bundleId: String, command: String, scheme: String, paths: [String], skipAutoInstall: Bool)] = [
@@ -262,7 +262,7 @@ enum ExtensionInstaller {
         // JetBrains family
         for jb in jetbrainsConfigs {
             guard let pluginsDir = jetbrainsPluginsDir(bundleId: jb.bundleId) else { continue }
-            let pluginDir = (pluginsDir as NSString).appendingPathComponent("masko-terminal-focus")
+            let pluginDir = (pluginsDir as NSString).appendingPathComponent("peachy-terminal-focus")
             try? FileManager.default.removeItem(atPath: pluginDir)
         }
     }
@@ -273,7 +273,7 @@ enum ExtensionInstaller {
             // Try VS Code family first
             for ide in vscodeConfigs {
                 guard resolveCommand(ide) != nil else { continue }
-                if let url = URL(string: "\(ide.scheme)://masko.masko-terminal-focus/setup") {
+                if let url = URL(string: "\(ide.scheme)://peachy.peachy-terminal-focus/setup") {
                     NSWorkspace.shared.open(url)
                     return
                 }
@@ -281,7 +281,7 @@ enum ExtensionInstaller {
             // Try JetBrains family
             for jb in jetbrainsConfigs {
                 guard FileManager.default.fileExists(atPath: jb.appPath) else { continue }
-                if let url = URL(string: "\(jb.scheme)://masko-terminal-focus/setup") {
+                if let url = URL(string: "\(jb.scheme)://peachy-terminal-focus/setup") {
                     NSWorkspace.shared.open(url)
                     return
                 }
@@ -366,15 +366,15 @@ enum ExtensionInstaller {
     private static func bundledVSIXPath() -> String {
         // SPM Bundle.module resources (auto-generated accessor for .copy() resources)
         let moduleBundle = Bundle.module
-        if let url = moduleBundle.url(forResource: "masko-terminal-focus", withExtension: "vsix", subdirectory: "Extensions") {
+        if let url = moduleBundle.url(forResource: "peachy-terminal-focus", withExtension: "vsix", subdirectory: "Extensions") {
             return url.path
         }
         // Main app bundle fallback
-        if let path = Bundle.main.path(forResource: "masko-terminal-focus", ofType: "vsix") {
+        if let path = Bundle.main.path(forResource: "peachy-terminal-focus", ofType: "vsix") {
             return path
         }
         // Development fallback
-        return NSHomeDirectory() + "/.peachy-code/extensions/masko-terminal-focus.vsix"
+        return NSHomeDirectory() + "/.peachy-code/extensions/peachy-terminal-focus.vsix"
     }
 
     private static func ideName(for command: String) -> String {
@@ -431,12 +431,12 @@ enum ExtensionInstaller {
     /// Check if the Peachy plugin is installed in a JetBrains IDE
     private static func jetbrainsPluginInstalled(bundleId: String) -> Bool {
         guard let pluginsDir = jetbrainsPluginsDir(bundleId: bundleId) else { return false }
-        let pluginDir = (pluginsDir as NSString).appendingPathComponent("masko-terminal-focus")
+        let pluginDir = (pluginsDir as NSString).appendingPathComponent("peachy-terminal-focus")
         return FileManager.default.fileExists(atPath: pluginDir)
     }
 
     /// Install the JetBrains plugin by extracting it to the plugins directory.
-    /// The plugin zip contains a top-level "masko-terminal-focus/" directory.
+    /// The plugin zip contains a top-level "peachy-terminal-focus/" directory.
     @discardableResult
     private static func installJetBrainsPlugin(_ zipPath: String, bundleId: String) throws -> Bool {
         // Resolve or create the plugins directory
@@ -457,7 +457,7 @@ enum ExtensionInstaller {
         try FileManager.default.createDirectory(atPath: pluginsDir, withIntermediateDirectories: true)
 
         // Remove old version if present
-        let destDir = (pluginsDir as NSString).appendingPathComponent("masko-terminal-focus")
+        let destDir = (pluginsDir as NSString).appendingPathComponent("peachy-terminal-focus")
         if FileManager.default.fileExists(atPath: destDir) {
             try FileManager.default.removeItem(atPath: destDir)
         }
@@ -489,13 +489,13 @@ enum ExtensionInstaller {
     /// Path to the bundled JetBrains plugin zip
     private static func bundledJetBrainsPluginPath() -> String {
         let moduleBundle = Bundle.module
-        if let url = moduleBundle.url(forResource: "masko-terminal-focus-jetbrains", withExtension: "zip", subdirectory: "Extensions") {
+        if let url = moduleBundle.url(forResource: "peachy-terminal-focus-jetbrains", withExtension: "zip", subdirectory: "Extensions") {
             return url.path
         }
-        if let path = Bundle.main.path(forResource: "masko-terminal-focus-jetbrains", ofType: "zip") {
+        if let path = Bundle.main.path(forResource: "peachy-terminal-focus-jetbrains", ofType: "zip") {
             return path
         }
-        return NSHomeDirectory() + "/.peachy-code/extensions/masko-terminal-focus-jetbrains.zip"
+        return NSHomeDirectory() + "/.peachy-code/extensions/peachy-terminal-focus-jetbrains.zip"
     }
 
     enum ExtensionError: LocalizedError {

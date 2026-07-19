@@ -59,7 +59,7 @@ enum IDETerminalFocus {
             if ExtensionInstaller.isJetBrainsIDE(bundleId: bundleId) {
                 activateApp(bundleId: bundleId)
                 DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.3) {
-                    let url = URL(string: "http://localhost:63342/api/masko/focus?pid=\(shellPid)")!
+                    let url = URL(string: "http://localhost:63342/api/peachy/focus?pid=\(shellPid)")!
                     var request = URLRequest(url: url, timeoutInterval: 1)
                     request.httpMethod = "GET"
                     URLSession.shared.dataTask(with: request).resume()
@@ -69,7 +69,7 @@ enum IDETerminalFocus {
 
             // VS Code family: URI scheme to extension
             if let scheme = ExtensionInstaller.uriScheme(forBundleId: bundleId) {
-                let urlString = "\(scheme)://masko.masko-terminal-focus/focus?pid=\(shellPid)"
+                let urlString = "\(scheme)://peachy.peachy-terminal-focus/focus?pid=\(shellPid)"
                 if let url = URL(string: urlString) {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         NSWorkspace.shared.open(url)

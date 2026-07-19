@@ -1,4 +1,4 @@
-package ai.masko.terminalfocus
+package ai.peachy.terminalfocus
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.ProjectManager
@@ -11,21 +11,21 @@ import org.jetbrains.ide.HttpRequestHandler
 import org.jetbrains.ide.RestService
 
 /**
- * HTTP handler for Masko Code terminal focus requests.
+ * HTTP handler for Peachy Code terminal focus requests.
  *
  * Listens on JetBrains' built-in server (port 63342):
- *   GET http://localhost:63342/api/masko/focus?pid=12345
- *   GET http://localhost:63342/api/masko/ping
+ *   GET http://localhost:63342/api/peachy/focus?pid=12345
+ *   GET http://localhost:63342/api/peachy/ping
  *
  * Focuses the Terminal tool window and switches to the tab whose shell process
  * is an ancestor of the given PID. Uses OS process tree matching which works
  * across all JetBrains IDE versions (classic and reworked terminal).
  */
-class MaskoTerminalFocusHandler : HttpRequestHandler() {
+class PeachyTerminalFocusHandler : HttpRequestHandler() {
 
     override fun isSupported(request: FullHttpRequest): Boolean {
         return request.method() == HttpMethod.GET &&
-            request.uri().startsWith("/api/masko/")
+            request.uri().startsWith("/api/peachy/")
     }
 
     override fun process(
@@ -35,7 +35,7 @@ class MaskoTerminalFocusHandler : HttpRequestHandler() {
     ): Boolean {
         val path = urlDecoder.path()
 
-        if (path == "/api/masko/focus") {
+        if (path == "/api/peachy/focus") {
             val pid = urlDecoder.parameters()["pid"]?.firstOrNull()?.toLongOrNull()
 
             ApplicationManager.getApplication().invokeLater {
@@ -55,7 +55,7 @@ class MaskoTerminalFocusHandler : HttpRequestHandler() {
             return true
         }
 
-        if (path == "/api/masko/ping") {
+        if (path == "/api/peachy/ping") {
             RestService.sendOk(request, context)
             return true
         }

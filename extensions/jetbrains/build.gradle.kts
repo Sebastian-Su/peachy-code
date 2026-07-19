@@ -3,7 +3,7 @@ plugins {
     kotlin("jvm") version "1.9.25"
 }
 
-group = "ai.masko"
+group = "ai.peachy"
 version = "1.0.0"
 
 repositories {
@@ -39,6 +39,6 @@ tasks {
     }
 
     jar {
-        archiveBaseName.set("masko-terminal-focus")
+        archiveBaseName.set("peachy-terminal-focus")
     }
 }

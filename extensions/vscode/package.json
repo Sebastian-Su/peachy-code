@@ -1,9 +1,9 @@
 {
-  "name": "masko-terminal-focus",
-  "displayName": "Masko Terminal Focus",
-  "description": "Allows Masko Code to focus specific terminal tabs",
+  "name": "peachy-terminal-focus",
+  "displayName": "Peachy Terminal Focus",
+  "description": "Allows Peachy Code to focus specific terminal tabs",
   "version": "1.0.0",
-  "publisher": "masko",
+  "publisher": "peachy",
   "engines": {
     "vscode": "^1.85.0"
   },

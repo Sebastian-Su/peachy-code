@@ -1,1 +1,1 @@
-rootProject.name = "masko-terminal-focus"
+rootProject.name = "peachy-terminal-focus"
