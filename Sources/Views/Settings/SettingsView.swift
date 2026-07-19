@@ -115,6 +115,12 @@ struct SettingsView: View {
                         .foregroundColor(.red)
                 }
 
+                if isHookEnabled && CodexHookInstaller.isRegistered() {
+                    Text("已为 Codex 安装 hook。请在下次打开 Codex 时选择「Trust」以启用实时 permission；在此之前 Codex 会以终端模式工作。")
+                        .font(.system(size: 11))
+                        .foregroundColor(Constants.textMuted)
+                }
+
                 Toggle("Auto-hide when no sessions", isOn: Binding(
                     get: { overlayManager.isAutoHideEnabled },
                     set: { overlayManager.setAutoHideEnabled($0) }
