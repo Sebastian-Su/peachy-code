@@ -114,6 +114,6 @@ enum CodexHookInstaller {
         let dir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
-        try data.write(to: URL(fileURLWithPath: path))
+        try data.write(to: URL(fileURLWithPath: path), options: .atomic)
     }
 }

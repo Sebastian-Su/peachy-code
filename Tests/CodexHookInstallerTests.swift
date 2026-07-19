@@ -40,12 +40,15 @@ final class CodexHookInstallerTests: XCTestCase {
         let data = try Data(contentsOf: URL(fileURLWithPath: hooksPath))
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
-        let entries = try XCTUnwrap(hooks["PermissionRequest"] as? [[String: Any]])
-        let ourCount = entries.filter { entry in
-            guard let inner = entry["hooks"] as? [[String: Any]] else { return false }
-            return inner.contains { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
-        }.count
-        XCTAssertEqual(ourCount, 1, "duplicate hook entry created")
+        // 逐一核对全部事件，防止幂等 bug 只出现在部分事件时漏检
+        for event in CodexHookInstaller.hookEvents {
+            let entries = try XCTUnwrap(hooks[event] as? [[String: Any]], "missing event \(event)")
+            let ourCount = entries.filter { entry in
+                guard let inner = entry["hooks"] as? [[String: Any]] else { return false }
+                return inner.contains { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
+            }.count
+            XCTAssertEqual(ourCount, 1, "duplicate hook entry for event \(event)")
+        }
     }
 
     func testInstallPreservesForeignHooks() throws {
