@@ -47,7 +47,13 @@ final class ClaudeCodeAdapter: AgentAdapter {
             self?.onEvent?(event)
         }
         localServer.onPermissionRequest = { [weak self] event, connection in
-            let transport = HookConnectionTransport(connection: connection)
+            let transport: ResponseTransport
+            if event.assistantClientKind == .claude {
+                transport = HookConnectionTransport(connection: connection)
+            } else {
+                // Codex (and other non-Claude) hooks POST to the same /hook endpoint.
+                transport = CodexHookTransport(connection: connection)
+            }
             self?.onPermissionRequest?(event, transport)
         }
         localServer.onInputReceived = { [weak self] name, value in

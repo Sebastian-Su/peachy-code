@@ -30,15 +30,15 @@ final class CodexAdapter: AgentAdapter {
     }
 
     func isRegistered() -> Bool {
-        true
+        CodexHookInstaller.isRegistered()
     }
 
     func install() throws {
-        // Codex log ingestion requires no hook/plugin install.
+        try CodexHookInstaller.install()
     }
 
     func uninstall() {
-        // Nothing to uninstall for log ingestion.
+        try? CodexHookInstaller.uninstall()
     }
 
     func start() throws {
