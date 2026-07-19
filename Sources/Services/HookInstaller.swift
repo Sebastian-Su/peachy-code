@@ -122,7 +122,13 @@ enum HookInstaller {
         try writeSettings(settings)
     }
 
-    private static let scriptVersion = "# version: 15"
+    private static let scriptVersion = "# version: 16"
+
+    /// Exposed for testing: returns the script content that would be written by ensureScriptExists().
+    /// This avoids tests needing to touch the real home directory.
+    static func scriptContentForTesting() -> String {
+        buildScript()
+    }
 
     /// Create or update hook-sender.sh
     static func ensureScriptExists() throws {
@@ -142,18 +148,43 @@ enum HookInstaller {
             withIntermediateDirectories: true
         )
 
-        // Write script — v6: pgrep guard + capture terminal PID + block on PermissionRequest
-        // Note: Claude Code fires PermissionRequest for AskUserQuestion too (confirmed).
-        // Do NOT also block PreToolUse — it creates duplicate connections.
-        let script = """
+        let script = buildScript()
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+
+        // Make executable
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: hookScriptPath
+        )
+    }
+
+    // MARK: - Script builder
+
+    private static func buildScript() -> String {
+        """
         #!/bin/bash
         \(scriptVersion)
-        # hook-sender.sh — Forwards Claude Code hook events to peachy-code
+        # hook-sender.sh — Forwards Claude Code / Codex hook events to peachy-code
         # Exit instantly if the desktop app server isn't reachable (avoids curl timeout latency)
         # Use health endpoint instead of pgrep (works regardless of binary name)
         curl -s --connect-timeout 0.3 "http://localhost:\(Constants.serverPort)/health" >/dev/null 2>&1 || exit 0
         INPUT=$(cat 2>/dev/null || echo '{}')
         EVENT_NAME=$(echo "$INPUT" | grep -o '"hook_event_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+        # Parse --source <value> argument (passed by Codex hook registration).
+        # When present, overwrite the "source" field in the JSON payload so the app
+        # can correctly identify Codex events even when Codex sends source="local".
+        # When absent (Claude Code path), the payload is left completely unmodified.
+        SOURCE_OVERRIDE=""
+        while [ "$#" -gt 0 ]; do
+          case "$1" in
+            --source) SOURCE_OVERRIDE="$2"; shift 2 ;;
+            *) shift ;;
+          esac
+        done
+        if [ -n "$SOURCE_OVERRIDE" ]; then
+          INPUT=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); d['source']='$SOURCE_OVERRIDE'; print(json.dumps(d))")
+        fi
 
         # Walk up process tree to find terminal app PID and shell PID
         TERM_PID=""
@@ -206,14 +237,6 @@ enum HookInstaller {
             exit 0
         fi
         """
-
-        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-
-        // Make executable
-        try FileManager.default.setAttributes(
-            [.posixPermissions: 0o755],
-            ofItemAtPath: hookScriptPath
-        )
     }
 
     // MARK: - Private
