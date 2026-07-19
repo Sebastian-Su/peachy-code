@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class EventProcessorTests: XCTestCase {
-    func testCodexPermissionNotificationUsesEventMessage() async throws {
+    func testCodexPermissionNotificationNotAddedToStore() async throws {
         let eventStore = EventStore()
         eventStore.clear()
         let sessionStore = SessionStore()
@@ -28,12 +28,13 @@ final class EventProcessorTests: XCTestCase {
 
         await processor.process(event)
 
-        let notification = try XCTUnwrap(notificationStore.notifications.first(where: { $0.sessionId == sessionId }))
-        XCTAssertEqual(notification.title, "Permission Requested")
-        XCTAssertEqual(notification.body, "Need network access to push")
+        // permissionRequest 通知走 mascot 气泡 + 系统通知，
+        // 故意不进应用内通知中心（EventProcessor 过滤 .permissionRequest 类别）。
+        XCTAssertNil(notificationStore.notifications.first(where: { $0.sessionId == sessionId }),
+                     "permission 通知不应进入 notificationStore")
     }
 
-    func testClaudePermissionNotificationUsesEventMessage() async throws {
+    func testClaudePermissionNotificationNotAddedToStore() async throws {
         let eventStore = EventStore()
         eventStore.clear()
         let sessionStore = SessionStore()
@@ -58,9 +59,9 @@ final class EventProcessorTests: XCTestCase {
 
         await processor.process(event)
 
-        let notification = try XCTUnwrap(notificationStore.notifications.first(where: { $0.sessionId == sessionId }))
-        XCTAssertEqual(notification.title, "Permission Requested")
-        XCTAssertEqual(notification.body, "Need approval to run Bash")
+        // 同上：permission 不进应用内通知中心。
+        XCTAssertNil(notificationStore.notifications.first(where: { $0.sessionId == sessionId }),
+                     "permission 通知不应进入 notificationStore")
     }
 
     func testCodexQuestionStopStillCreatesCompletionNotificationWhenProcessed() async throws {

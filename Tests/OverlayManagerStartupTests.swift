@@ -46,26 +46,27 @@ final class OverlayManagerStartupTests: XCTestCase {
         XCTAssertEqual(chosen?.name, "First")
     }
 
-    private func makeConfig(name: String) -> MaskoAnimationConfig {
-        MaskoAnimationConfig(
+    private func makeConfig(name: String) -> PeachyAnimationConfig {
+        PeachyAnimationConfig(
             version: "1.0",
             name: name,
             initialNode: "idle",
             autoPlay: true,
             nodes: [
-                MaskoAnimationNode(id: "idle", name: "Idle", transparentThumbnailUrl: nil),
+                PeachyAnimationNode(id: "idle", name: "Idle", transparentThumbnailUrl: nil),
             ],
             edges: [
-                MaskoAnimationEdge(
+                PeachyAnimationEdge(
                     id: "idle-loop",
                     source: "idle",
                     target: "idle",
                     isLoop: true,
                     duration: 1.0,
                     conditions: nil,
-                    videos: MaskoAnimationVideos(webm: nil, hevc: nil),
+                    videos: PeachyAnimationVideos(webm: nil, hevc: nil),
                     priority: nil,
-                    speed: nil
+                    speed: nil,
+                    sound: nil
                 ),
             ],
             inputs: nil
