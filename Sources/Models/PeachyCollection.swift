@@ -1,6 +1,6 @@
 import Foundation
 
-struct MaskoCollection: Identifiable, Codable {
+struct PeachyCollection: Identifiable, Codable {
     let id: String
     let name: String
     let projectName: String?
@@ -15,7 +15,7 @@ struct MaskoCollection: Identifiable, Codable {
     }
 }
 
-struct MaskoCanvas: Identifiable, Codable {
+struct PeachyCanvas: Identifiable, Codable {
     let id: String
     let name: String
     let nodeCount: Int
@@ -36,30 +36,30 @@ struct MaskoCanvas: Identifiable, Codable {
 
 // MARK: - Animation Config (from canvas export)
 
-struct MaskoAnimationConfig: Codable {
+struct PeachyAnimationConfig: Codable {
     let version: String
     let name: String
     let initialNode: String
     let autoPlay: Bool
-    let nodes: [MaskoAnimationNode]
-    var edges: [MaskoAnimationEdge]
-    let inputs: [MaskoAnimationInput]?
+    let nodes: [PeachyAnimationNode]
+    var edges: [PeachyAnimationEdge]
+    let inputs: [PeachyAnimationInput]?
 }
 
-struct MaskoAnimationNode: Codable, Identifiable {
+struct PeachyAnimationNode: Codable, Identifiable {
     let id: String
     let name: String
     let transparentThumbnailUrl: String?
 }
 
-struct MaskoAnimationEdge: Codable, Identifiable {
+struct PeachyAnimationEdge: Codable, Identifiable {
     let id: String
     let source: String       // node ID, or "*" for Any State edges
     let target: String
     let isLoop: Bool
     let duration: Double
-    var conditions: [MaskoAnimationCondition]?
-    let videos: MaskoAnimationVideos
+    var conditions: [PeachyAnimationCondition]?
+    let videos: PeachyAnimationVideos
     let priority: Int?       // Any State edges: higher = checked first
     let speed: Double?       // Playback rate (defaults to 1.0)
     let sound: EdgeSound?    // Optional sound to play on this edge
@@ -71,7 +71,7 @@ struct EdgeSound: Codable {
     let volume: Double?      // 0.0 - 1.0 (default: 1.0)
 }
 
-struct MaskoAnimationCondition: Codable {
+struct PeachyAnimationCondition: Codable {
     let input: String
     let op: String         // defaults to "=="
     let value: ConditionValue  // defaults to .bool(true)
@@ -135,7 +135,7 @@ enum ConditionValue: Codable {
     }
 }
 
-struct MaskoAnimationInput: Codable {
+struct PeachyAnimationInput: Codable {
     let name: String
     let type: String       // "boolean", "number", "trigger"
     let defaultValue: ConditionValue
@@ -147,14 +147,14 @@ struct MaskoAnimationInput: Codable {
     }
 }
 
-struct MaskoAnimationVideos: Codable {
+struct PeachyAnimationVideos: Codable {
     let webm: String?
     let hevc: String?
 }
 
 // MARK: - Single Animation
 
-struct MaskoAnimation: Identifiable, Codable {
+struct PeachyAnimation: Identifiable, Codable {
     let id: String
     let url: String?
     let itemName: String

@@ -67,12 +67,12 @@ struct MascotDetailView: View {
                         // View on masko.ai link
                         if let slug = mascot.templateSlug {
                             Button(action: {
-                                NSWorkspace.shared.open(URL(string: "\(Constants.maskoBaseURL)/community/\(slug)")!)
+                                NSWorkspace.shared.open(URL(string: "\(Constants.peachyBaseURL)/community/\(slug)")!)
                             }) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "safari")
                                         .font(.system(size: 14))
-                                    Text("View on masko.ai")
+                                    Text("View on GitHub")
                                         .font(Constants.body(size: 13, weight: .medium))
                                     Spacer()
                                     Image(systemName: "arrow.up.right")
@@ -100,7 +100,7 @@ struct MascotDetailView: View {
     // MARK: - States (with video previews)
 
     @ViewBuilder
-    private func statesSection(_ config: MaskoAnimationConfig) -> some View {
+    private func statesSection(_ config: PeachyAnimationConfig) -> some View {
         let loopEdges = config.edges.filter { $0.isLoop }
 
         VStack(alignment: .leading, spacing: 10) {
@@ -244,8 +244,8 @@ struct MascotDetailView: View {
 // MARK: - Edge Row
 
 private struct EdgeRow: View {
-    let edge: MaskoAnimationEdge
-    let config: MaskoAnimationConfig
+    let edge: PeachyAnimationEdge
+    let config: PeachyAnimationConfig
     let onEdit: () -> Void
 
     private func nodeName(_ id: String) -> String {
@@ -345,41 +345,41 @@ private struct EdgeRow: View {
 // MARK: - Condition Editor Row
 
 private struct ConditionEditorRow: View {
-    let edge: MaskoAnimationEdge
-    let config: MaskoAnimationConfig
-    let onSave: ([MaskoAnimationCondition]?) -> Void
+    let edge: PeachyAnimationEdge
+    let config: PeachyAnimationConfig
+    let onSave: ([PeachyAnimationCondition]?) -> Void
     let onCancel: () -> Void
 
     @State private var inputName: String
 
-    private static let presets: [(label: String, conditions: [MaskoAnimationCondition])] = [
+    private static let presets: [(label: String, conditions: [PeachyAnimationCondition])] = [
         ("Click", [
-            MaskoAnimationCondition(input: "clicked", op: "==", value: .bool(true)),
+            PeachyAnimationCondition(input: "clicked", op: "==", value: .bool(true)),
         ]),
         ("Hover", [
-            MaskoAnimationCondition(input: "mouseOver", op: "==", value: .bool(true)),
+            PeachyAnimationCondition(input: "mouseOver", op: "==", value: .bool(true)),
         ]),
         ("Working", [
-            MaskoAnimationCondition(input: "agent::isWorking", op: "==", value: .bool(true)),
-            MaskoAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(false)),
-            MaskoAnimationCondition(input: "agent::isCompacting", op: "==", value: .bool(false)),
+            PeachyAnimationCondition(input: "agent::isWorking", op: "==", value: .bool(true)),
+            PeachyAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(false)),
+            PeachyAnimationCondition(input: "agent::isCompacting", op: "==", value: .bool(false)),
         ]),
         ("Idle", [
-            MaskoAnimationCondition(input: "agent::isIdle", op: "==", value: .bool(true)),
-            MaskoAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(false)),
-            MaskoAnimationCondition(input: "agent::isCompacting", op: "==", value: .bool(false)),
+            PeachyAnimationCondition(input: "agent::isIdle", op: "==", value: .bool(true)),
+            PeachyAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(false)),
+            PeachyAnimationCondition(input: "agent::isCompacting", op: "==", value: .bool(false)),
         ]),
         ("Alert", [
-            MaskoAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(true)),
+            PeachyAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(true)),
         ]),
         ("Compacting", [
-            MaskoAnimationCondition(input: "agent::isCompacting", op: "==", value: .bool(true)),
-            MaskoAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(false)),
+            PeachyAnimationCondition(input: "agent::isCompacting", op: "==", value: .bool(true)),
+            PeachyAnimationCondition(input: "agent::isAlert", op: "==", value: .bool(false)),
         ]),
     ]
 
-    init(edge: MaskoAnimationEdge, config: MaskoAnimationConfig,
-         onSave: @escaping ([MaskoAnimationCondition]?) -> Void,
+    init(edge: PeachyAnimationEdge, config: PeachyAnimationConfig,
+         onSave: @escaping ([PeachyAnimationCondition]?) -> Void,
          onCancel: @escaping () -> Void) {
         self.edge = edge
         self.config = config

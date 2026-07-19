@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>masko-code</string>
+    <string>peachy-code</string>
     <key>CFBundleIdentifier</key>
-    <string>com.masko.desktop</string>
+    <string>com.peachy.code</string>
     <key>CFBundleName</key>
-    <string>Masko Code</string>
+    <string>Peachy Code</string>
     <key>CFBundleDisplayName</key>
-    <string>Masko Code</string>
+    <string>Peachy Code</string>
     <key>CFBundleVersion</key>
     <string>52</string>
     <key>CFBundleShortVersionString</key>
@@ -31,16 +31,16 @@
     <key>SUPublicEDKey</key>
     <string>/BVYK9Q4hZORSn/xfhu4BCCLrug5zEA5WkwXG2lgdiw=</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Masko Code needs permission to switch to the correct terminal tab when you interact with permission bubbles.</string>
+    <string>Peachy Code needs permission to switch to the correct terminal tab when you interact with permission bubbles.</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>masko</string>
+                <string>peachy</string>
             </array>
             <key>CFBundleURLName</key>
-            <string>com.masko.desktop</string>
+            <string>com.peachy.code</string>
         </dict>
     </array>
 </dict>

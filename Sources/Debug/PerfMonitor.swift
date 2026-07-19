@@ -54,7 +54,7 @@ final class PerfMonitor {
     private(set) var livingAVPlayers: Int = 0
 
     // os_signpost for Instruments integration
-    nonisolated static let signpostLog = OSLog(subsystem: "com.masko.desktop", category: "Perf")
+    nonisolated static let signpostLog = OSLog(subsystem: "com.peachy.code", category: "Perf")
 
     private init() {
         for event in Event.allCases { counters[event] = 0 }
@@ -135,7 +135,7 @@ final class PerfMonitor {
     /// Runs a timer on a background queue that pings the main thread every 200ms.
     /// If the main thread doesn't respond within 250ms, we record a stall.
     private func startStallDetection() {
-        let queue = DispatchQueue(label: "ai.masko.perfmonitor.stall", qos: .userInteractive)
+        let queue = DispatchQueue(label: "ai.peachy.perfmonitor.stall", qos: .userInteractive)
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: .milliseconds(200))
 

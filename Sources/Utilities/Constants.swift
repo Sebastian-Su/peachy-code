@@ -9,9 +9,9 @@ enum Constants {
 
     // Web links (opened in browser)
     #if DEBUG
-    static let maskoBaseURL = "http://localhost:3000"
+    static let peachyBaseURL = "https://github.com/Sebastian-Su/peachy-code"
     #else
-    static let maskoBaseURL = "https://masko.ai"
+    static let peachyBaseURL = "https://github.com/Sebastian-Su/peachy-code"
     #endif
 
     // Source code repository

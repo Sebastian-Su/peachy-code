@@ -15,7 +15,7 @@ struct MenuBarView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 24, height: 24)
                 }
-                Text("Masko Code")
+                Text("Peachy Code")
                     .font(Constants.heading(size: 14, weight: .bold))
                     .foregroundColor(Constants.textPrimary)
                 Spacer()
@@ -132,7 +132,7 @@ struct MenuBarView: View {
                 AppDelegate.showDashboard()
             }) {
                 HStack {
-                    Text("Open Masko Dashboard")
+                    Text("Open Peachy Dashboard")
                         .font(Constants.body(size: 13))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()

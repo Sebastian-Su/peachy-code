@@ -180,7 +180,7 @@ struct ConnectionDoctorView: View {
                                     } else {
                                         Image(systemName: "paperplane")
                                     }
-                                    Text(isSendingReport ? "Sending..." : "Share with Masko Support")
+                                    Text(isSendingReport ? "Sending..." : "Share with Peachy Support")
                                 }
                                 .font(Constants.body(size: 12, weight: .medium))
                                 .foregroundStyle(Constants.orangePrimary)

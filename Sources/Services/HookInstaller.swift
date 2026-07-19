@@ -6,8 +6,8 @@ enum HookInstaller {
     // MARK: - Constants
 
     private static let claudeSettingsPath = NSHomeDirectory() + "/.claude/settings.json"
-    private static let hookScriptPath = NSHomeDirectory() + "/.masko-desktop/hooks/hook-sender.sh"
-    private static let hookCommand = "~/.masko-desktop/hooks/hook-sender.sh"
+    private static let hookScriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
+    private static let hookCommand = "~/.peachy-code/hooks/hook-sender.sh"
 
     /// All Claude Code event types we want to subscribe to
     private static let hookEvents = [
@@ -148,7 +148,7 @@ enum HookInstaller {
         let script = """
         #!/bin/bash
         \(scriptVersion)
-        # hook-sender.sh — Forwards Claude Code hook events to masko-desktop
+        # hook-sender.sh — Forwards Claude Code hook events to peachy-code
         # Exit instantly if the desktop app server isn't reachable (avoids curl timeout latency)
         # Use health endpoint instead of pgrep (works regardless of binary name)
         curl -s --connect-timeout 0.3 "http://localhost:\(Constants.serverPort)/health" >/dev/null 2>&1 || exit 0
@@ -183,7 +183,7 @@ enum HookInstaller {
             # trap SIGTERM/SIGHUP and kill it — when Claude Code resolves a permission
             # from the terminal, it kills this script, and we must ensure curl dies too
             # (otherwise the TCP connection stays open and the desktop bubble sticks).
-            TMPFILE=$(mktemp /tmp/masko-hook.XXXXXX)
+            TMPFILE=$(mktemp /tmp/peachy-hook.XXXXXX)
             curl -s -w "\\n%{http_code}" -X POST \\
               -H "Content-Type: application/json" -d "$INPUT" \\
               "http://localhost:\(Constants.serverPort)/hook" \\

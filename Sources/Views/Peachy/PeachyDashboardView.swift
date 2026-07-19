@@ -149,7 +149,7 @@ private struct CardMenuHost: NSViewRepresentable {
             menu.addItem(CallbackMenuItem(title: "Edit JSON", icon: "curlybraces", callback: actions.1))
             menu.addItem(CallbackMenuItem(title: "Copy JSON", icon: "doc.on.doc", callback: actions.2))
             if let onWeb = actions.3 {
-                menu.addItem(CallbackMenuItem(title: "View on masko.ai", icon: "safari", callback: onWeb))
+                menu.addItem(CallbackMenuItem(title: "View on GitHub", icon: "safari", callback: onWeb))
             }
             menu.addItem(.separator())
             let del = CallbackMenuItem(title: "Delete", icon: "trash", callback: actions.4)
@@ -171,7 +171,7 @@ private struct CardMenuHost: NSViewRepresentable {
 
 // MARK: - Dashboard
 
-struct MaskoDashboardView: View {
+struct PeachyDashboardView: View {
     @Environment(AppStore.self) var appStore
     @Environment(OverlayManager.self) var overlayManager
 
@@ -379,7 +379,7 @@ struct MaskoDashboardView: View {
 
     private var browseCommunityBanner: some View {
         Button(action: {
-            NSWorkspace.shared.open(URL(string: "\(Constants.maskoBaseURL)/community")!)
+            NSWorkspace.shared.open(URL(string: "\(Constants.peachyBaseURL)/community")!)
         }) {
             HStack(spacing: 12) {
                 Image(systemName: "globe")
@@ -414,7 +414,7 @@ struct MaskoDashboardView: View {
 
     private var createMascotBanner: some View {
         Button(action: {
-            NSWorkspace.shared.open(URL(string: "\(Constants.maskoBaseURL)/create/desktop")!)
+            NSWorkspace.shared.open(URL(string: "\(Constants.peachyBaseURL)/create/desktop")!)
         }) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
@@ -494,7 +494,7 @@ struct MaskoDashboardView: View {
                 .buttonStyle(.plain)
             }
 
-            Text("Paste config JSON exported from the masko.ai canvas editor")
+            Text("Paste config JSON exported from the canvas editor")
                 .font(Constants.body(size: 13))
                 .foregroundColor(Constants.textMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -539,7 +539,7 @@ struct MaskoDashboardView: View {
         }
 
         do {
-            let config = try JSONDecoder().decode(MaskoAnimationConfig.self, from: data)
+            let config = try JSONDecoder().decode(PeachyAnimationConfig.self, from: data)
             appStore.mascotStore.add(config: config)
             jsonText = ""
             parseError = nil
@@ -557,7 +557,7 @@ struct MascotCard: View {
     let isActive: Bool
     let onTap: () -> Void
     let onActivate: () -> Void
-    let onSaveConfig: (MaskoAnimationConfig) -> Void
+    let onSaveConfig: (PeachyAnimationConfig) -> Void
     let onDelete: () -> Void
     var communitySlug: String? { mascot.templateSlug }
     @State private var isHovered = false
@@ -688,9 +688,9 @@ struct MascotCard: View {
             }
             if let slug = communitySlug {
                 Button(action: {
-                    NSWorkspace.shared.open(URL(string: "\(Constants.maskoBaseURL)/community/\(slug)")!)
+                    NSWorkspace.shared.open(URL(string: "\(Constants.peachyBaseURL)/community/\(slug)")!)
                 }) {
-                    Label("View on masko.ai", systemImage: "safari")
+                    Label("View on GitHub", systemImage: "safari")
                 }
             }
             Divider()
@@ -711,7 +711,7 @@ struct MascotCard: View {
                     }
                 },
                 onViewOnWeb: communitySlug.map { slug in
-                    { NSWorkspace.shared.open(URL(string: "\(Constants.maskoBaseURL)/community/\(slug)")!) }
+                    { NSWorkspace.shared.open(URL(string: "\(Constants.peachyBaseURL)/community/\(slug)")!) }
                 },
                 onDelete: onDelete
             )
@@ -739,15 +739,15 @@ private extension JSONEncoder {
 
 struct JSONEditorSheet: View {
     let name: String
-    let config: MaskoAnimationConfig
-    let onSave: (MaskoAnimationConfig) -> Void
+    let config: PeachyAnimationConfig
+    let onSave: (PeachyAnimationConfig) -> Void
     @Binding var isPresented: Bool
 
     @State private var jsonText: String
     @State private var parseError: String?
     @State private var saved = false
 
-    init(name: String, config: MaskoAnimationConfig, onSave: @escaping (MaskoAnimationConfig) -> Void, isPresented: Binding<Bool>) {
+    init(name: String, config: PeachyAnimationConfig, onSave: @escaping (PeachyAnimationConfig) -> Void, isPresented: Binding<Bool>) {
         self.name = name
         self.config = config
         self.onSave = onSave
@@ -829,7 +829,7 @@ struct JSONEditorSheet: View {
             return
         }
         do {
-            let newConfig = try JSONDecoder().decode(MaskoAnimationConfig.self, from: data)
+            let newConfig = try JSONDecoder().decode(PeachyAnimationConfig.self, from: data)
             onSave(newConfig)
             parseError = nil
             saved = true

@@ -16,7 +16,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
     func requestPermission() async {
         guard hasBundle else {
-            print("[masko-desktop] No app bundle — notifications disabled (use Xcode or .app build)")
+            print("[peachy-code] No app bundle — notifications disabled (use Xcode or .app build)")
             return
         }
         let center = UNUserNotificationCenter.current()

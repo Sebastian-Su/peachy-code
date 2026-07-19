@@ -1,10 +1,10 @@
 import Foundation
 
-/// JSON file persistence for ~/Library/Application Support/masko-desktop/
+/// JSON file persistence for ~/Library/Application Support/peachy-code/
 enum LocalStorage {
     static let appSupportDir: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("masko-desktop", isDirectory: true)
+            .appendingPathComponent("peachy-code", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
@@ -15,7 +15,7 @@ enum LocalStorage {
             let data = try JSONEncoder().encode(value)
             try data.write(to: url, options: .atomic)
         } catch {
-            print("[masko-desktop] Failed to save \(filename): \(error)")
+            print("[peachy-code] Failed to save \(filename): \(error)")
         }
     }
 
@@ -25,7 +25,7 @@ enum LocalStorage {
         do {
             return try JSONDecoder().decode(type, from: data)
         } catch {
-            print("[masko-desktop] Failed to load \(filename): \(error)")
+            print("[peachy-code] Failed to load \(filename): \(error)")
             return nil
         }
     }

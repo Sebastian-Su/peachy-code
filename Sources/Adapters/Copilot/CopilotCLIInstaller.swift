@@ -1,16 +1,16 @@
 import Foundation
 
 /// Manages GitHub Copilot CLI plugin registration.
-/// Installs a plugin that forwards Copilot hook events to Masko's local server.
+/// Installs a plugin that forwards Copilot hook events to Peachy's local server.
 enum CopilotCLIInstaller {
 
     // MARK: - Constants
 
-    private static let pluginDir = NSHomeDirectory() + "/.masko-desktop/copilot-plugin"
-    private static let installedPluginsDir = NSHomeDirectory() + "/.copilot/installed-plugins/local/masko-copilot"
+    private static let pluginDir = NSHomeDirectory() + "/.peachy-code/copilot-plugin"
+    private static let installedPluginsDir = NSHomeDirectory() + "/.copilot/installed-plugins/local/peachy-copilot"
     private static let directPluginsDir = NSHomeDirectory() + "/.copilot/installed-plugins/_direct/copilot-plugin"
-    private static let copilotHookScript = NSHomeDirectory() + "/.masko-desktop/hooks/copilot-hook.sh"
-    private static let copilotHookCommand = "~/.masko-desktop/hooks/copilot-hook.sh"
+    private static let copilotHookScript = NSHomeDirectory() + "/.peachy-code/hooks/copilot-hook.sh"
+    private static let copilotHookCommand = "~/.peachy-code/hooks/copilot-hook.sh"
 
     /// Copilot CLI hook events (subset of Claude Code events that Copilot supports)
     private static let hookEvents = [
@@ -57,10 +57,10 @@ enum CopilotCLIInstaller {
 
         // Write plugin.json
         let pluginManifest: [String: Any] = [
-            "name": "masko-copilot",
-            "description": "Masko Code companion for GitHub Copilot CLI",
+            "name": "peachy-copilot",
+            "description": "Peachy Code companion for GitHub Copilot CLI",
             "version": "1.0.0",
-            "author": ["name": "Masko"],
+            "author": ["name": "Peachy"],
             "license": "MIT",
             "hooks": "hooks.json",
         ]
@@ -111,7 +111,7 @@ enum CopilotCLIInstaller {
     static func uninstall() {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-c", "copilot plugin uninstall masko-copilot"]
+        process.arguments = ["-c", "copilot plugin uninstall peachy-copilot"]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()
@@ -141,13 +141,13 @@ enum CopilotCLIInstaller {
         let script = """
         #!/bin/bash
         \(copilotScriptVersion)
-        # copilot-hook.sh - Translates Copilot CLI hook events for Masko
+        # copilot-hook.sh - Translates Copilot CLI hook events for Peachy
         # Copilot CLI uses camelCase fields and doesn't include hook_event_name,
         # so we inject the event type (passed as $1) and remap field names.
         EVENT_TYPE="$1"
         INPUT=$(cat 2>/dev/null || echo '{}')
 
-        # Exit early if Masko server isn't running
+        # Exit early if Peachy server isn't running
         curl -s --connect-timeout 0.3 "http://localhost:\(port)/health" >/dev/null 2>&1 || exit 0
 
         # Inject hook_event_name, source tag, and translate camelCase to snake_case

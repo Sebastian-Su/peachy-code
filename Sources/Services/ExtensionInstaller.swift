@@ -132,7 +132,7 @@ enum ExtensionInstaller {
                 try install()
                 UserDefaults.standard.set(bundledVersion, forKey: "ideExtensionVersion")
             } catch {
-                print("[masko-desktop] Extension upgrade failed: \(error)")
+                print("[peachy-code] Extension upgrade failed: \(error)")
             }
         }
     }
@@ -374,7 +374,7 @@ enum ExtensionInstaller {
             return path
         }
         // Development fallback
-        return NSHomeDirectory() + "/.masko-desktop/extensions/masko-terminal-focus.vsix"
+        return NSHomeDirectory() + "/.peachy-code/extensions/masko-terminal-focus.vsix"
     }
 
     private static func ideName(for command: String) -> String {
@@ -428,7 +428,7 @@ enum ExtensionInstaller {
         return map[bundleId]
     }
 
-    /// Check if the Masko plugin is installed in a JetBrains IDE
+    /// Check if the Peachy plugin is installed in a JetBrains IDE
     private static func jetbrainsPluginInstalled(bundleId: String) -> Bool {
         guard let pluginsDir = jetbrainsPluginsDir(bundleId: bundleId) else { return false }
         let pluginDir = (pluginsDir as NSString).appendingPathComponent("masko-terminal-focus")
@@ -495,7 +495,7 @@ enum ExtensionInstaller {
         if let path = Bundle.main.path(forResource: "masko-terminal-focus-jetbrains", ofType: "zip") {
             return path
         }
-        return NSHomeDirectory() + "/.masko-desktop/extensions/masko-terminal-focus-jetbrains.zip"
+        return NSHomeDirectory() + "/.peachy-code/extensions/masko-terminal-focus-jetbrains.zip"
     }
 
     enum ExtensionError: LocalizedError {

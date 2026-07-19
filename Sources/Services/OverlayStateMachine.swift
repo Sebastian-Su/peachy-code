@@ -22,7 +22,7 @@ final class OverlayStateMachine {
     private(set) var isLoopVideo = true
     private(set) var currentPlaybackRate: Float = 1.0
 
-    let config: MaskoAnimationConfig
+    let config: PeachyAnimationConfig
 
     // MARK: - Inputs
 
@@ -61,7 +61,7 @@ final class OverlayStateMachine {
 
     // MARK: - Private state
 
-    private var pendingEdge: MaskoAnimationEdge?
+    private var pendingEdge: PeachyAnimationEdge?
     private var loopCount = 0
     private var nodeArrivalTime: Date?
     private var nodeTimeTimer: Timer?
@@ -71,11 +71,11 @@ final class OverlayStateMachine {
     private var pendingTarget: String?
 
     /// Any State edges (source == "*"), pre-sorted by priority descending
-    private let anyStateEdges: [MaskoAnimationEdge]
+    private let anyStateEdges: [PeachyAnimationEdge]
 
     // MARK: - Init
 
-    init(config: MaskoAnimationConfig) {
+    init(config: PeachyAnimationConfig) {
         self.config = config
         self.currentNodeId = config.initialNode
         self.anyStateEdges = config.edges
@@ -135,12 +135,12 @@ final class OverlayStateMachine {
 
     /// Start the state machine: play the initial node's loop video
     func start() {
-        print("[masko-desktop] State machine starting — initial node: \(currentNodeName) (\(currentNodeId))")
-        print("[masko-desktop]   Config: \(config.nodes.count) nodes, \(config.edges.count) edges")
+        print("[peachy-code] State machine starting — initial node: \(currentNodeName) (\(currentNodeId))")
+        print("[peachy-code]   Config: \(config.nodes.count) nodes, \(config.edges.count) edges")
 
         let conditionlessCount = config.edges.filter { !$0.isLoop && ($0.conditions == nil || $0.conditions!.isEmpty) }.count
         if conditionlessCount > 0 {
-            print("[masko-desktop] WARNING: \(conditionlessCount) transition edges have NO CONDITIONS")
+            print("[peachy-code] WARNING: \(conditionlessCount) transition edges have NO CONDITIONS")
         }
 
         // Preload audio files
@@ -167,7 +167,7 @@ final class OverlayStateMachine {
             lastInputTime = Date()
         }
 
-        print("[masko-desktop] Input: \(name) = \(conditionValueStr(value))")
+        print("[peachy-code] Input: \(name) = \(conditionValueStr(value))")
 
         evaluateAndFire(changedInput: name)
     }
@@ -194,7 +194,7 @@ final class OverlayStateMachine {
         guard phase == .transitioning, let edge = pendingEdge else { return }
 
         let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
-        print("[masko-desktop] Transition video ended — arriving at \(targetName)")
+        print("[peachy-code] Transition video ended — arriving at \(targetName)")
 
         pendingEdge = nil
         arriveAtNode(edge.target)
@@ -214,7 +214,7 @@ final class OverlayStateMachine {
                     if pendingTarget == nil || best.target != pendingTarget {
                         pendingTarget = best.target
                         let targetName = config.nodes.first(where: { $0.id == best.target })?.name ?? best.target
-                        print("[masko-desktop] Mid-transition: updated pendingTarget to \(targetName)")
+                        print("[peachy-code] Mid-transition: updated pendingTarget to \(targetName)")
                     }
                 }
             }
@@ -253,11 +253,11 @@ final class OverlayStateMachine {
             if let best = bestAnyState, best.target != pendingTarget {
                 // Higher-priority state overrides
                 let targetName = config.nodes.first(where: { $0.id == best.target })?.name ?? best.target
-                print("[masko-desktop] pendingTarget overridden by higher-priority → \(targetName)")
+                print("[peachy-code] pendingTarget overridden by higher-priority → \(targetName)")
                 pendingTarget = best.target
             } else if bestAnyState == nil {
                 // No Any State matches - conditions cleared
-                print("[masko-desktop] pendingTarget cleared (no matching Any State)")
+                print("[peachy-code] pendingTarget cleared (no matching Any State)")
                 pendingTarget = nil
             }
         }
@@ -269,7 +269,7 @@ final class OverlayStateMachine {
             let targetName = config.nodes.first(where: { $0.id == target })?.name ?? target
             // Try direct edge to target
             if let directEdge = findEdgeWithVideo(from: currentNodeId, to: target) {
-                print("[masko-desktop] pendingTarget: direct edge → \(targetName)")
+                print("[peachy-code] pendingTarget: direct edge → \(targetName)")
                 pendingTarget = nil
                 resetTriggerInput(changedInput)
                 playTransition(directEdge)
@@ -280,13 +280,13 @@ final class OverlayStateMachine {
                 $0.source == currentNodeId && !$0.isLoop && $0.videos.hevc != nil
             }) {
                 let retTargetName = config.nodes.first(where: { $0.id == returnEdge.target })?.name ?? returnEdge.target
-                print("[masko-desktop] pendingTarget: routing via \(retTargetName) → \(targetName)")
+                print("[peachy-code] pendingTarget: routing via \(retTargetName) → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(returnEdge)
                 return
             }
             // No path found
-            print("[masko-desktop] pendingTarget: no path to \(targetName) - giving up")
+            print("[peachy-code] pendingTarget: no path to \(targetName) - giving up")
             pendingTarget = nil
         }
 
@@ -298,7 +298,7 @@ final class OverlayStateMachine {
             // Try direct edge with video
             if let directEdge = findEdgeWithVideo(from: currentNodeId, to: best.target) {
                 lastMatchResult = "Any State → \(targetName) (direct)"
-                print("[masko-desktop] Any State: direct → \(targetName)")
+                print("[peachy-code] Any State: direct → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(directEdge)
                 return
@@ -310,7 +310,7 @@ final class OverlayStateMachine {
             }) {
                 let retTargetName = config.nodes.first(where: { $0.id == returnEdge.target })?.name ?? returnEdge.target
                 lastMatchResult = "Any State → \(targetName) via \(retTargetName)"
-                print("[masko-desktop] Any State: routing via \(retTargetName) → \(targetName)")
+                print("[peachy-code] Any State: routing via \(retTargetName) → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(returnEdge)
                 return
@@ -325,7 +325,7 @@ final class OverlayStateMachine {
             if evaluateConditions(edge.conditions) {
                 let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
                 lastMatchResult = "Matched → \(targetName)"
-                print("[masko-desktop] Conditions met → \(targetName)")
+                print("[peachy-code] Conditions met → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(edge)
                 return
@@ -336,7 +336,7 @@ final class OverlayStateMachine {
     }
 
     /// Find the highest-priority Any State edge whose conditions match (regardless of current node)
-    private func findBestAnyStateMatch() -> MaskoAnimationEdge? {
+    private func findBestAnyStateMatch() -> PeachyAnimationEdge? {
         for edge in anyStateEdges {
             if evaluateConditions(edge.conditions) {
                 return edge
@@ -346,14 +346,14 @@ final class OverlayStateMachine {
     }
 
     /// Find a non-loop edge from source to target that has a video
-    private func findEdgeWithVideo(from source: String, to target: String) -> MaskoAnimationEdge? {
+    private func findEdgeWithVideo(from source: String, to target: String) -> PeachyAnimationEdge? {
         config.edges.first {
             $0.source == source && $0.target == target && !$0.isLoop && $0.videos.hevc != nil
         }
     }
 
     /// All conditions must be true (AND logic). Empty conditions = never fires.
-    private func evaluateConditions(_ conditions: [MaskoAnimationCondition]?) -> Bool {
+    private func evaluateConditions(_ conditions: [PeachyAnimationCondition]?) -> Bool {
         guard let conditions, !conditions.isEmpty else { return false }
         return conditions.allSatisfy { condition in
             guard let inputValue = inputs[condition.input] else { return false }
@@ -427,7 +427,7 @@ final class OverlayStateMachine {
             currentPlaybackRate = playbackRate(for: loopEdge, videoURL: resolved)
             isLoopVideo = true
             phase = .looping
-            print("[masko-desktop] Arrived at \(nodeName) — looping")
+            print("[peachy-code] Arrived at \(nodeName) — looping")
 
             // Play loop sound if present (e.g. permission alert loop)
             if let sound = loopEdge.sound {
@@ -435,11 +435,11 @@ final class OverlayStateMachine {
             }
         } else {
             phase = .idle
-            print("[masko-desktop] Arrived at \(nodeName) — idle (no loop video)")
+            print("[peachy-code] Arrived at \(nodeName) — idle (no loop video)")
         }
 
         if !availableEdges.isEmpty {
-            print("[masko-desktop]   Edges: \(availableEdges.joined(separator: ", "))")
+            print("[peachy-code]   Edges: \(availableEdges.joined(separator: ", "))")
         }
 
         // Start nodeTime timer if any edge uses it
@@ -484,18 +484,18 @@ final class OverlayStateMachine {
 
     // MARK: - Transition Playback
 
-    private func playTransition(_ edge: MaskoAnimationEdge) {
+    private func playTransition(_ edge: PeachyAnimationEdge) {
         guard phase == .looping || phase == .idle else { return }
         guard let hevc = edge.videos.hevc, let url = URL(string: hevc) else {
             let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
-            print("[masko-desktop] No transition video — jumping directly to \(targetName)")
+            print("[peachy-code] No transition video — jumping directly to \(targetName)")
             arriveAtNode(edge.target)
             return
         }
 
         let sourceName = config.nodes.first(where: { $0.id == edge.source })?.name ?? edge.source
         let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
-        print("[masko-desktop] Playing transition: \(sourceName) → \(targetName)")
+        print("[peachy-code] Playing transition: \(sourceName) → \(targetName)")
 
         cancelNodeTimeTimer()
 
@@ -530,7 +530,7 @@ final class OverlayStateMachine {
 
     /// Compute playback rate for an edge.
     /// If `speed` is explicitly set, use it. Otherwise, derive rate from video duration / edge duration.
-    private func playbackRate(for edge: MaskoAnimationEdge, videoURL: URL) -> Float {
+    private func playbackRate(for edge: PeachyAnimationEdge, videoURL: URL) -> Float {
         if let speed = edge.speed { return Float(speed) }
         let asset = AVAsset(url: videoURL)
         let videoDuration = CMTimeGetSeconds(asset.duration)

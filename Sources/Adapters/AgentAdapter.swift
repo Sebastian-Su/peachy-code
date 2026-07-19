@@ -27,7 +27,7 @@ protocol AgentAdapter: AnyObject {
     /// Stop receiving events
     func stop()
 
-    // MARK: - Callbacks (set by MaskoEventBus)
+    // MARK: - Callbacks (set by PeachyEventBus)
 
     /// Called when a non-blocking event is received
     var onEvent: ((AgentEvent) -> Void)? { get set }

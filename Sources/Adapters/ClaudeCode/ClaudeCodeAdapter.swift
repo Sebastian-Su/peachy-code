@@ -13,7 +13,7 @@ final class ClaudeCodeAdapter: AgentAdapter {
     var onEvent: ((AgentEvent) -> Void)?
     var onPermissionRequest: ((AgentEvent, ResponseTransport) -> Void)?
     var onInput: ((String, ConditionValue) -> Void)?
-    var onInstall: ((MaskoAnimationConfig) -> Void)?
+    var onInstall: ((PeachyAnimationConfig) -> Void)?
 
     func isAvailable() -> Bool {
         let paths = ["/usr/local/bin/claude", "/opt/homebrew/bin/claude"]

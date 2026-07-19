@@ -9,7 +9,7 @@ struct ContentView: View {
         case notifications = "Notifications"
         case sessions = "Sessions"
         case approvals = "Approvals"
-        case masko = "Masko"
+        case peachy = "Peachy"
         case settings = "Settings"
 
         var icon: String {
@@ -18,7 +18,7 @@ struct ContentView: View {
             case .notifications: "bell"
             case .sessions: "terminal"
             case .approvals: "hand.raised"
-            case .masko: "wand.and.stars"
+            case .peachy: "wand.and.stars"
             case .settings: "gear"
             }
         }
@@ -48,7 +48,7 @@ struct ContentView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 24, height: 24)
                     }
-                    Text("Masko Code")
+                    Text("Peachy Code")
                         .font(Constants.heading(size: 16, weight: .bold))
                         .foregroundColor(Constants.textPrimary)
                 }
@@ -79,14 +79,14 @@ struct ContentView: View {
             case .notifications: NotificationCenterView()
             case .sessions: SessionListView()
             case .approvals: ApprovalRequestView()
-            case .masko: MaskoDashboardView()
+            case .peachy: PeachyDashboardView()
             case .settings: SettingsView()
             }
         }
         .background(Constants.lightBackground)
         .onChange(of: appStore.navigateToMascotId) { _, newId in
             if newId != nil {
-                selectedSection = .masko
+                selectedSection = .peachy
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openConnectionDoctor)) { _ in

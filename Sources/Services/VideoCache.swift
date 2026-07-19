@@ -9,7 +9,7 @@ final class VideoCache: Sendable {
 
     private init() {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDir = base.appendingPathComponent("masko-desktop/videos", isDirectory: true)
+        cacheDir = base.appendingPathComponent("peachy-code/videos", isDirectory: true)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
     }
 
@@ -46,7 +46,7 @@ final class VideoCache: Sendable {
             }
         }
         if evicted > 0 {
-            print("[masko-desktop] VideoCache: evicted \(evicted) stale file(s)")
+            print("[peachy-code] VideoCache: evicted \(evicted) stale file(s)")
         }
     }
 
@@ -60,16 +60,16 @@ final class VideoCache: Sendable {
     }
 
     /// Download all HEVC videos from config in parallel. Non-blocking — fire and forget.
-    func preload(config: MaskoAnimationConfig) async {
+    func preload(config: PeachyAnimationConfig) async {
         let urls = Set(config.edges.compactMap { $0.videos.hevc }.compactMap { URL(string: $0) })
         let uncached = urls.filter { !FileManager.default.fileExists(atPath: cacheDir.appendingPathComponent($0.lastPathComponent).path) }
 
         guard !uncached.isEmpty else {
-            print("[masko-desktop] VideoCache: all \(urls.count) videos already cached")
+            print("[peachy-code] VideoCache: all \(urls.count) videos already cached")
             return
         }
 
-        print("[masko-desktop] VideoCache: downloading \(uncached.count)/\(urls.count) videos...")
+        print("[peachy-code] VideoCache: downloading \(uncached.count)/\(urls.count) videos...")
 
         await withTaskGroup(of: Void.self) { group in
             for url in uncached {
@@ -79,14 +79,14 @@ final class VideoCache: Sendable {
                         let dest = cacheDir.appendingPathComponent(url.lastPathComponent)
                         try? FileManager.default.removeItem(at: dest)
                         try FileManager.default.moveItem(at: tempFile, to: dest)
-                        print("[masko-desktop] VideoCache: cached \(url.lastPathComponent)")
+                        print("[peachy-code] VideoCache: cached \(url.lastPathComponent)")
                     } catch {
-                        print("[masko-desktop] VideoCache: failed \(url.lastPathComponent) — \(error.localizedDescription)")
+                        print("[peachy-code] VideoCache: failed \(url.lastPathComponent) — \(error.localizedDescription)")
                     }
                 }
             }
         }
 
-        print("[masko-desktop] VideoCache: preload complete")
+        print("[peachy-code] VideoCache: preload complete")
     }
 }

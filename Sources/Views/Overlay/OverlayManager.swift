@@ -22,7 +22,7 @@ final class OverlayManager {
     private static let defaultInset: CGFloat = 40
     private(set) var isOverlayActive = false
     private(set) var currentURL: URL?
-    private(set) var currentConfig: MaskoAnimationConfig?
+    private(set) var currentConfig: PeachyAnimationConfig?
     private(set) var currentStateMachine: OverlayStateMachine?
     private var panel: OverlayPanel?           // Mascot video — fixed size
     private var statsPanel: OverlayPanel?      // Stats/debug — fixed directly above mascot
@@ -38,7 +38,7 @@ final class OverlayManager {
         UserDefaults.standard.bool(forKey: Self.hasActivatedMascotKey)
     }
 
-    static func startupMascotConfig(from mascots: [SavedMascot]) -> MaskoAnimationConfig? {
+    static func startupMascotConfig(from mascots: [SavedMascot]) -> PeachyAnimationConfig? {
         if let clippy = mascots.first(where: { $0.templateSlug == "clippy" }) {
             return clippy.config
         }
@@ -52,7 +52,7 @@ final class OverlayManager {
     private(set) var isSnoozed = false
     private(set) var snoozeEndDate: Date?
     private var snoozeTimer: Timer?
-    private var snoozedConfig: MaskoAnimationConfig?
+    private var snoozedConfig: PeachyAnimationConfig?
 
     // Context menu panel
     private var contextPanel: ContextMenuPanel?
@@ -146,7 +146,7 @@ final class OverlayManager {
         // Move into a system-level Space that doesn't participate in Space swipe animations
         SkyLightOperator.shared.delegateWindow(newPanel)
 
-        print("[masko-desktop] Overlay panel shown at \(rect), level=\(newPanel.level.rawValue)")
+        print("[peachy-code] Overlay panel shown at \(rect), level=\(newPanel.level.rawValue)")
 
         self.panel = newPanel
         self.currentURL = url
@@ -165,7 +165,7 @@ final class OverlayManager {
 
     /// Show overlay using a canvas config with a full state machine.
     /// Creates two panels: mascot (fixed) + HUD (child, above).
-    func showOverlayWithConfig(_ config: MaskoAnimationConfig) {
+    func showOverlayWithConfig(_ config: PeachyAnimationConfig) {
         guard isOverlayEnabled else { return }
         // Cancel any active snooze
         cancelSnooze()
@@ -301,7 +301,7 @@ final class OverlayManager {
         SkyLightOperator.shared.delegateWindow(newPermPanel)
         mascotPanel.addChildWindow(newPermPanel, ordered: .above)
 
-        print("[masko-desktop] State machine overlay: mascot=\(mascotRect), stats+perm panels")
+        print("[peachy-code] State machine overlay: mascot=\(mascotRect), stats+perm panels")
 
         self.panel = mascotPanel
         self.statsPanel = newStatsPanel
@@ -425,7 +425,7 @@ final class OverlayManager {
                 self.panel?.orderOut(nil)
                 self.statsPanel?.orderOut(nil)
                 self.permissionPanel?.orderOut(nil)
-                print("[masko-desktop] Auto-hidden (no active sessions)")
+                print("[peachy-code] Auto-hidden (no active sessions)")
             }
         }
     }
@@ -453,7 +453,7 @@ final class OverlayManager {
             self.permissionPanel?.animator().alphaValue = 1.0
         }
 
-        print("[masko-desktop] Auto-shown (session detected)")
+        print("[peachy-code] Auto-shown (session detected)")
     }
 
     /// Compute aggregate session state and push inputs to the state machine.
@@ -769,7 +769,7 @@ final class OverlayManager {
             if endDate > Date() {
                 // Still snoozed — restore config but stay hidden
                 if let configData = UserDefaults.standard.data(forKey: "overlay_config"),
-                   let config = try? JSONDecoder().decode(MaskoAnimationConfig.self, from: configData) {
+                   let config = try? JSONDecoder().decode(PeachyAnimationConfig.self, from: configData) {
                     snoozedConfig = config
                     snoozeEndDate = endDate
                     isSnoozed = true
@@ -793,7 +793,7 @@ final class OverlayManager {
 
         // Config-based overlay (state machine) takes priority
         if let configData = UserDefaults.standard.data(forKey: "overlay_config"),
-           let config = try? JSONDecoder().decode(MaskoAnimationConfig.self, from: configData) {
+           let config = try? JSONDecoder().decode(PeachyAnimationConfig.self, from: configData) {
             showOverlayWithConfig(config)
             // Start auto-hide timer if no sessions active on launch
             updateAutoHideState(isWorking: sessionStore.activeSessions.contains { $0.phase == .running || $0.phase == .compacting })
@@ -993,7 +993,7 @@ final class OverlayManager {
         hotkeyManager.activeCard = .expandedPermission
 
         self.expandedPanel = newPanel
-        print("[masko-desktop] Expanded permission panel shown")
+        print("[peachy-code] Expanded permission panel shown")
     }
 
     func dismissExpandedPermission() {
@@ -1337,7 +1337,7 @@ final class OverlayManager {
         mascotPanel.setFrame(repaired, display: true, animate: false)
         savePosition()
         scheduleHUDReposition()
-        print("[masko-desktop] Repaired mascot frame from \(frame) to \(repaired)")
+        print("[peachy-code] Repaired mascot frame from \(frame) to \(repaired)")
     }
 
     static func startingMascotRect(savedX: Double, savedY: Double, sidePixels: Int, screenFrame: NSRect) -> NSRect {

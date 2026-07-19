@@ -29,7 +29,7 @@ final class EdgeAudioService {
         // Download async then play
         Task {
             guard let localURL = await resolveAudio(sound.url) else {
-                print("[masko-desktop] Audio: failed to resolve \(sound.url)")
+                print("[peachy-code] Audio: failed to resolve \(sound.url)")
                 return
             }
             playLocal(localURL, loop: shouldLoop, volume: volume, label: sound.url)
@@ -49,9 +49,9 @@ final class EdgeAudioService {
             let playing = newPlayer.play()
 
             let mode = loop ? "looping" : "one-shot"
-            if !playing { print("[masko-desktop] Audio: play failed for \(url.lastPathComponent)") }
+            if !playing { print("[peachy-code] Audio: play failed for \(url.lastPathComponent)") }
         } catch {
-            print("[masko-desktop] Audio: playback error - \(error.localizedDescription)")
+            print("[peachy-code] Audio: playback error - \(error.localizedDescription)")
         }
     }
 
@@ -72,18 +72,18 @@ final class EdgeAudioService {
     }
 
     /// Preload audio files from a config so they're cached when needed
-    func preload(_ config: MaskoAnimationConfig) {
+    func preload(_ config: PeachyAnimationConfig) {
         let urls = config.edges.compactMap { $0.sound?.url }
         let unique = Set(urls)
-        print("[masko-desktop] Audio: preloading \(unique.count) sound(s) from \(config.edges.count) edges")
+        print("[peachy-code] Audio: preloading \(unique.count) sound(s) from \(config.edges.count) edges")
         guard !unique.isEmpty else {
-            print("[masko-desktop] Audio: no sounds to preload")
+            print("[peachy-code] Audio: no sounds to preload")
             return
         }
         Task {
             for urlString in unique {
                 let result = await resolveAudio(urlString)
-                if result == nil { print("[masko-desktop] Audio: failed to preload \(urlString)") }
+                if result == nil { print("[peachy-code] Audio: failed to preload \(urlString)") }
             }
         }
     }
@@ -113,7 +113,7 @@ final class EdgeAudioService {
         // Download to temp cache
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("masko-audio")
+            let cacheDir = FileManager.default.temporaryDirectory.appendingPathComponent("peachy-audio")
             try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
             let ext = url.pathExtension.isEmpty ? "mp3" : url.pathExtension
@@ -122,10 +122,10 @@ final class EdgeAudioService {
 
             try data.write(to: localURL)
             downloadCache[urlString] = localURL
-            print("[masko-desktop] Audio: cached \(filename)")
+            print("[peachy-code] Audio: cached \(filename)")
             return localURL
         } catch {
-            print("[masko-desktop] Audio: download failed — \(error.localizedDescription)")
+            print("[peachy-code] Audio: download failed — \(error.localizedDescription)")
             return nil
         }
     }

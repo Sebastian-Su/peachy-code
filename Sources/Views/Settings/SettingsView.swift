@@ -376,7 +376,7 @@ struct SettingsView: View {
                             .font(.caption)
                     }
                 }
-                Link(destination: URL(string: Constants.maskoBaseURL + "/community")!) {
+                Link(destination: URL(string: Constants.peachyBaseURL + "/community")!) {
                     HStack {
                         Image(systemName: "sparkles")
                             .foregroundColor(Constants.orangePrimary)
@@ -397,7 +397,7 @@ struct SettingsView: View {
                 Button(action: { showUninstallConfirm = true }) {
                     HStack {
                         Image(systemName: "trash")
-                        Text("Uninstall Masko")
+                        Text("Uninstall Peachy")
                     }
                     .foregroundColor(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                 }
@@ -445,7 +445,7 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openConnectionDoctor)) { _ in
             showConnectionDoctor = true
         }
-        .alert("Uninstall Masko?", isPresented: $showUninstallConfirm) {
+        .alert("Uninstall Peachy?", isPresented: $showUninstallConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Uninstall", role: .destructive) { performUninstall() }
         } message: {
@@ -572,19 +572,19 @@ struct SettingsView: View {
         // 1.5. Remove IDE extension
         ExtensionInstaller.uninstall()
 
-        // 2. Delete ~/.masko-desktop/ (hook script)
-        let maskoDesktopDir = NSHomeDirectory() + "/.masko-desktop"
-        try? fm.removeItem(atPath: maskoDesktopDir)
+        // 2. Delete ~/.peachy-code/ (hook script)
+        let peachyDataDir = NSHomeDirectory() + "/.peachy-code"
+        try? fm.removeItem(atPath: peachyDataDir)
 
-        // 3. Delete ~/Library/Application Support/masko-desktop/
+        // 3. Delete ~/Library/Application Support/peachy-code/
         try? fm.removeItem(at: LocalStorage.appSupportDir)
 
-        // 4. Delete ~/Library/Caches/masko-desktop/
+        // 4. Delete ~/Library/Caches/peachy-code/
         let cacheDir = VideoCache.shared.cacheDir.deletingLastPathComponent()
         try? fm.removeItem(at: cacheDir)
 
         // 5. Clear UserDefaults — all known bundle IDs (debug + release)
-        for domain in ["com.masko.desktop", "masko-code"] {
+        for domain in ["com.peachy.code", "masko-code"] {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }
         if let bundleId = Bundle.main.bundleIdentifier {
@@ -593,7 +593,7 @@ struct SettingsView: View {
         UserDefaults.standard.synchronize()
 
         // 5.5. Delete preference plist files explicitly (macOS caches them)
-        for plist in ["com.masko.desktop.plist", "masko-code.plist", "masko-desktop.plist"] {
+        for plist in ["com.peachy.code.plist", "masko-code.plist", "peachy-code.plist"] {
             let path = NSHomeDirectory() + "/Library/Preferences/" + plist
             try? fm.removeItem(atPath: path)
         }

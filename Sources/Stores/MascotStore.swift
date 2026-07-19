@@ -3,7 +3,7 @@ import Foundation
 struct SavedMascot: Identifiable, Codable {
     let id: UUID
     let name: String
-    var config: MaskoAnimationConfig
+    var config: PeachyAnimationConfig
     let addedAt: Date
     var templateSlug: String?
 }
@@ -29,7 +29,7 @@ final class MascotStore {
         PresetInfo(slug: "madame-patate", filename: "madame-patate"),
         PresetInfo(slug: "otto", filename: "otto"),
         PresetInfo(slug: "cupidon", filename: "cupidon"),
-        PresetInfo(slug: "masko", filename: "masko"),
+        PresetInfo(slug: "peachy", filename: "peachy"),
         PresetInfo(slug: "rusty", filename: "rusty"),
         PresetInfo(slug: "nugget", filename: "nugget"),
         PresetInfo(slug: "clippy", filename: "clippy"),
@@ -71,13 +71,13 @@ final class MascotStore {
         }
     }
 
-    static func fetchRemoteConfig(slug: String, token: String? = nil) async -> MaskoAnimationConfig? {
-        var urlString = "\(Constants.maskoBaseURL)/api/mascot-templates/\(slug)"
+    static func fetchRemoteConfig(slug: String, token: String? = nil) async -> PeachyAnimationConfig? {
+        var urlString = "\(Constants.peachyBaseURL)/api/mascot-templates/\(slug)"
         if let token { urlString += "?token=\(token)" }
         guard let url = URL(string: urlString) else { return nil }
         guard let (data, response) = try? await URLSession.shared.data(from: url),
               (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return try? JSONDecoder().decode(MaskoAnimationConfig.self, from: data)
+        return try? JSONDecoder().decode(PeachyAnimationConfig.self, from: data)
     }
 
     /// Re-apply bundled configs when the seed version is bumped (e.g. condition fixes).
@@ -103,10 +103,10 @@ final class MascotStore {
         UserDefaults.standard.set(Self.seedVersion, forKey: "defaultMascotSeedVersion")
     }
 
-    static func loadBundledConfig(named filename: String) -> MaskoAnimationConfig? {
+    static func loadBundledConfig(named filename: String) -> PeachyAnimationConfig? {
         guard let url = Bundle.module.url(forResource: filename, withExtension: "json", subdirectory: "Defaults"),
               let data = try? Data(contentsOf: url),
-              let config = try? JSONDecoder().decode(MaskoAnimationConfig.self, from: data) else { return nil }
+              let config = try? JSONDecoder().decode(PeachyAnimationConfig.self, from: data) else { return nil }
         return config
     }
 
@@ -137,7 +137,7 @@ final class MascotStore {
         }
     }
 
-    private func addFromPreset(config: MaskoAnimationConfig, slug: String) {
+    private func addFromPreset(config: PeachyAnimationConfig, slug: String) {
         let mascot = SavedMascot(
             id: UUID(),
             name: config.name,
@@ -151,7 +151,7 @@ final class MascotStore {
 
     /// Add or update a mascot pushed directly from the web app.
     /// Updates existing mascot with the same name, or creates a new one.
-    func addOrUpdateFromPush(config: MaskoAnimationConfig) {
+    func addOrUpdateFromPush(config: PeachyAnimationConfig) {
         // Remove existing with same name so we can re-insert at top with fresh config
         mascots.removeAll { $0.name == config.name }
         let mascot = SavedMascot(
@@ -168,7 +168,7 @@ final class MascotStore {
     // MARK: - Community
 
     /// Add a mascot installed from the community marketplace.
-    func addFromCommunity(config: MaskoAnimationConfig, slug: String) {
+    func addFromCommunity(config: PeachyAnimationConfig, slug: String) {
         guard !mascots.contains(where: { $0.templateSlug == slug }) else { return }
         let mascot = SavedMascot(
             id: UUID(),
@@ -183,7 +183,7 @@ final class MascotStore {
 
     // MARK: - General Management
 
-    func add(config: MaskoAnimationConfig) {
+    func add(config: PeachyAnimationConfig) {
         let mascot = SavedMascot(
             id: UUID(),
             name: config.name,
@@ -200,13 +200,13 @@ final class MascotStore {
         persist()
     }
 
-    func updateConfig(mascotId: UUID, config: MaskoAnimationConfig) {
+    func updateConfig(mascotId: UUID, config: PeachyAnimationConfig) {
         guard let idx = mascots.firstIndex(where: { $0.id == mascotId }) else { return }
         mascots[idx].config = config
         persist()
     }
 
-    func updateEdgeConditions(mascotId: UUID, edgeId: String, conditions: [MaskoAnimationCondition]?) {
+    func updateEdgeConditions(mascotId: UUID, edgeId: String, conditions: [PeachyAnimationCondition]?) {
         guard let idx = mascots.firstIndex(where: { $0.id == mascotId }) else { return }
         guard let edgeIdx = mascots[idx].config.edges.firstIndex(where: { $0.id == edgeId }) else { return }
         mascots[idx].config.edges[edgeIdx].conditions = conditions

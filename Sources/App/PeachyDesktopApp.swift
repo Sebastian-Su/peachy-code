@@ -129,7 +129,7 @@ final class AppUpdater {
 }
 
 @main
-struct MaskoDesktopApp: App {
+struct PeachyDesktopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var appStore = AppStore()
     @State private var overlayManager = OverlayManager()
@@ -191,7 +191,7 @@ struct MaskoDesktopApp: App {
                     }
                 }
                 .onOpenURL { url in
-                    handleMaskoURL(url)
+                    handlePeachyURL(url)
                 }
         }
         .defaultSize(width: 1000, height: 700)
@@ -232,9 +232,9 @@ struct MaskoDesktopApp: App {
         }
     }
 
-    /// Handle masko:// URL scheme (e.g. masko://install/my-mascot-slug)
-    private func handleMaskoURL(_ url: URL) {
-        guard url.scheme == "masko" else { return }
+    /// Handle peachy:// URL scheme (e.g. peachy://install/my-mascot-slug)
+    private func handlePeachyURL(_ url: URL) {
+        guard url.scheme == "peachy" else { return }
 
         switch url.host {
         case "install":

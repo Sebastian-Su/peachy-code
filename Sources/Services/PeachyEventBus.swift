@@ -3,7 +3,7 @@ import Foundation
 /// Central event dispatcher that owns all agent adapters.
 /// Routes events from any adapter through a unified pipeline.
 @Observable
-final class MaskoEventBus {
+final class PeachyEventBus {
     private(set) var adapters: [AgentAdapter] = []
 
     /// Called when any adapter produces a non-blocking event
@@ -32,7 +32,7 @@ final class MaskoEventBus {
             do {
                 try adapter.install()
             } catch {
-                print("[masko-desktop] Failed to install \(adapter.source.displayName) hooks: \(error)")
+                print("[peachy-code] Failed to install \(adapter.source.displayName) hooks: \(error)")
             }
         }
     }
@@ -43,7 +43,7 @@ final class MaskoEventBus {
             do {
                 try adapter.start()
             } catch {
-                print("[masko-desktop] Failed to start \(adapter.source.displayName) adapter: \(error)")
+                print("[peachy-code] Failed to start \(adapter.source.displayName) adapter: \(error)")
             }
         }
     }

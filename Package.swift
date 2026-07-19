@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "masko-code",
+    name: "peachy-code",
     platforms: [
         .macOS(.v14)
     ],
@@ -12,13 +12,13 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "masko-code",
+            name: "peachy-code",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "MarkdownUI", package: "swift-markdown-ui")
             ],
             path: "Sources",
-            exclude: ["masko-desktop.entitlements"],
+            exclude: ["peachy-code.entitlements"],
             resources: [
                 .copy("Resources/Fonts"),
                 .copy("Resources/Images"),
@@ -27,8 +27,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "masko-codeTests",
-            dependencies: ["masko-code"],
+            name: "peachy-codeTests",
+            dependencies: ["peachy-code"],
             path: "Tests"
         )
     ]

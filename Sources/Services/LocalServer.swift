@@ -13,7 +13,7 @@ final class LocalServer {
     /// Custom input endpoint: `POST /input {"name":"x","value":true}`
     var onInputReceived: ((String, ConditionValue) -> Void)?
     /// Install mascot endpoint: `POST /install {config JSON}`
-    var onInstallReceived: ((MaskoAnimationConfig) -> Void)?
+    var onInstallReceived: ((PeachyAnimationConfig) -> Void)?
 
     private var retryCount = 0
     private static let maxRetries = 3
@@ -49,7 +49,7 @@ final class LocalServer {
                         Constants.setServerPort(self.port)
                         try? HookInstaller.install()
                     }
-                    print("[masko-desktop] Server listening on port \(self.port)")
+                    print("[peachy-code] Server listening on port \(self.port)")
                 case .failed(let error):
                     self.isRunning = false
                     self.listener?.cancel()
@@ -78,19 +78,19 @@ final class LocalServer {
         guard !stopped else { return }
         let nextPort = port + 1
         if nextPort < Constants.defaultServerPort + Self.maxPortAttempts {
-            print("[masko-desktop] Port \(port) \(reason): \(error) - trying \(nextPort)...")
+            print("[peachy-code] Port \(port) \(reason): \(error) - trying \(nextPort)...")
             port = nextPort
             try? start()
         } else {
             // All ports exhausted, retry from default with backoff
             guard retryCount < Self.maxRetries else {
-                print("[masko-desktop] Server gave up after trying ports \(Constants.defaultServerPort)-\(port) x\(Self.maxRetries)")
+                print("[peachy-code] Server gave up after trying ports \(Constants.defaultServerPort)-\(port) x\(Self.maxRetries)")
                 return
             }
             retryCount += 1
             port = Constants.defaultServerPort
             let delay = min(Double(2 << retryCount), 30.0)
-            print("[masko-desktop] All ports busy - retry \(retryCount)/\(Self.maxRetries) in \(Int(delay))s...")
+            print("[peachy-code] All ports busy - retry \(retryCount)/\(Self.maxRetries) in \(Int(delay))s...")
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, !self.stopped else { return }
                 try? self.start()
@@ -188,7 +188,7 @@ final class LocalServer {
         if firstLine.contains("POST /hook") {
             let decoder = JSONDecoder()
             if let event = try? decoder.decode(AgentEvent.self, from: bodyData) {
-                print("[masko-desktop] Hook received: \(event.hookEventName)")
+                print("[peachy-code] Hook received: \(event.hookEventName)")
 
                 // PermissionRequest: hold connection open for user decision
                 if event.eventType == .permissionRequest, let handler = onPermissionRequest {
@@ -207,7 +207,7 @@ final class LocalServer {
                     self?.onEventReceived?(event)
                 }
             } else {
-                print("[masko-desktop] Hook received but failed to decode JSON")
+                print("[peachy-code] Hook received but failed to decode JSON")
             }
             sendResponse(connection: connection, status: "200 OK", body: "OK")
             return
@@ -229,7 +229,7 @@ final class LocalServer {
                     sendResponse(connection: connection, status: "400 Bad Request", body: "value must be bool or number")
                     return
                 }
-                print("[masko-desktop] Input received: \(name) = \(json["value"] ?? "nil")")
+                print("[peachy-code] Input received: \(name) = \(json["value"] ?? "nil")")
                 DispatchQueue.main.async { [weak self] in
                     self?.onInputReceived?(name, conditionValue)
                 }
@@ -243,8 +243,8 @@ final class LocalServer {
         // Route: POST /install — receive mascot config from masko.ai export modal
         if firstLine.contains("POST /install") {
             let decoder = JSONDecoder()
-            if let config = try? decoder.decode(MaskoAnimationConfig.self, from: bodyData) {
-                print("[masko-desktop] Install received: \(config.name)")
+            if let config = try? decoder.decode(PeachyAnimationConfig.self, from: bodyData) {
+                print("[peachy-code] Install received: \(config.name)")
                 DispatchQueue.main.async { [weak self] in
                     self?.onInstallReceived?(config)
                 }

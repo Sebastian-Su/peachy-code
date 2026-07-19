@@ -8,7 +8,7 @@ final class AppStore {
         let text: String
     }
 
-    let eventBus = MaskoEventBus()
+    let eventBus = PeachyEventBus()
     let claudeCodeAdapter = ClaudeCodeAdapter()
     let copilotAdapter = CopilotAdapter()
     let codexAdapter = CodexAdapter()

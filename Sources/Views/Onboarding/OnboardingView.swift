@@ -86,7 +86,7 @@ struct OnboardingView: View {
             }
 
             VStack(spacing: 4) {
-                Text("Welcome to Masko")
+                Text("Welcome to Peachy")
                     .font(Constants.heading(size: 28, weight: .bold))
                     .foregroundStyle(Constants.textPrimary)
                 Text("for Claude Code + Codex")
@@ -94,7 +94,7 @@ struct OnboardingView: View {
                     .foregroundStyle(Constants.textMuted)
             }
 
-            Text("Masko lives on your screen, reacts to assistant activity, and lets you approve actions without switching windows.")
+            Text("Peachy lives on your screen, reacts to assistant activity, and lets you approve actions without switching windows.")
                 .font(Constants.body(size: 14))
                 .foregroundStyle(Constants.textMuted)
                 .multilineTextAlignment(.center)
@@ -120,7 +120,7 @@ struct OnboardingView: View {
                     .font(Constants.heading(size: 24, weight: .bold))
                     .foregroundStyle(Constants.textPrimary)
 
-                Text("Masko listens to Claude Code events via hooks and Codex events via local session logs. Claude hooks add a small config to ~/.claude/settings.json.")
+                Text("Peachy listens to Claude Code events via hooks and Codex events via local session logs. Claude hooks add a small config to ~/.claude/settings.json.")
                     .font(Constants.body(size: 14))
                     .foregroundStyle(Constants.textMuted)
                     .multilineTextAlignment(.center)
@@ -253,7 +253,7 @@ struct OnboardingView: View {
                     .font(Constants.heading(size: 24, weight: .bold))
                     .foregroundStyle(Constants.textPrimary)
 
-                Text("Install a tiny extension so clicking a session in Masko jumps to the exact terminal tab.")
+                Text("Install a tiny extension so clicking a session in Peachy jumps to the exact terminal tab.")
                     .font(Constants.body(size: 14))
                     .foregroundStyle(Constants.textMuted)
                     .multilineTextAlignment(.center)
@@ -373,7 +373,7 @@ struct OnboardingView: View {
                     .font(Constants.heading(size: 24, weight: .bold))
                     .foregroundStyle(Constants.textPrimary)
 
-                Text("Your mascot is ready.\nBrowse more skins on masko.ai!")
+                Text("Your mascot is ready.\nBrowse more skins on GitHub!")
                     .font(Constants.body(size: 14))
                     .foregroundStyle(Constants.textMuted)
                     .multilineTextAlignment(.center)
@@ -382,7 +382,7 @@ struct OnboardingView: View {
             }
 
             primaryButton("Browse Skins") {
-                if let url = URL(string: Constants.maskoBaseURL + "/community") {
+                if let url = URL(string: Constants.peachyBaseURL + "/community") {
                     NSWorkspace.shared.open(url)
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -494,7 +494,7 @@ struct PresetPickerCard: View {
     let isSelected: Bool
     let onTap: () -> Void
 
-    private var presetConfig: MaskoAnimationConfig? {
+    private var presetConfig: PeachyAnimationConfig? {
         MascotStore.loadBundledConfig(named: preset.filename)
     }
 
