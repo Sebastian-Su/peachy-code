@@ -14,6 +14,9 @@ enum Constants {
     static let maskoBaseURL = "https://masko.ai"
     #endif
 
+    // Source code repository
+    static let repoURL = "https://github.com/Sebastian-Su/peachy-code"
+
     // Local hook server
     static let legacyDefaultServerPort: UInt16 = 49152
     static let defaultServerPort: UInt16 = 45832

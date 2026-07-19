@@ -27,7 +27,7 @@
     <key>ATSApplicationFontsPath</key>
     <string>Fonts</string>
     <key>SUFeedURL</key>
-    <string>https://masko.ai/api/desktop/appcast</string>
+    <string>https://raw.githubusercontent.com/Sebastian-Su/peachy-code/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>/BVYK9Q4hZORSn/xfhu4BCCLrug5zEA5WkwXG2lgdiw=</string>
     <key>NSAppleEventsUsageDescription</key>

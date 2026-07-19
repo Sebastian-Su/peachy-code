@@ -366,9 +366,9 @@ struct SettingsView: View {
                     Text("\(appVersion) (\(buildNumber))")
                         .foregroundColor(Constants.textMuted)
                 }
-                Link(destination: URL(string: Constants.maskoBaseURL)!) {
+                Link(destination: URL(string: Constants.repoURL)!) {
                     HStack {
-                        Text("Masko Website")
+                        Text("GitHub Repository")
                             .foregroundColor(Constants.orangePrimary)
                         Spacer()
                         Image(systemName: "arrow.up.forward")
