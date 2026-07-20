@@ -20,6 +20,7 @@ struct AgentSession: Identifiable, Codable {
     var terminalBundleId: String?
     var shellPid: Int?
     var transcriptPath: String?
+    var idleUntil: Date?
 
     var isCompacting: Bool { phase == .compacting }
 
@@ -107,6 +108,7 @@ struct AgentSession: Identifiable, Codable {
         case terminalPid
         case shellPid
         case transcriptPath
+        case idleUntil
     }
 
     init(from decoder: Decoder) throws {
@@ -136,6 +138,7 @@ struct AgentSession: Identifiable, Codable {
         shellPid = try container.decodeIfPresent(Int.self, forKey: .shellPid)
         transcriptPath = try container.decodeIfPresent(String.self, forKey: .transcriptPath)
         rawSource = try container.decodeIfPresent(String.self, forKey: .rawSource)
+        idleUntil = try container.decodeIfPresent(Date.self, forKey: .idleUntil)
     }
 }
 
@@ -155,6 +158,10 @@ final class SessionStore {
     ]
     private var reconcileTimer: Timer?
     private var interruptWatcherTimer: Timer?
+    private var idleExpiryTimer: Timer?
+    private let idleRetentionDuration: TimeInterval
+    /// Snapshots for in-progress potentially-internal turns: taskId → (existed, phase, idleUntil)
+    private var internalTurnSnapshots: [String: (existed: Bool, phase: AgentSession.Phase, idleUntil: Date?)] = [:]
     /// Track active subagent IDs per session to prevent double-counting
     private var activeSubagentIds: [String: Set<String>] = [:]
 
@@ -162,7 +169,8 @@ final class SessionStore {
     /// Wire this to refresh overlay inputs.
     var onPhasesChanged: (() -> Void)?
 
-    init() {
+    init(idleRetentionDuration: TimeInterval = 300) {
+        self.idleRetentionDuration = idleRetentionDuration
         sessions = LocalStorage.load([AgentSession].self, from: Self.filename) ?? []
         // On launch, no session can be mid-compact - reset any stale compacting phase
         var needsPersist = false
@@ -171,6 +179,7 @@ final class SessionStore {
             needsPersist = true
         }
         if needsPersist { persist() }
+        runStartupMigration()
         reconcileIfNeeded()
         startReconcileTimer()
         startInterruptWatcher()
@@ -301,11 +310,14 @@ final class SessionStore {
         reconcileTimer = nil
         interruptWatcherTimer?.invalidate()
         interruptWatcherTimer = nil
+        idleExpiryTimer?.invalidate()
+        idleExpiryTimer = nil
     }
 
     deinit {
         reconcileTimer?.invalidate()
         interruptWatcherTimer?.invalidate()
+        idleExpiryTimer?.invalidate()
     }
 
     // MARK: - Crash Recovery
@@ -397,6 +409,116 @@ final class SessionStore {
         LocalStorage.save(sessions, to: Self.filename)
     }
 
+    // MARK: - Idle Retention
+
+    private func setIdleUntil(for sessionId: String) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        sessions[index].idleUntil = Date(timeIntervalSinceNow: idleRetentionDuration)
+        scheduleIdleExpiryTimer()
+    }
+
+    private func clearIdleUntil(for sessionId: String) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        sessions[index].idleUntil = nil
+    }
+
+    /// Ends all sessions whose idleUntil has passed. Called by timer and in tests.
+    func expireIdleSessions() {
+        let now = Date()
+        var changed = false
+        for i in sessions.indices {
+            guard sessions[i].status == .active,
+                  sessions[i].phase == .idle,
+                  let idleUntil = sessions[i].idleUntil,
+                  idleUntil <= now else { continue }
+            sessions[i].status = .ended
+            sessions[i].idleUntil = nil
+            changed = true
+        }
+        if changed {
+            persist()
+            onPhasesChanged?()
+        }
+        scheduleIdleExpiryTimer()
+    }
+
+    private func scheduleIdleExpiryTimer() {
+        idleExpiryTimer?.invalidate()
+        let nextExpiry = sessions.compactMap { $0.status == .active ? $0.idleUntil : nil }.min()
+        guard let nextExpiry else { return }
+        let delay = max(0, nextExpiry.timeIntervalSinceNow)
+        idleExpiryTimer = Timer.scheduledTimer(withTimeInterval: delay + 0.1, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async { self?.expireIdleSessions() }
+        }
+    }
+
+    // MARK: - Internal Turn Snapshot & Rollback
+
+    /// Called by EventProcessor BEFORE recordEvent for a userPromptSubmit that carries a taskId.
+    func saveSnapshot(taskId: String, sessionId: String) {
+        if let session = sessions.first(where: { $0.id == sessionId }) {
+            internalTurnSnapshots[taskId] = (existed: true, phase: session.phase, idleUntil: session.idleUntil)
+        } else {
+            internalTurnSnapshots[taskId] = (existed: false, phase: .idle, idleUntil: nil)
+        }
+    }
+
+    /// Called by EventProcessor when an internalResult arrives. Restores pre-turn state.
+    func rollbackInternalTurn(taskId: String, sessionId: String) {
+        defer { internalTurnSnapshots.removeValue(forKey: taskId) }
+        guard let snapshot = internalTurnSnapshots[taskId] else { return }
+        if !snapshot.existed {
+            sessions.removeAll(where: { $0.id == sessionId })
+            persist()
+            return
+        }
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        sessions[index].phase = snapshot.phase
+        sessions[index].idleUntil = snapshot.idleUntil
+        persist()
+    }
+
+    /// Called by EventProcessor when a real stop arrives for a taskId that had a snapshot.
+    func discardSnapshot(taskId: String) {
+        internalTurnSnapshots.removeValue(forKey: taskId)
+    }
+
+    // MARK: - Startup Migration
+
+    func runStartupMigration() {
+        let now = Date()
+        var changed = false
+        for i in sessions.indices where sessions[i].status == .active && sessions[i].phase == .idle {
+            if let idleUntil = sessions[i].idleUntil {
+                if idleUntil <= now {
+                    sessions[i].status = .ended
+                    sessions[i].idleUntil = nil
+                    changed = true
+                }
+            } else {
+                // Old session without idleUntil: compute from lastEventAt or startedAt
+                let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
+                let computed = ref.addingTimeInterval(idleRetentionDuration)
+                if computed <= now {
+                    sessions[i].status = .ended
+                    changed = true
+                } else {
+                    sessions[i].idleUntil = computed
+                    changed = true
+                }
+            }
+        }
+        if changed { persist() }
+        scheduleIdleExpiryTimer()
+    }
+
+    // MARK: - Test Support
+
+    func injectSessionForTesting(_ session: AgentSession) {
+        sessions.removeAll(where: { $0.id == session.id })
+        sessions.insert(session, at: 0)
+    }
+
     // MARK: - Computed Properties
 
     var activeSessions: [AgentSession] {
@@ -457,6 +579,7 @@ final class SessionStore {
                     sessions[index].phase = (eventType == .preCompact) ? .compacting
                         : (eventType == .sessionStart) ? .idle : .running
                     sessions[index].activeSubagentCount = 0
+                    sessions[index].idleUntil = nil
                 } else {
                     // Truly stale event (e.g. Stop, SessionEnd) — count it but skip transitions
                     persist()
@@ -479,6 +602,7 @@ final class SessionStore {
 
             case .userPromptSubmit:
                 sessions[index].phase = .running
+                clearIdleUntil(for: sessionId)
 
             case .preToolUse, .postToolUse, .postToolUseFailure, .permissionRequest:
                 // Tool activity confirms agent is working
@@ -492,6 +616,7 @@ final class SessionStore {
 
             case .stop, .stopFailure:
                 sessions[index].phase = .idle
+                setIdleUntil(for: sessionId)
 
             case .sessionEnd:
                 sessions[index].status = .ended
