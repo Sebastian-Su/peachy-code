@@ -20,6 +20,7 @@ enum HookEventType: String, Codable, CaseIterable, Identifiable {
     case configChange = "ConfigChange"
     case worktreeCreate = "WorktreeCreate"
     case worktreeRemove = "WorktreeRemove"
+    case internalResult = "InternalResult"
 
     var id: String { rawValue }
 
@@ -44,6 +45,7 @@ enum HookEventType: String, Codable, CaseIterable, Identifiable {
         case .configChange: "Config Changed"
         case .worktreeCreate: "Worktree Created"
         case .worktreeRemove: "Worktree Removed"
+        case .internalResult: "Internal Result"
         }
     }
 
@@ -68,6 +70,7 @@ enum HookEventType: String, Codable, CaseIterable, Identifiable {
         case .configChange: "gearshape"
         case .worktreeCreate: "folder.badge.plus"
         case .worktreeRemove: "folder.badge.minus"
+        case .internalResult: "gearshape.2"
         }
     }
 
@@ -89,4 +92,6 @@ enum HookEventType: String, Codable, CaseIterable, Identifiable {
         default: false
         }
     }
+
+    var isInternalResult: Bool { self == .internalResult }
 }
