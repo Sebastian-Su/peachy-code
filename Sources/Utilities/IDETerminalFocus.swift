@@ -79,8 +79,12 @@ enum IDETerminalFocus {
             }
         }
 
-        // For multi-window IDEs (VS Code, Cursor, etc.), use `open -b` to raise the correct workspace window
-        if let projectDir, let bundleId {
+        // For multi-window IDEs (VS Code, Cursor, JetBrains), `open -b <id> <projectDir>`
+        // raises the matching workspace window. For plain terminals (ghostty, wezterm,
+        // kitty, …) this instead opens a NEW tab, so gate on IDE bundle IDs and fall
+        // through to tab-switch / window-raise / activate below for terminals.
+        if let projectDir, let bundleId,
+           ExtensionInstaller.uriScheme(forBundleId: bundleId) != nil {
             bringWindowToFront(bundleId: bundleId, projectDir: projectDir)
             return
         }
