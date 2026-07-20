@@ -91,6 +91,18 @@ private struct SessionSwitcherRow: View {
 
             Spacer()
 
+            // Real app icon (terminal / desktop client) — represents where a click goes
+            if let bundleId = session.focusAppBundleId,
+               let icon = AppIconProvider.icon(forBundleId: bundleId) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "terminal.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Constants.textMuted)
+            }
+
             // Shortcut badge — only when Cmd is held
             if showShortcuts {
                 Text("⌘\(index + 1)")
