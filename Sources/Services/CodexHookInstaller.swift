@@ -11,7 +11,6 @@ enum CodexHookInstaller {
         "SessionStart",
         "UserPromptSubmit",
         "PreToolUse",
-        "PermissionRequest",
         "PostToolUse",
         "Stop",
         "SubagentStart",
@@ -19,6 +18,11 @@ enum CodexHookInstaller {
         "PreCompact",
         "PostCompact",
     ]
+
+    /// Older Masko versions intercepted Codex approvals here. That overrides Codex's
+    /// configured reviewer, including the built-in auto-reviewer, so installs migrate
+    /// this hook away while preserving hooks owned by other applications.
+    private static let deprecatedHookEvents = ["PermissionRequest"]
 
     static func hooksJSONPath() -> String {
         NSHomeDirectory() + "/.codex/hooks.json"
@@ -57,6 +61,7 @@ enum CodexHookInstaller {
         }
 
         var hooks = root["hooks"] as? [String: Any] ?? [:]
+        removeOurHooks(from: &hooks, for: deprecatedHookEvents)
         let entry: [String: Any] = [
             "matcher": "",
             "hooks": [[
@@ -85,15 +90,7 @@ enum CodexHookInstaller {
             return
         }
 
-        for event in hookEvents {
-            guard var entries = hooks[event] as? [[String: Any]] else { continue }
-            entries.removeAll { entryHasOurHook($0) }
-            if entries.isEmpty {
-                hooks.removeValue(forKey: event)
-            } else {
-                hooks[event] = entries
-            }
-        }
+        removeOurHooks(from: &hooks, for: hookEvents + deprecatedHookEvents)
 
         if hooks.isEmpty {
             root.removeValue(forKey: "hooks")
@@ -108,6 +105,18 @@ enum CodexHookInstaller {
     private static func entryHasOurHook(_ entry: [String: Any]) -> Bool {
         guard let inner = entry["hooks"] as? [[String: Any]] else { return false }
         return inner.contains { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
+    }
+
+    private static func removeOurHooks(from hooks: inout [String: Any], for events: [String]) {
+        for event in events {
+            guard var entries = hooks[event] as? [[String: Any]] else { continue }
+            entries.removeAll { entryHasOurHook($0) }
+            if entries.isEmpty {
+                hooks.removeValue(forKey: event)
+            } else {
+                hooks[event] = entries
+            }
+        }
     }
 
     private static func writeJSON(_ obj: [String: Any], to path: String) throws {

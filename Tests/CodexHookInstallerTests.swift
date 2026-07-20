@@ -33,6 +33,45 @@ final class CodexHookInstallerTests: XCTestCase {
         }
     }
 
+    func testInstallDoesNotRegisterBlockingPermissionRequestHook() throws {
+        try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
+
+        let data = try Data(contentsOf: URL(fileURLWithPath: hooksPath))
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
+        let entries = hooks["PermissionRequest"] as? [[String: Any]] ?? []
+        let hasOurs = entries.contains { entry in
+            guard let inner = entry["hooks"] as? [[String: Any]] else { return false }
+            return inner.contains { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
+        }
+
+        XCTAssertFalse(hasOurs, "Masko must not override Codex approval routing by default")
+    }
+
+    func testInstallRemovesLegacyPermissionHookAndPreservesForeignHook() throws {
+        let existing: [String: Any] = [
+            "hooks": [
+                "PermissionRequest": [
+                    ["hooks": [["type": "command", "command": "/Applications/AgentPet.app/hook"]]],
+                    ["hooks": [["type": "command", "command": "~/.peachypet/hooks/hook-sender.sh"]]],
+                ]
+            ]
+        ]
+        try JSONSerialization.data(withJSONObject: existing).write(to: URL(fileURLWithPath: hooksPath))
+
+        try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
+
+        let data = try Data(contentsOf: URL(fileURLWithPath: hooksPath))
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
+        let entries = try XCTUnwrap(hooks["PermissionRequest"] as? [[String: Any]])
+        let commands = entries.flatMap { entry in
+            (entry["hooks"] as? [[String: Any]])?.compactMap { $0["command"] as? String } ?? []
+        }
+
+        XCTAssertEqual(commands, ["/Applications/AgentPet.app/hook"])
+    }
+
     func testInstallIsIdempotent() throws {
         try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
         try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
