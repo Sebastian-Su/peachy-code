@@ -10,14 +10,14 @@
 
 ## Global Constraints
 
-- 模块名（`@testable import`）：`peachy_code`（target 名 `peachy-code`，连字符转下划线）。
-- hook 脚本路径：`~/.peachy-code/hooks/hook-sender.sh`（`NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"`）。
+- 模块名（`@testable import`）：`PeachyPet`。
+- hook 脚本路径：`~/.peachypet/hooks/hook-sender.sh`（`NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"`）。
 - Codex hook 配置文件：`~/.codex/hooks.json`（JSON）。
 - Codex hook 事件名：**驼峰**（`PreToolUse` / `PermissionRequest` / `SessionStart` 等），与 Claude Code 一致。已实测 codex-cli 0.144.5 二进制 wire schema 确认。
 - PermissionRequest 回写格式：`{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"|"deny"}}}` —— 与现有 `PermissionDecision.httpResponse` 完全一致，复用不改。
-- hook 命令注册项形如：`{"type":"command","command":"~/.peachy-code/hooks/hook-sender.sh","args":["--source","codex-cli"],"timeout":600}`。
+- hook 命令注册项形如：`{"type":"command","command":"~/.peachypet/hooks/hook-sender.sh","args":["--source","codex-cli"],"timeout":600}`。
 - 不使用 `--dangerously-bypass-hook-trust`。首版 `CodexHookTransport` capabilities 仅 `[.permissionResponse]`。
-- 所有 print 日志前缀：`[peachy-code]`。
+- 所有 print 日志前缀：`[PeachyPet]`。
 - Codex source 识别：用 `AgentEvent.assistantClientKind`（`.codexCLI` / `.codexDesktop` / `.codex` 为 Codex；`.claude` 为 CC）。
 - 提交信息用中文，格式 `类型: 核心改动`，不加 Co-Authored-By。
 
@@ -25,10 +25,10 @@
 
 ### Task 0: 修复 rename 遗留的测试 import 断裂
 
-**背景：** 上一次全局改名把 target 从 `masko-code` 改为 `peachy-code`，但 `Tests/` 里的 `@testable import masko_code` 未同步更新，导致测试 target 无法编译。必须先修，否则后续所有测试步骤都跑不起来。
+**背景：** 上一次全局改名后，`Tests/` 里的模块导入未同步更新，导致测试 target 无法编译。必须先修，否则后续所有测试步骤都跑不起来。
 
 **Files:**
-- Modify: `Tests/*.swift`（所有含 `@testable import masko_code` 的文件）
+- Modify: `Tests/*.swift`（所有仍引用旧模块名的文件）
 
 **Interfaces:**
 - Consumes: 无
@@ -36,21 +36,21 @@
 
 - [ ] **Step 1: 确认受影响文件**
 
-Run: `grep -rln "@testable import masko_code" Tests/`
-Expected: 列出若干测试文件
+Run: `rg -n "@testable import" Tests/`
+Expected: 列出测试文件当前使用的模块导入
 
 - [ ] **Step 2: 批量替换 import**
 
-```bash
-grep -rl "@testable import masko_code" Tests/ | while IFS= read -r f; do
-  perl -i -pe 's/\@testable import masko_code/\@testable import peachy_code/' "$f"
-done
+将受影响文件的模块导入统一改为：
+
+```swift
+@testable import PeachyPet
 ```
 
 - [ ] **Step 3: 验证无残留**
 
-Run: `grep -rn "masko_code" Tests/ || echo "CLEAN"`
-Expected: `CLEAN`
+Run: `rg -n "@testable import" Tests/ | rg -v "PeachyPet"`
+Expected: 无输出
 
 - [ ] **Step 4: 编译测试 target**
 
@@ -66,14 +66,14 @@ Expected: 全部通过（`Test Suite ... passed`）
 
 ```bash
 git add Tests/
-git commit -m "fix: 修复改名遗留的测试 import 断裂 masko_code→peachy_code"
+git commit -m "fix: 修复改名遗留的测试模块导入"
 ```
 
 ---
 
 ### Task 1: CodexHookInstaller — 注册 hook 到 ~/.codex/hooks.json
 
-**背景：** 仿 `Sources/Services/HookInstaller.swift`（Claude Code 的安装器）。把已有的 `~/.peachy-code/hooks/hook-sender.sh` 注册到 Codex 的 `~/.codex/hooks.json`，幂等，只增删自己那条，保留他人 hook（如 AgentPet）。脚本本身复用 `HookInstaller.ensureScriptExists()` 产出的同一份，本任务不重写脚本。
+**背景：** 仿 `Sources/Services/HookInstaller.swift`（Claude Code 的安装器）。把已有的 `~/.peachypet/hooks/hook-sender.sh` 注册到 Codex 的 `~/.codex/hooks.json`，幂等，只增删自己那条，保留他人 hook（如 AgentPet）。脚本本身复用 `HookInstaller.ensureScriptExists()` 产出的同一份，本任务不重写脚本。
 
 **Files:**
 - Create: `Sources/Services/CodexHookInstaller.swift`

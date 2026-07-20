@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest an idea for Masko Code
+about: Suggest an idea for PeachyPet
 title: ''
 labels: enhancement
 assignees: ''

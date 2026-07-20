@@ -5,7 +5,7 @@ This branch closes the main ingestion and UI-parity gaps between the existing Cl
 ## Completed
 
 - Question turns that Codex emits as plain commentary are surfaced as local `AskUserQuestion` prompts.
-- Empty Codex agent messages are ignored so Masko does not create blank notifications.
+- Empty Codex agent messages are ignored so PeachyPet does not create blank notifications.
 - Question-only turns no longer create misleading completion notifications or completion toasts.
 - Custom tool calls read `input` payloads correctly, including escalated permission metadata.
 - Tool failures are detected from exit metadata and output text even when `status` is missing.
@@ -27,6 +27,6 @@ This branch closes the main ingestion and UI-parity gaps between the existing Cl
 
 ## Current UX
 
-- Masko surfaces Codex questions and approval prompts in the overlay.
+- PeachyPet surfaces Codex questions and approval prompts in the overlay.
 - For Codex prompts, the overlay now directs the user to open the terminal instead of pretending it can silently answer in the background.
 - Claude behavior remains unchanged.

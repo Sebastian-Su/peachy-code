@@ -1,11 +1,11 @@
-# Contributing to Masko Code
+# Contributing to PeachyPet
 
 Thanks for your interest in contributing! Here's how to get started.
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/masko-code.git`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/peachy-code.git`
 3. Create a branch: `git checkout -b my-feature`
 4. Make your changes
 5. Build and test: `swift build`

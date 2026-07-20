@@ -2,21 +2,21 @@
   <img src="Sources/Resources/Images/app-icon.png" width="128" />
 </p>
 
-<h1 align="center">Masko Code</h1>
+<h1 align="center">PeachyPet</h1>
 
 <p align="center">
   A living mascot that floats above your windows, reacts to Claude Code and Codex, and lets you handle everything without leaving your flow.
 </p>
 
 <p align="center">
-  <a href="https://github.com/RousselPaul/masko-code/releases/latest"><img src="https://img.shields.io/github/v/release/RousselPaul/masko-code?style=flat-square&color=f95d02" alt="Release" /></a>
+  <a href="https://github.com/Sebastian-Su/peachy-code/releases/latest"><img src="https://img.shields.io/github/v/release/Sebastian-Su/peachy-code?style=flat-square&color=f95d02" alt="Release" /></a>
   <img src="https://img.shields.io/badge/macOS-14.0%2B-black?style=flat-square&logo=apple" alt="macOS 14+" />
   <img src="https://img.shields.io/badge/Universal-arm64%20%2B%20x86__64-black?style=flat-square" alt="Universal Binary" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/RousselPaul/masko-code/releases/latest"><strong>Download</strong></a> · <a href="https://masko.ai/claude-code"><strong>Website</strong></a> · <a href="https://masko.ai"><strong>Custom Mascots</strong></a>
+  <a href="https://github.com/Sebastian-Su/peachy-code/releases/latest"><strong>Download</strong></a> · <a href="https://github.com/Sebastian-Su/peachy-code"><strong>Source</strong></a>
 </p>
 
 ---
@@ -43,7 +43,7 @@
 
 ```
 ┌─────────────┐     hook events     ┌─────────────┐
-│ Claude/Codex │ ──────────────────▶ │    Masko     │
+│ Claude/Codex │ ──────────────────▶ │ PeachyPet   │
 │  (terminal)  │                     │  (menu bar)  │
 └─────────────┘                     └─────────────┘
         │                                   │
@@ -51,12 +51,12 @@
         │  sessions, notifications          │  shows permission prompts,
         │                                   │  tracks sessions
         ▼                                   ▼
-   ~/.claude/settings.json          local HTTP :49152
+   ~/.claude/settings.json          local HTTP :45832
 ```
 
 1. **Download the app** — Install the DMG. Lives in your menu bar, no dock clutter.
 2. **Grant accessibility** — First launch installs Claude Code hooks automatically into `~/.claude/settings.json`.
-3. **Pick a mascot** — Choose the default Masko or bring your own from [masko.ai](https://masko.ai).
+3. **Pick a mascot** — Choose a bundled mascot or import a compatible animation JSON.
 4. **Start coding** — Open Claude Code or Codex (CLI/Desktop). Your mascot springs to life.
 
 ## Keyboard Shortcuts
@@ -82,11 +82,11 @@ Right-click the mascot to open the **context menu** — snooze, resize, or close
 
 ## Custom Mascots
 
-The default Masko fox is included. Want your own character? Create one on [masko.ai](https://masko.ai) with AI-generated animations for every state (idle, working, attention). Export and load it into the desktop app in one click.
+Bundled mascots are included. You can also import a compatible animation JSON from the dashboard.
 
 ## Supported Terminals & IDEs
 
-Masko works with terminals that run Claude Code or Codex. Terminal focus (`⌘M`) support varies by app:
+PeachyPet works with terminals that run Claude Code or Codex. Terminal focus (`⌘M`) support varies by app:
 
 | Level | App | How |
 |---|---|---|
@@ -104,23 +104,23 @@ Click a session in the dashboard or click the mascot overlay to jump to the righ
 
 ## Install
 
-Download the latest `.dmg` from [**Releases**](https://github.com/RousselPaul/masko-code/releases/latest).
+Download the latest `.dmg` from [**Releases**](https://github.com/Sebastian-Su/peachy-code/releases/latest).
 
 ## Build from Source
 
 ```bash
-git clone https://github.com/RousselPaul/masko-code.git
-cd masko-code
+git clone https://github.com/Sebastian-Su/peachy-code.git
+cd peachy-code
 swift build
 swift run
 ```
 
 ## Local Codex Smoke Test
 
-Boot Masko from source in one terminal:
+Boot PeachyPet from source in one terminal:
 
 ```bash
-swift run masko-code
+swift run PeachyPet
 ```
 
 Run a live Codex mascot flow in another terminal:
@@ -135,11 +135,11 @@ Run the automated 3-step integration check instead:
 scripts/codex-mascot-smoke.sh --auto
 ```
 
-The automated mode verifies that Masko ingests:
+The automated mode verifies that PeachyPet ingests:
 - non-blocking Codex `PreToolUse` and `PostToolUse` lifecycle events
 - the final completion marker without blank notifications
 
-The automated mode drives Codex through its own PTY and verifies Masko ingestion. Codex approval requests remain under Codex's configured reviewer, including automatic review. Use `--manual` if you want to inspect the overlay while the lifecycle events are live.
+The automated mode drives Codex through its own PTY and verifies PeachyPet ingestion. Codex approval requests remain under Codex's configured reviewer, including automatic review. Use `--manual` if you want to inspect the overlay while the lifecycle events are live.
 
 ## Project Structure
 
@@ -164,8 +164,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved.
 
 ## License
 
-[MIT License](LICENSE) — Copyright (c) 2026 Masko.
+[MIT License](LICENSE) — Copyright (c) 2026 PeachyPet.
 
 ---
 
-> **Note:** This project has no cryptocurrency or token associated with it. Any coin using the Masko or Clippy name is not affiliated with us.
+> **Note:** This project has no cryptocurrency or token associated with it. Any coin using the PeachyPet or Clippy name is not affiliated with us.

@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug to help us improve Masko Code
+about: Report a bug to help us improve PeachyPet
 title: ''
 labels: bug
 assignees: ''
@@ -22,5 +22,5 @@ If applicable, add screenshots.
 
 **Environment**
 - macOS version:
-- Masko Code version:
+- PeachyPet version:
 - Terminal app:
