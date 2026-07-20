@@ -37,23 +37,48 @@ final class EventProcessor {
         eventStore.append(event)
 
         let disp = disposition(for: event)
+        let sessionId = event.sessionId ?? ""
 
-        if disp != .recordOnly {
-            sessionStore.recordEvent(event)
-        }
-
-        // 会话结束时清理 CodexHookLiveness，防止 liveSessions 集合无限增长
-        if event.eventType == .sessionEnd, let sessionId = event.sessionId {
-            CodexHookLiveness.shared.clear(sessionId: sessionId)
-        }
-
-        if disp == .recordOnly { return }
-
-        if let notification = createNotification(from: event) {
-            if notification.category != .permissionRequest {
-                notificationStore.append(notification)
+        switch disp {
+        case .recordOnly:
+            // internalResult with taskId → rollback the snapshot saved at task_started time
+            if event.eventType == .internalResult, let taskId = event.taskId, !sessionId.isEmpty {
+                sessionStore.rollbackInternalTurn(taskId: taskId, sessionId: sessionId)
             }
-            await notificationService.show(notification)
+            // taskCompleted → no session or notification action
+
+        case .sessionActivity:
+            // Save snapshot BEFORE recordEvent if this is a userPromptSubmit with a taskId
+            // (may be the start of an internal turn — we won't know until task_complete)
+            if event.eventType == .userPromptSubmit, let taskId = event.taskId, !sessionId.isEmpty {
+                sessionStore.saveSnapshot(taskId: taskId, sessionId: sessionId)
+            }
+            sessionStore.recordEvent(event)
+
+            if event.eventType == .sessionEnd, !sessionId.isEmpty {
+                CodexHookLiveness.shared.clear(sessionId: sessionId)
+            }
+
+            if let notification = createNotification(from: event) {
+                if notification.category != .permissionRequest {
+                    notificationStore.append(notification)
+                }
+                await notificationService.show(notification)
+            }
+
+        case .userVisibleCompletion:
+            // Real stop — discard any snapshot for this taskId (it's a genuine completion)
+            if let taskId = event.taskId {
+                sessionStore.discardSnapshot(taskId: taskId)
+            }
+            sessionStore.recordEvent(event)
+
+            if let notification = createNotification(from: event) {
+                if notification.category != .permissionRequest {
+                    notificationStore.append(notification)
+                }
+                await notificationService.show(notification)
+            }
         }
     }
 
