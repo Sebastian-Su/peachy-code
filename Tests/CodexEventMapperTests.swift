@@ -92,7 +92,7 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(stopResult.events.last?.taskSubject, "Done")
     }
 
-    func testAutoReviewTaskCompleteEmitsNoEvents() throws {
+    func testAutoReviewTaskCompleteEmitsInternalResult() throws {
         let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
         let context = CodexSessionContext(
             sessionId: sessionId,
@@ -109,7 +109,9 @@ final class CodexEventMapperTests: XCTestCase {
 
         for line in lines {
             let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: context)
-            XCTAssertTrue(result.events.isEmpty)
+            XCTAssertEqual(result.events.count, 1, "Approval result must emit exactly 1 internalResult event")
+            XCTAssertEqual(result.events.first?.eventType, .internalResult,
+                           "Approval result must emit internalResult, not Stop")
         }
     }
 

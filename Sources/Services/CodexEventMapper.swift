@@ -136,7 +136,22 @@ enum CodexEventMapper {
                 ]
             case "task_complete":
                 let lastMessage = payload["last_agent_message"] as? String
-                guard !isApprovalReviewResult(lastMessage) else { return result }
+                let turnId = payload["turn_id"] as? String
+                // Recognised internal result schemas → emit InternalResult (observable but not a real turn)
+                if isInternalResultSchema(lastMessage) {
+                    result.events = [
+                        AgentEvent(
+                            hookEventName: HookEventType.internalResult.rawValue,
+                            sessionId: sessionId,
+                            cwd: workingContext.cwd,
+                            message: lastMessage,
+                            source: source,
+                            taskId: turnId
+                        ),
+                    ]
+                    return result
+                }
+                // Real user-visible completion
                 var events = [
                     AgentEvent(
                         hookEventName: HookEventType.stop.rawValue,
@@ -154,7 +169,7 @@ enum CodexEventMapper {
                             sessionId: sessionId,
                             cwd: workingContext.cwd,
                             source: source,
-                            taskId: payload["turn_id"] as? String,
+                            taskId: turnId,
                             taskSubject: codexTaskSubject(from: lastMessage)
                         )
                     )
@@ -1061,16 +1076,25 @@ enum CodexEventMapper {
         return trimmed.components(separatedBy: .newlines).first
     }
 
-    private static func isApprovalReviewResult(_ text: String?) -> Bool {
+    private static func isInternalResultSchema(_ text: String?) -> Bool {
         guard let text,
               let data = text.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let outcome = (json["outcome"] as? String)?.lowercased() else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return false
         }
-        let reviewKeys: Set<String> = ["outcome", "risk_level", "user_authorization", "rationale"]
-        guard Set(json.keys).isSubset(of: reviewKeys) else { return false }
-        return outcome == "allow" || outcome == "deny"
+        let keys = Set(json.keys)
+        // Approval: keys ⊆ {outcome, risk_level, user_authorization, rationale}, outcome ∈ {allow, deny}
+        let approvalKeys: Set<String> = ["outcome", "risk_level", "user_authorization", "rationale"]
+        if keys.isSubset(of: approvalKeys),
+           let outcome = (json["outcome"] as? String)?.lowercased(),
+           outcome == "allow" || outcome == "deny" {
+            return true
+        }
+        // Exclude: sole key is "exclude" with Array value
+        if keys == ["exclude"], json["exclude"] is [Any] { return true }
+        // Suggestions: sole key is "suggestions" with Array value
+        if keys == ["suggestions"], json["suggestions"] is [Any] { return true }
+        return false
     }
 
     private static func nonEmptyString(_ value: Any?) -> String? {
