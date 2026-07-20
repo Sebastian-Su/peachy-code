@@ -45,7 +45,7 @@ final class CodexHookInstallerTests: XCTestCase {
             return inner.contains { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
         }
 
-        XCTAssertFalse(hasOurs, "Masko must not override Codex approval routing by default")
+        XCTAssertFalse(hasOurs, "PeachyPet must not override Codex approval routing by default")
     }
 
     func testInstallRemovesLegacyPermissionHookAndPreservesForeignHook() throws {

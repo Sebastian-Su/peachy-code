@@ -19,7 +19,7 @@ enum CodexHookInstaller {
         "PostCompact",
     ]
 
-    /// Older Masko versions intercepted Codex approvals here. That overrides Codex's
+    /// Older PeachyPet versions intercepted Codex approvals here. That overrides Codex's
     /// configured reviewer, including the built-in auto-reviewer, so installs migrate
     /// this hook away while preserving hooks owned by other applications.
     private static let deprecatedHookEvents = ["PermissionRequest"]

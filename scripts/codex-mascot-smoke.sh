@@ -33,7 +33,7 @@ PID_FILE="$TMP_DIR/interactive.pid"
 
 PROMPT=$(
   cat <<EOF
-We are running a Masko integration smoke test.
+We are running a PeachyPet integration smoke test.
 
 Follow this exact flow:
 1. Run \`git status --short --branch\`.
@@ -127,16 +127,16 @@ print_event_summary() {
 
 start_auto_expect() {
   rm -f "$EXPECT_LOG" "$PID_FILE"
-  MASKO_SMOKE_PROMPT="$PROMPT" \
-  MASKO_SMOKE_LOG="$EXPECT_LOG" \
-  MASKO_SMOKE_PIDFILE="$PID_FILE" \
+  PEACHYPET_SMOKE_PROMPT="$PROMPT" \
+  PEACHYPET_SMOKE_LOG="$EXPECT_LOG" \
+  PEACHYPET_SMOKE_PIDFILE="$PID_FILE" \
   expect <<'EOF' &
 set timeout 240
 log_user 0
 match_max 200000
-log_file -noappend $env(MASKO_SMOKE_LOG)
-spawn codex --no-alt-screen $env(MASKO_SMOKE_PROMPT)
-set fd [open $env(MASKO_SMOKE_PIDFILE) "w"]
+log_file -noappend $env(PEACHYPET_SMOKE_LOG)
+spawn codex --no-alt-screen $env(PEACHYPET_SMOKE_PROMPT)
+set fd [open $env(PEACHYPET_SMOKE_PIDFILE) "w"]
 puts $fd [exp_pid]
 close $fd
 expect {
@@ -170,13 +170,13 @@ cleanup_auto() {
 
 if [[ "$MODE" == "--manual" ]]; then
   echo "Starting manual Codex mascot smoke test."
-  echo "Make sure Masko is already running, then inspect the lifecycle events in the overlay."
+  echo "Make sure PeachyPet is already running, then inspect the lifecycle events in the overlay."
   echo ""
   codex --no-alt-screen "$PROMPT"
 
   if [[ -f "$EVENTS_FILE" ]]; then
     echo ""
-    echo "Latest Codex events in Masko:"
+    echo "Latest Codex events in PeachyPet:"
     latest_file="$(latest_session_file_since 0 || true)"
     if [[ -n "${latest_file:-}" ]]; then
       latest_sid="$(extract_session_id "$latest_file" || true)"
@@ -189,9 +189,9 @@ if [[ "$MODE" == "--manual" ]]; then
 fi
 
 if [[ ! -f "$EVENTS_FILE" ]]; then
-  echo "Masko events file not found at:"
+  echo "PeachyPet events file not found at:"
   echo "  $EVENTS_FILE"
-  echo "Start the app first with: swift run masko-code"
+  echo "Start the app first with: swift run PeachyPet"
   exit 1
 fi
 
@@ -223,16 +223,16 @@ FINAL_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "TaskComplete
 BLANK_NOTIFICATION_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "Notification" and ((.message // "") | gsub("\\s+"; "") == ""))'
 
 if ! wait_for_jq_event "$SESSION_ID" "$PRE_TOOL_FILTER" 90; then
-  echo "Timed out waiting for Masko to ingest Codex PreToolUse"
+  echo "Timed out waiting for PeachyPet to ingest Codex PreToolUse"
   exit 1
 fi
-echo "Observed Codex PreToolUse in Masko"
+echo "Observed Codex PreToolUse in PeachyPet"
 
 if ! wait_for_jq_event "$SESSION_ID" "$POST_TOOL_FILTER" 90; then
-  echo "Timed out waiting for Masko to ingest Codex PostToolUse"
+  echo "Timed out waiting for PeachyPet to ingest Codex PostToolUse"
   exit 1
 fi
-echo "Observed Codex PostToolUse in Masko"
+echo "Observed Codex PostToolUse in PeachyPet"
 
 if ! wait "$EXPECT_PID"; then
   echo "Interactive Codex smoke run did not complete cleanly"
@@ -242,7 +242,7 @@ fi
 trap - EXIT
 
 if ! wait_for_jq_event "$SESSION_ID" "$FINAL_FILTER" 30; then
-  echo "Masko did not record the final task completion marker"
+  echo "PeachyPet did not record the final task completion marker"
   exit 1
 fi
 
@@ -252,7 +252,7 @@ if jq -e --arg sid "$SESSION_ID" "$BLANK_NOTIFICATION_FILTER" "$EVENTS_FILE" >/d
 fi
 
 echo ""
-echo "Masko event summary:"
+echo "PeachyPet event summary:"
 print_event_summary "$SESSION_ID"
 
 echo ""
