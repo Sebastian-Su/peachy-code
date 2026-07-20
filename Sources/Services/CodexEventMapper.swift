@@ -136,6 +136,7 @@ enum CodexEventMapper {
                 ]
             case "task_complete":
                 let lastMessage = payload["last_agent_message"] as? String
+                guard !isApprovalReviewResult(lastMessage) else { return result }
                 var events = [
                     AgentEvent(
                         hookEventName: HookEventType.stop.rawValue,
@@ -1058,6 +1059,18 @@ enum CodexEventMapper {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return trimmed.components(separatedBy: .newlines).first
+    }
+
+    private static func isApprovalReviewResult(_ text: String?) -> Bool {
+        guard let text,
+              let data = text.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let outcome = (json["outcome"] as? String)?.lowercased() else {
+            return false
+        }
+        let reviewKeys: Set<String> = ["outcome", "risk_level", "user_authorization", "rationale"]
+        guard Set(json.keys).isSubset(of: reviewKeys) else { return false }
+        return outcome == "allow" || outcome == "deny"
     }
 
     private static func nonEmptyString(_ value: Any?) -> String? {

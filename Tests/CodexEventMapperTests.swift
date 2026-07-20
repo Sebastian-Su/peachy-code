@@ -92,6 +92,45 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(stopResult.events.last?.taskSubject, "Done")
     }
 
+    func testAutoReviewTaskCompleteEmitsNoEvents() throws {
+        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
+        let context = CodexSessionContext(
+            sessionId: sessionId,
+            cwd: "/Users/test/project",
+            source: "cli",
+            originator: "codex_cli_rs"
+        )
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-2026-03-09T23-54-07-\(sessionId).jsonl")
+        let lines = [
+            #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"review_1","last_agent_message":"{\"outcome\":\"allow\"}"}}"#,
+            #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"review_2","last_agent_message":"{\"risk_level\":\"medium\",\"user_authorization\":\"high\",\"outcome\":\"allow\",\"rationale\":\"Read-only verification.\"}"}}"#,
+            #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"review_3","last_agent_message":"{\"outcome\":\"deny\"}"}}"#,
+        ]
+
+        for line in lines {
+            let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: context)
+            XCTAssertTrue(result.events.isEmpty)
+        }
+    }
+
+    func testTaskCompleteWithDomainOutcomeStillMapsToCompletion() throws {
+        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
+        let context = CodexSessionContext(
+            sessionId: sessionId,
+            cwd: "/Users/test/project",
+            source: "cli",
+            originator: "codex_cli_rs"
+        )
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-2026-03-09T23-54-07-\(sessionId).jsonl")
+        let line = #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"turn_domain","last_agent_message":"{\"outcome\":\"allow\",\"operation\":\"feature-rollout\"}"}}"#
+
+        let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: context)
+
+        XCTAssertEqual(result.events.count, 2)
+        XCTAssertEqual(result.events.first?.hookEventName, HookEventType.stop.rawValue)
+        XCTAssertEqual(result.events.last?.hookEventName, HookEventType.taskCompleted.rawValue)
+    }
+
     func testTaskCompleteQuestionOnlyEmitsStop() throws {
         let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
         let context = CodexSessionContext(
