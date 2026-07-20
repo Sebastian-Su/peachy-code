@@ -94,7 +94,7 @@ final class EventProcessorTests: XCTestCase {
         XCTAssertEqual(notification.category, .sessionLifecycle)
     }
 
-    func testCodexQuestionTaskCompletedStillCreatesNotificationWhenProcessed() async throws {
+    func testCodexQuestionTaskCompletedDoesNotCreateNotification() async throws {
         let eventStore = EventStore()
         eventStore.clear()
         let sessionStore = SessionStore()
@@ -118,9 +118,10 @@ final class EventProcessorTests: XCTestCase {
 
         await processor.process(event)
 
-        let notification = try XCTUnwrap(notificationStore.notifications.first(where: { $0.sessionId == sessionId }))
-        XCTAssertEqual(notification.title, "Task Completed")
-        XCTAssertEqual(notification.category, .taskCompleted)
+        // taskCompleted is recordOnly — Stop already fired the completion notification.
+        // It must NOT appear in NotificationStore.
+        XCTAssertNil(notificationStore.notifications.first(where: { $0.sessionId == sessionId }),
+                     "taskCompleted must not produce a notification (recordOnly)")
     }
 
     func testClaudeStopStillCreatesCompletionNotificationForQuestionText() async throws {

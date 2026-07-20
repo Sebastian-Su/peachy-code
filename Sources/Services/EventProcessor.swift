@@ -19,14 +19,35 @@ final class EventProcessor {
         self.notificationService = notificationService
     }
 
+    func disposition(for event: AgentEvent) -> EventDisposition {
+        switch event.eventType {
+        case .internalResult:
+            return .recordOnly
+        case .taskCompleted:
+            // Activity Feed metadata — real turn completion is signalled by .stop
+            return .recordOnly
+        case .stop, .stopFailure:
+            return .userVisibleCompletion
+        default:
+            return .sessionActivity
+        }
+    }
+
     @MainActor func process(_ event: AgentEvent) async {
         eventStore.append(event)
-        sessionStore.recordEvent(event)
+
+        let disp = disposition(for: event)
+
+        if disp != .recordOnly {
+            sessionStore.recordEvent(event)
+        }
 
         // 会话结束时清理 CodexHookLiveness，防止 liveSessions 集合无限增长
         if event.eventType == .sessionEnd, let sessionId = event.sessionId {
             CodexHookLiveness.shared.clear(sessionId: sessionId)
         }
+
+        if disp == .recordOnly { return }
 
         if let notification = createNotification(from: event) {
             if notification.category != .permissionRequest {
@@ -113,13 +134,8 @@ final class EventProcessor {
             )
 
         case .taskCompleted:
-            return AppNotification(
-                title: "Task Completed",
-                body: event.taskSubject ?? "A task was completed",
-                category: .taskCompleted,
-                priority: .normal,
-                sessionId: event.sessionId
-            )
+            // recordOnly — Stop already fires the completion notification
+            return nil
 
         case .sessionStart:
             return AppNotification(
