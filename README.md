@@ -136,11 +136,10 @@ scripts/codex-mascot-smoke.sh --auto
 ```
 
 The automated mode verifies that Masko ingests:
-- a Codex question turn as `AskUserQuestion`
-- an escalated approval turn with a persistent `prefix_rule` suggestion
-- the final completion marker without blank notifications or question-only completion events
+- non-blocking Codex `PreToolUse` and `PostToolUse` lifecycle events
+- the final completion marker without blank notifications
 
-The automated mode drives Codex through its own PTY and verifies Masko ingestion. Use `--manual` if you want to inspect the overlay yourself while the prompts are live.
+The automated mode drives Codex through its own PTY and verifies Masko ingestion. Codex approval requests remain under Codex's configured reviewer, including automatic review. Use `--manual` if you want to inspect the overlay while the lifecycle events are live.
 
 ## Project Structure
 

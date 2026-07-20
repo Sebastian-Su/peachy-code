@@ -23,14 +23,11 @@ need_cmd rg
 need_cmd expect
 
 CODEX_SESSIONS_DIR="${CODEX_HOME:-$HOME/.codex}/sessions"
-EVENTS_FILE="$HOME/Library/Application Support/masko-desktop/events.json"
+EVENTS_FILE="$HOME/Library/Application Support/PeachyPet/events.json"
 TMP_DIR="${TMPDIR:-/tmp}/codex-mascot-smoke"
 mkdir -p "$TMP_DIR"
 
-QUESTION_MARKER="[SMOKE_QUESTION]"
-APPROVAL_MARKER="SMOKE_APPROVAL: approve persistent ls-remote check?"
 DONE_MARKER="[SMOKE_DONE]"
-ANSWER_TEXT="${MASKO_SMOKE_ANSWER:-fork}"
 EXPECT_LOG="$TMP_DIR/interactive.log"
 PID_FILE="$TMP_DIR/interactive.pid"
 
@@ -39,14 +36,8 @@ PROMPT=$(
 We are running a Masko integration smoke test.
 
 Follow this exact flow:
-1. Ask exactly this as a commentary message, then stop and wait for my answer:
-   $QUESTION_MARKER Which remote should I use for the ls-remote check? [question-issued]
-2. After I answer, run \`git status --short --branch\`.
-3. Then request approval before running \`git ls-remote --heads origin\`.
-4. Use the exact justification text "$APPROVAL_MARKER".
-5. Set \`prefix_rule\` to ["git","ls-remote"].
-6. If approval is granted, run the command.
-7. Finish with exactly "$DONE_MARKER".
+1. Run \`git status --short --branch\`.
+2. Finish with exactly "$DONE_MARKER".
 EOF
 )
 
@@ -139,7 +130,6 @@ start_auto_expect() {
   MASKO_SMOKE_PROMPT="$PROMPT" \
   MASKO_SMOKE_LOG="$EXPECT_LOG" \
   MASKO_SMOKE_PIDFILE="$PID_FILE" \
-  MASKO_SMOKE_ANSWER="$ANSWER_TEXT" \
   expect <<'EOF' &
 set timeout 240
 log_user 0
@@ -149,23 +139,7 @@ spawn codex --no-alt-screen $env(MASKO_SMOKE_PROMPT)
 set fd [open $env(MASKO_SMOKE_PIDFILE) "w"]
 puts $fd [exp_pid]
 close $fd
-set answered 0
-set approved 0
 expect {
-  -re {\[SMOKE_QUESTION\] Which remote should I use for the ls-remote check\? \[question-issued\]} {
-    if {!$answered} {
-      send -- "$env(MASKO_SMOKE_ANSWER)\r"
-      set answered 1
-    }
-    exp_continue
-  }
-  -re {SMOKE_APPROVAL: approve persistent ls-remote check\?} {
-    if {!$approved} {
-      send -- "p\r"
-      set approved 1
-    }
-    exp_continue
-  }
   -re {\[SMOKE_DONE\]} { exit 0 }
   timeout {
     send_user "Timed out waiting for \\[SMOKE_DONE\\]\n"
@@ -196,7 +170,7 @@ cleanup_auto() {
 
 if [[ "$MODE" == "--manual" ]]; then
   echo "Starting manual Codex mascot smoke test."
-  echo "Make sure Masko is already running, then use the mascot to answer the question and approve the ls-remote request."
+  echo "Make sure Masko is already running, then inspect the lifecycle events in the overlay."
   echo ""
   codex --no-alt-screen "$PROMPT"
 
@@ -243,23 +217,22 @@ echo "Auto smoke session: $SESSION_ID"
 echo "Codex session file: $SESSION_FILE"
 echo "Codex pid: $CODEX_PID"
 
-QUESTION_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "PermissionRequest" and .tool_name == "AskUserQuestion" and ((.message // "") | contains("[SMOKE_QUESTION]")))'
-APPROVAL_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "PermissionRequest" and .tool_name == "exec_command" and (.message // "") == "SMOKE_APPROVAL: approve persistent ls-remote check?" and ((.permission_suggestions // []) | length > 0))'
+PRE_TOOL_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "PreToolUse")'
+POST_TOOL_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "PostToolUse")'
 FINAL_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "TaskCompleted" and (.task_subject // "") == "[SMOKE_DONE]")'
-QUESTION_TASK_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "TaskCompleted" and ((.task_subject // "") | contains("[SMOKE_QUESTION]")))'
 BLANK_NOTIFICATION_FILTER='any(.[]; .session_id == $sid and .hook_event_name == "Notification" and ((.message // "") | gsub("\\s+"; "") == ""))'
 
-if ! wait_for_jq_event "$SESSION_ID" "$QUESTION_FILTER" 90; then
-  echo "Timed out waiting for Masko to ingest the Codex question prompt"
+if ! wait_for_jq_event "$SESSION_ID" "$PRE_TOOL_FILTER" 90; then
+  echo "Timed out waiting for Masko to ingest Codex PreToolUse"
   exit 1
 fi
-echo "Observed Codex question prompt in Masko"
+echo "Observed Codex PreToolUse in Masko"
 
-if ! wait_for_jq_event "$SESSION_ID" "$APPROVAL_FILTER" 90; then
-  echo "Timed out waiting for Masko to ingest the Codex approval prompt"
+if ! wait_for_jq_event "$SESSION_ID" "$POST_TOOL_FILTER" 90; then
+  echo "Timed out waiting for Masko to ingest Codex PostToolUse"
   exit 1
 fi
-echo "Observed Codex approval prompt in Masko"
+echo "Observed Codex PostToolUse in Masko"
 
 if ! wait "$EXPECT_PID"; then
   echo "Interactive Codex smoke run did not complete cleanly"
@@ -270,11 +243,6 @@ trap - EXIT
 
 if ! wait_for_jq_event "$SESSION_ID" "$FINAL_FILTER" 30; then
   echo "Masko did not record the final task completion marker"
-  exit 1
-fi
-
-if jq -e --arg sid "$SESSION_ID" "$QUESTION_TASK_FILTER" "$EVENTS_FILE" >/dev/null 2>&1; then
-  echo "Unexpected TaskCompleted event for the question-only turn"
   exit 1
 fi
 

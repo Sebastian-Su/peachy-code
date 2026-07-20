@@ -116,7 +116,7 @@ struct SettingsView: View {
                 }
 
                 if isHookEnabled && CodexHookInstaller.isRegistered() {
-                    Text("已为 Codex 安装 hook。请在下次打开 Codex 时选择「Trust」以启用实时 permission；在此之前 Codex 会以终端模式工作。")
+                    Text("已为 Codex 安装非阻塞状态 hook；审批仍由 Codex 按自身设置处理，包括「替我审批」。")
                         .font(.system(size: 11))
                         .foregroundColor(Constants.textMuted)
                 }
@@ -702,4 +702,3 @@ struct ShortcutRecorderView: View {
         }
     }
 }
-

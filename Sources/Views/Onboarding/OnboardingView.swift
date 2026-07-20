@@ -120,7 +120,7 @@ struct OnboardingView: View {
                     .font(Constants.heading(size: 24, weight: .bold))
                     .foregroundStyle(Constants.textPrimary)
 
-                Text("Peachy listens to Claude Code events via hooks and Codex events via local session logs. Claude hooks add a small config to ~/.claude/settings.json.")
+                Text("Peachy listens to Claude Code events via hooks and observes Codex through non-blocking hooks plus local session logs. Codex keeps control of its own approval settings.")
                     .font(Constants.body(size: 14))
                     .foregroundStyle(Constants.textMuted)
                     .multilineTextAlignment(.center)
