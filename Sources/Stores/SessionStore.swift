@@ -6,6 +6,9 @@ struct AgentSession: Identifiable, Codable {
     let projectDir: String?
     let projectName: String?
     var agentSource: AgentSource = .claudeCode
+    /// Raw source string before normalization (e.g. "vscode" for Codex Desktop),
+    /// used to distinguish Codex Desktop (GUI app) from Codex CLI (terminal).
+    var rawSource: String?
     var status: Status
     var phase: Phase = .idle
     var eventCount: Int
@@ -19,6 +22,27 @@ struct AgentSession: Identifiable, Codable {
     var transcriptPath: String?
 
     var isCompacting: Bool { phase == .compacting }
+
+    /// Codex Desktop (ChatGPT.app) is a GUI app with no terminal — focus should
+    /// activate the app directly rather than resolving a terminal window.
+    var isCodexDesktop: Bool {
+        let s = (rawSource ?? "").lowercased()
+        return s == "vscode" || s.contains("desktop")
+    }
+
+    /// The app bundle id whose icon best represents this session's terminal/client.
+    /// Matches IDETerminalFocus.focusSession's activation target so the icon == where a click goes.
+    var focusAppBundleId: String? {
+        if isCodexDesktop { return "com.openai.codex" }   // ChatGPT.app
+        if let bundleId = terminalBundleId { return bundleId }
+        // terminalBundleId may be nil for older sessions even when terminalPid is known.
+        // Fall back to a live NSRunningApplication lookup so existing sessions also get icons.
+        if let pid = terminalPid,
+           let bid = NSRunningApplication(processIdentifier: pid_t(pid))?.bundleIdentifier {
+            return bid
+        }
+        return nil
+    }
 
     init(
         id: String,
@@ -72,6 +96,7 @@ struct AgentSession: Identifiable, Codable {
         case projectDir
         case projectName
         case agentSource
+        case rawSource
         case status
         case phase
         case eventCount
@@ -110,6 +135,7 @@ struct AgentSession: Identifiable, Codable {
         terminalPid = try container.decodeIfPresent(Int.self, forKey: .terminalPid)
         shellPid = try container.decodeIfPresent(Int.self, forKey: .shellPid)
         transcriptPath = try container.decodeIfPresent(String.self, forKey: .transcriptPath)
+        rawSource = try container.decodeIfPresent(String.self, forKey: .rawSource)
     }
 }
 
@@ -406,6 +432,7 @@ final class SessionStore {
             }
             if let source = event.source, !source.isEmpty {
                 sessions[index].agentSource = AgentSource(rawSource: source)
+                sessions[index].rawSource = source
             }
             if let path = event.transcriptPath, sessions[index].transcriptPath == nil {
                 sessions[index].transcriptPath = path
@@ -511,6 +538,7 @@ final class SessionStore {
                 lastEventAt: Date()
             )
             session.terminalPid = event.terminalPid
+            session.rawSource = event.source
             if let pid = event.terminalPid {
                 session.terminalBundleId = Self.resolveBundleId(pid: pid)
             }

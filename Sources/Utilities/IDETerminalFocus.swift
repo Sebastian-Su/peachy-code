@@ -7,6 +7,14 @@ enum IDETerminalFocus {
 
     /// Focus the terminal for a given session.
     static func focusSession(_ session: AgentSession) {
+        // Codex Desktop (ChatGPT.app) is a GUI app with no terminal — activate it
+        // directly instead of resolving a terminal (which falls through to the
+        // wrong app, e.g. Cursor open on the same project).
+        if session.isCodexDesktop {
+            activateApp(bundleId: "com.openai.codex")
+            return
+        }
+
         var terminalPid = session.terminalPid
         var shellPid = session.shellPid
 
