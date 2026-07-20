@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>peachy-code</string>
+    <string>PeachyPet</string>
     <key>CFBundleIdentifier</key>
-    <string>com.peachy.code</string>
+    <string>com.peachy.pet</string>
     <key>CFBundleName</key>
-    <string>Peachy Code</string>
+    <string>PeachyPet</string>
     <key>CFBundleDisplayName</key>
-    <string>Peachy Code</string>
+    <string>PeachyPet</string>
     <key>CFBundleVersion</key>
     <string>52</string>
     <key>CFBundleShortVersionString</key>
@@ -31,16 +31,16 @@
     <key>SUPublicEDKey</key>
     <string>/BVYK9Q4hZORSn/xfhu4BCCLrug5zEA5WkwXG2lgdiw=</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Peachy Code needs permission to switch to the correct terminal tab when you interact with permission bubbles.</string>
+    <string>PeachyPet needs permission to switch to the correct terminal tab when you interact with permission bubbles.</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>peachy</string>
+                <string>peachypet</string>
             </array>
             <key>CFBundleURLName</key>
-            <string>com.peachy.code</string>
+            <string>com.peachy.pet</string>
         </dict>
     </array>
 </dict>

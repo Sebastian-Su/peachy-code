@@ -1,6 +1,6 @@
 import Foundation
 
-/// Diagnoses and repairs the connection between Peachy Code and Claude Code/Codex.
+/// Diagnoses and repairs the connection between PeachyPet and Claude Code/Codex.
 @Observable
 @MainActor
 final class ConnectionDoctor {
@@ -99,7 +99,7 @@ final class ConnectionDoctor {
             )
         }
 
-        let hookCommand = "~/.peachy-code/hooks/hook-sender.sh"
+        let hookCommand = "~/.peachypet/hooks/hook-sender.sh"
         let expectedEvents = [
             "PreToolUse", "PostToolUse", "PostToolUseFailure", "Stop", "StopFailure",
             "Notification", "SessionStart", "SessionEnd", "TaskCompleted",
@@ -141,7 +141,7 @@ final class ConnectionDoctor {
     }
 
     private func checkHookScriptExists() -> Check {
-        let scriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
+        let scriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
         let fm = FileManager.default
 
         guard fm.fileExists(atPath: scriptPath) else {
@@ -174,7 +174,7 @@ final class ConnectionDoctor {
     }
 
     private func checkPortMatch() -> Check {
-        let scriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
+        let scriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
         guard let content = try? String(contentsOfFile: scriptPath, encoding: .utf8) else {
             return Check(
                 id: "port_match",
@@ -220,7 +220,7 @@ final class ConnectionDoctor {
     }
 
     private func checkScriptVersion() -> Check {
-        let scriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
+        let scriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
         guard let content = try? String(contentsOfFile: scriptPath, encoding: .utf8) else {
             return Check(
                 id: "script_version",
@@ -341,7 +341,7 @@ final class ConnectionDoctor {
 
     /// Pipes a test event through the hook script and checks if the server receives it.
     private func checkHookDelivery() async -> Check {
-        let scriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
+        let scriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
         guard FileManager.default.fileExists(atPath: scriptPath) else {
             return Check(
                 id: "hook_delivery",
@@ -481,7 +481,7 @@ final class ConnectionDoctor {
 
         // 2. Force-delete hook script so ensureScriptExists() regenerates it
         //    (otherwise it skips if version + port match)
-        let scriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
+        let scriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
         try? FileManager.default.removeItem(atPath: scriptPath)
 
         // 3. Reinstall hooks + regenerate script from scratch
@@ -612,7 +612,7 @@ final class ConnectionDoctor {
                 guard let innerHooks = entry["hooks"] as? [[String: Any]] else { continue }
                 for hook in innerHooks {
                     if let command = hook["command"] as? String,
-                       !command.contains("peachy-code") {
+                       !command.contains("PeachyPet") {
                         // Extract just the script name, not full path
                         let name = (command as NSString).lastPathComponent
                         others.insert(name)

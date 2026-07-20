@@ -77,9 +77,9 @@ enum CodexInteractiveBridge {
         let activate = activator ?? defaultActivator
         let success = activate(target.pid)
         if success {
-            print("[peachy-code] Codex bridge focused pid=\(target.pid)")
+            print("[PeachyPet] Codex bridge focused pid=\(target.pid)")
         } else {
-            print("[peachy-code] Codex bridge failed to focus pid=\(target.pid)")
+            print("[PeachyPet] Codex bridge failed to focus pid=\(target.pid)")
         }
         return success
     }

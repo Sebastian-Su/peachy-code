@@ -146,7 +146,7 @@ final class OverlayManager {
         // Move into a system-level Space that doesn't participate in Space swipe animations
         SkyLightOperator.shared.delegateWindow(newPanel)
 
-        print("[peachy-code] Overlay panel shown at \(rect), level=\(newPanel.level.rawValue)")
+        print("[PeachyPet] Overlay panel shown at \(rect), level=\(newPanel.level.rawValue)")
 
         self.panel = newPanel
         self.currentURL = url
@@ -301,7 +301,7 @@ final class OverlayManager {
         SkyLightOperator.shared.delegateWindow(newPermPanel)
         mascotPanel.addChildWindow(newPermPanel, ordered: .above)
 
-        print("[peachy-code] State machine overlay: mascot=\(mascotRect), stats+perm panels")
+        print("[PeachyPet] State machine overlay: mascot=\(mascotRect), stats+perm panels")
 
         self.panel = mascotPanel
         self.statsPanel = newStatsPanel
@@ -425,7 +425,7 @@ final class OverlayManager {
                 self.panel?.orderOut(nil)
                 self.statsPanel?.orderOut(nil)
                 self.permissionPanel?.orderOut(nil)
-                print("[peachy-code] Auto-hidden (no active sessions)")
+                print("[PeachyPet] Auto-hidden (no active sessions)")
             }
         }
     }
@@ -453,7 +453,7 @@ final class OverlayManager {
             self.permissionPanel?.animator().alphaValue = 1.0
         }
 
-        print("[peachy-code] Auto-shown (session detected)")
+        print("[PeachyPet] Auto-shown (session detected)")
     }
 
     /// Compute aggregate session state and push inputs to the state machine.
@@ -993,7 +993,7 @@ final class OverlayManager {
         hotkeyManager.activeCard = .expandedPermission
 
         self.expandedPanel = newPanel
-        print("[peachy-code] Expanded permission panel shown")
+        print("[PeachyPet] Expanded permission panel shown")
     }
 
     func dismissExpandedPermission() {
@@ -1337,7 +1337,7 @@ final class OverlayManager {
         mascotPanel.setFrame(repaired, display: true, animate: false)
         savePosition()
         scheduleHUDReposition()
-        print("[peachy-code] Repaired mascot frame from \(frame) to \(repaired)")
+        print("[PeachyPet] Repaired mascot frame from \(frame) to \(repaired)")
     }
 
     static func startingMascotRect(savedX: Double, savedY: Double, sidePixels: Int, screenFrame: NSRect) -> NSRect {

@@ -578,19 +578,20 @@ struct SettingsView: View {
         // 1.5. Remove IDE extension
         ExtensionInstaller.uninstall()
 
-        // 2. Delete ~/.peachy-code/ (hook script)
-        let peachyDataDir = NSHomeDirectory() + "/.peachy-code"
-        try? fm.removeItem(atPath: peachyDataDir)
+        // 2. Delete hook script dir (current + legacy names)
+        for dir in ["/.peachypet", "/.peachy-code", "/.masko-desktop"] {
+            try? fm.removeItem(atPath: NSHomeDirectory() + dir)
+        }
 
-        // 3. Delete ~/Library/Application Support/peachy-code/
+        // 3. Delete ~/Library/Application Support/PeachyPet/
         try? fm.removeItem(at: LocalStorage.appSupportDir)
 
-        // 4. Delete ~/Library/Caches/peachy-code/
+        // 4. Delete ~/Library/Caches/PeachyPet/
         let cacheDir = VideoCache.shared.cacheDir.deletingLastPathComponent()
         try? fm.removeItem(at: cacheDir)
 
-        // 5. Clear UserDefaults — all known bundle IDs (debug + release)
-        for domain in ["com.peachy.code", "masko-code"] {
+        // 5. Clear UserDefaults — all known bundle IDs (current + legacy)
+        for domain in ["com.peachy.pet", "com.peachy.code", "com.masko.desktop", "masko-code"] {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }
         if let bundleId = Bundle.main.bundleIdentifier {
@@ -598,8 +599,8 @@ struct SettingsView: View {
         }
         UserDefaults.standard.synchronize()
 
-        // 5.5. Delete preference plist files explicitly (macOS caches them)
-        for plist in ["com.peachy.code.plist", "masko-code.plist", "peachy-code.plist"] {
+        // 5.5. Delete preference plist files explicitly (current + legacy)
+        for plist in ["com.peachy.pet.plist", "com.peachy.code.plist", "com.masko.desktop.plist", "masko-code.plist", "PeachyPet.plist"] {
             let path = NSHomeDirectory() + "/Library/Preferences/" + plist
             try? fm.removeItem(atPath: path)
         }

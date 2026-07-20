@@ -6,11 +6,11 @@ enum CopilotCLIInstaller {
 
     // MARK: - Constants
 
-    private static let pluginDir = NSHomeDirectory() + "/.peachy-code/copilot-plugin"
+    private static let pluginDir = NSHomeDirectory() + "/.peachypet/copilot-plugin"
     private static let installedPluginsDir = NSHomeDirectory() + "/.copilot/installed-plugins/local/peachy-copilot"
     private static let directPluginsDir = NSHomeDirectory() + "/.copilot/installed-plugins/_direct/copilot-plugin"
-    private static let copilotHookScript = NSHomeDirectory() + "/.peachy-code/hooks/copilot-hook.sh"
-    private static let copilotHookCommand = "~/.peachy-code/hooks/copilot-hook.sh"
+    private static let copilotHookScript = NSHomeDirectory() + "/.peachypet/hooks/copilot-hook.sh"
+    private static let copilotHookCommand = "~/.peachypet/hooks/copilot-hook.sh"
 
     /// Copilot CLI hook events (subset of Claude Code events that Copilot supports)
     private static let hookEvents = [
@@ -58,7 +58,7 @@ enum CopilotCLIInstaller {
         // Write plugin.json
         let pluginManifest: [String: Any] = [
             "name": "peachy-copilot",
-            "description": "Peachy Code companion for GitHub Copilot CLI",
+            "description": "PeachyPet companion for GitHub Copilot CLI",
             "version": "1.0.0",
             "author": ["name": "Peachy"],
             "license": "MIT",

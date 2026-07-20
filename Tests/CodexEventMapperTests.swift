@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 final class CodexEventMapperTests: XCTestCase {
     func testSessionMetaMapsToSessionStartForDesktop() throws {

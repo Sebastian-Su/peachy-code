@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 final class CodexSessionMonitorTests: XCTestCase {
     func testStartBootstrapsRecentExistingFile() throws {

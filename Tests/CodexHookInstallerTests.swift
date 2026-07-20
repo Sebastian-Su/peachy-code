@@ -1,5 +1,5 @@
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 final class CodexHookInstallerTests: XCTestCase {
     private var tmpDir: URL!

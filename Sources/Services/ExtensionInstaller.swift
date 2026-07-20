@@ -132,7 +132,7 @@ enum ExtensionInstaller {
                 try install()
                 UserDefaults.standard.set(bundledVersion, forKey: "ideExtensionVersion")
             } catch {
-                print("[peachy-code] Extension upgrade failed: \(error)")
+                print("[PeachyPet] Extension upgrade failed: \(error)")
             }
         }
     }
@@ -374,7 +374,7 @@ enum ExtensionInstaller {
             return path
         }
         // Development fallback
-        return NSHomeDirectory() + "/.peachy-code/extensions/peachy-terminal-focus.vsix"
+        return NSHomeDirectory() + "/.peachypet/extensions/peachy-terminal-focus.vsix"
     }
 
     private static func ideName(for command: String) -> String {
@@ -495,7 +495,7 @@ enum ExtensionInstaller {
         if let path = Bundle.main.path(forResource: "peachy-terminal-focus-jetbrains", ofType: "zip") {
             return path
         }
-        return NSHomeDirectory() + "/.peachy-code/extensions/peachy-terminal-focus-jetbrains.zip"
+        return NSHomeDirectory() + "/.peachypet/extensions/peachy-terminal-focus-jetbrains.zip"
     }
 
     enum ExtensionError: LocalizedError {

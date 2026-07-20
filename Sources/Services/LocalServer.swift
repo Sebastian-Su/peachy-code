@@ -49,7 +49,7 @@ final class LocalServer {
                         Constants.setServerPort(self.port)
                         try? HookInstaller.install()
                     }
-                    print("[peachy-code] Server listening on port \(self.port)")
+                    print("[PeachyPet] Server listening on port \(self.port)")
                 case .failed(let error):
                     self.isRunning = false
                     self.listener?.cancel()
@@ -78,19 +78,19 @@ final class LocalServer {
         guard !stopped else { return }
         let nextPort = port + 1
         if nextPort < Constants.defaultServerPort + Self.maxPortAttempts {
-            print("[peachy-code] Port \(port) \(reason): \(error) - trying \(nextPort)...")
+            print("[PeachyPet] Port \(port) \(reason): \(error) - trying \(nextPort)...")
             port = nextPort
             try? start()
         } else {
             // All ports exhausted, retry from default with backoff
             guard retryCount < Self.maxRetries else {
-                print("[peachy-code] Server gave up after trying ports \(Constants.defaultServerPort)-\(port) x\(Self.maxRetries)")
+                print("[PeachyPet] Server gave up after trying ports \(Constants.defaultServerPort)-\(port) x\(Self.maxRetries)")
                 return
             }
             retryCount += 1
             port = Constants.defaultServerPort
             let delay = min(Double(2 << retryCount), 30.0)
-            print("[peachy-code] All ports busy - retry \(retryCount)/\(Self.maxRetries) in \(Int(delay))s...")
+            print("[PeachyPet] All ports busy - retry \(retryCount)/\(Self.maxRetries) in \(Int(delay))s...")
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, !self.stopped else { return }
                 try? self.start()
@@ -188,7 +188,7 @@ final class LocalServer {
         if firstLine.contains("POST /hook") {
             let decoder = JSONDecoder()
             if let event = try? decoder.decode(AgentEvent.self, from: bodyData) {
-                print("[peachy-code] Hook received: \(event.hookEventName)")
+                print("[PeachyPet] Hook received: \(event.hookEventName)")
 
                 // PermissionRequest: hold connection open for user decision
                 if event.eventType == .permissionRequest, let handler = onPermissionRequest {
@@ -207,7 +207,7 @@ final class LocalServer {
                     self?.onEventReceived?(event)
                 }
             } else {
-                print("[peachy-code] Hook received but failed to decode JSON")
+                print("[PeachyPet] Hook received but failed to decode JSON")
             }
             sendResponse(connection: connection, status: "200 OK", body: "OK")
             return
@@ -229,7 +229,7 @@ final class LocalServer {
                     sendResponse(connection: connection, status: "400 Bad Request", body: "value must be bool or number")
                     return
                 }
-                print("[peachy-code] Input received: \(name) = \(json["value"] ?? "nil")")
+                print("[PeachyPet] Input received: \(name) = \(json["value"] ?? "nil")")
                 DispatchQueue.main.async { [weak self] in
                     self?.onInputReceived?(name, conditionValue)
                 }
@@ -244,7 +244,7 @@ final class LocalServer {
         if firstLine.contains("POST /install") {
             let decoder = JSONDecoder()
             if let config = try? decoder.decode(PeachyAnimationConfig.self, from: bodyData) {
-                print("[peachy-code] Install received: \(config.name)")
+                print("[PeachyPet] Install received: \(config.name)")
                 DispatchQueue.main.async { [weak self] in
                     self?.onInstallReceived?(config)
                 }

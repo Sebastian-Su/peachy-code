@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 final class OverlayManagerVisibilityTests: XCTestCase {
     @MainActor

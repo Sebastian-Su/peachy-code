@@ -48,7 +48,7 @@ struct ContentView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 24, height: 24)
                     }
-                    Text("Peachy Code")
+                    Text("PeachyPet")
                         .font(Constants.heading(size: 16, weight: .bold))
                         .foregroundColor(Constants.textPrimary)
                 }

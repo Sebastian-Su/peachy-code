@@ -1,10 +1,10 @@
 import Foundation
 
-/// JSON file persistence for ~/Library/Application Support/peachy-code/
+/// JSON file persistence for ~/Library/Application Support/PeachyPet/
 enum LocalStorage {
     static let appSupportDir: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("peachy-code", isDirectory: true)
+            .appendingPathComponent("PeachyPet", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
@@ -15,7 +15,7 @@ enum LocalStorage {
             let data = try JSONEncoder().encode(value)
             try data.write(to: url, options: .atomic)
         } catch {
-            print("[peachy-code] Failed to save \(filename): \(error)")
+            print("[PeachyPet] Failed to save \(filename): \(error)")
         }
     }
 
@@ -25,7 +25,7 @@ enum LocalStorage {
         do {
             return try JSONDecoder().decode(type, from: data)
         } catch {
-            print("[peachy-code] Failed to load \(filename): \(error)")
+            print("[PeachyPet] Failed to load \(filename): \(error)")
             return nil
         }
     }

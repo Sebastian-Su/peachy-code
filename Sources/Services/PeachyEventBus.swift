@@ -32,7 +32,7 @@ final class PeachyEventBus {
             do {
                 try adapter.install()
             } catch {
-                print("[peachy-code] Failed to install \(adapter.source.displayName) hooks: \(error)")
+                print("[PeachyPet] Failed to install \(adapter.source.displayName) hooks: \(error)")
             }
         }
     }
@@ -43,7 +43,7 @@ final class PeachyEventBus {
             do {
                 try adapter.start()
             } catch {
-                print("[peachy-code] Failed to start \(adapter.source.displayName) adapter: \(error)")
+                print("[PeachyPet] Failed to start \(adapter.source.displayName) adapter: \(error)")
             }
         }
     }

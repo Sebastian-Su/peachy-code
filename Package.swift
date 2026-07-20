@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "peachy-code",
+    name: "PeachyPet",
     platforms: [
         .macOS(.v14)
     ],
@@ -12,13 +12,13 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "peachy-code",
+            name: "PeachyPet",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "MarkdownUI", package: "swift-markdown-ui")
             ],
             path: "Sources",
-            exclude: ["peachy-code.entitlements"],
+            exclude: ["PeachyPet.entitlements"],
             resources: [
                 .copy("Resources/Fonts"),
                 .copy("Resources/Images"),
@@ -27,8 +27,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "peachy-codeTests",
-            dependencies: ["peachy-code"],
+            name: "PeachyPetTests",
+            dependencies: ["PeachyPet"],
             path: "Tests"
         )
     ]

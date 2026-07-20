@@ -9,7 +9,7 @@ final class VideoCache: Sendable {
 
     private init() {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDir = base.appendingPathComponent("peachy-code/videos", isDirectory: true)
+        cacheDir = base.appendingPathComponent("PeachyPet/videos", isDirectory: true)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
     }
 
@@ -46,7 +46,7 @@ final class VideoCache: Sendable {
             }
         }
         if evicted > 0 {
-            print("[peachy-code] VideoCache: evicted \(evicted) stale file(s)")
+            print("[PeachyPet] VideoCache: evicted \(evicted) stale file(s)")
         }
     }
 
@@ -65,11 +65,11 @@ final class VideoCache: Sendable {
         let uncached = urls.filter { !FileManager.default.fileExists(atPath: cacheDir.appendingPathComponent($0.lastPathComponent).path) }
 
         guard !uncached.isEmpty else {
-            print("[peachy-code] VideoCache: all \(urls.count) videos already cached")
+            print("[PeachyPet] VideoCache: all \(urls.count) videos already cached")
             return
         }
 
-        print("[peachy-code] VideoCache: downloading \(uncached.count)/\(urls.count) videos...")
+        print("[PeachyPet] VideoCache: downloading \(uncached.count)/\(urls.count) videos...")
 
         await withTaskGroup(of: Void.self) { group in
             for url in uncached {
@@ -79,14 +79,14 @@ final class VideoCache: Sendable {
                         let dest = cacheDir.appendingPathComponent(url.lastPathComponent)
                         try? FileManager.default.removeItem(at: dest)
                         try FileManager.default.moveItem(at: tempFile, to: dest)
-                        print("[peachy-code] VideoCache: cached \(url.lastPathComponent)")
+                        print("[PeachyPet] VideoCache: cached \(url.lastPathComponent)")
                     } catch {
-                        print("[peachy-code] VideoCache: failed \(url.lastPathComponent) — \(error.localizedDescription)")
+                        print("[PeachyPet] VideoCache: failed \(url.lastPathComponent) — \(error.localizedDescription)")
                     }
                 }
             }
         }
 
-        print("[peachy-code] VideoCache: preload complete")
+        print("[PeachyPet] VideoCache: preload complete")
     }
 }

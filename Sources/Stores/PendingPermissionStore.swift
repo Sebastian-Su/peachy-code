@@ -18,7 +18,7 @@ struct PermissionSuggestion: Identifiable {
             let ruleContent = firstRule["ruleContent"] ?? ""
             // Show a compact version of the rule
             if ruleContent.contains("**") {
-                // Path glob like //Users/.../peachy-code/**
+                // Path glob like //Users/.../PeachyPet/**
                 let short = URL(fileURLWithPath: ruleContent.replacingOccurrences(of: "/**", with: "")).lastPathComponent
                 return "Allow \(toolName) in \(short)/"
             } else if !ruleContent.isEmpty {
@@ -117,7 +117,7 @@ struct PendingPermission: Identifiable {
         } else if let arr = rawQuestions as? [Any] {
             questionsArray = arr
         } else {
-            print("[peachy-code] parsedQuestions: unexpected type for questions: \(type(of: rawQuestions))")
+            print("[PeachyPet] parsedQuestions: unexpected type for questions: \(type(of: rawQuestions))")
             return nil
         }
 
@@ -411,7 +411,7 @@ final class PendingPermissionStore {
             self?.silentRemove(id: permission.id)
         }
 
-        print("[peachy-code] Permission added: \(event.toolName ?? "unknown") toolUseId=\(resolvedToolUseId ?? "nil") (pending: \(pending.count))")
+        print("[PeachyPet] Permission added: \(event.toolName ?? "unknown") toolUseId=\(resolvedToolUseId ?? "nil") (pending: \(pending.count))")
     }
 
     private func isDuplicate(event: AgentEvent, resolvedToolUseId: String?) -> Bool {
@@ -422,7 +422,7 @@ final class PendingPermissionStore {
                $0.event.sessionId == sessionId &&
                ($0.event.toolUseId == toolUseId || $0.resolvedToolUseId == toolUseId)
            }) {
-            print("[peachy-code] Dropping duplicate permission for toolUseId=\(toolUseId)")
+            print("[PeachyPet] Dropping duplicate permission for toolUseId=\(toolUseId)")
             return true
         }
 
@@ -433,7 +433,7 @@ final class PendingPermissionStore {
             existing.event.toolName == event.toolName &&
             canonicalToolInputSignature(existing.event.toolInput) == incomingSignature
         }) {
-            print("[peachy-code] Dropping duplicate permission for \(event.toolName ?? "unknown") in session \(sessionId)")
+            print("[PeachyPet] Dropping duplicate permission for \(event.toolName ?? "unknown") in session \(sessionId)")
             return true
         }
 
@@ -534,7 +534,7 @@ final class PendingPermissionStore {
         onPendingChange?()
         onPendingCountChange?()
         onResolved?(permission.event, .unknown)
-        print("[peachy-code] Permission auto-dismissed (answered from terminal): \(permission.toolName) (remaining: \(pending.count))")
+        print("[PeachyPet] Permission auto-dismissed (answered from terminal): \(permission.toolName) (remaining: \(pending.count))")
     }
 
     func resolve(id: UUID, decision: PermissionDecision, isExpired: Bool = false) {
@@ -551,7 +551,7 @@ final class PendingPermissionStore {
         onPendingCountChange?()
         let outcome: ResolutionOutcome = isExpired ? .expired : (decision == .allow ? .allowed : .denied)
         onResolved?(permission.event, outcome)
-        print("[peachy-code] Permission resolved: \(decision) for \(permission.toolName) (remaining: \(pending.count))")
+        print("[PeachyPet] Permission resolved: \(decision) for \(permission.toolName) (remaining: \(pending.count))")
     }
 
     /// Resolve AskUserQuestion with pre-filled answers via updatedInput
@@ -577,7 +577,7 @@ final class PendingPermissionStore {
         onPendingChange?()
         onPendingCountChange?()
         onResolved?(permission.event, .allowed)
-        print("[peachy-code] Permission resolved with answers for \(permission.toolName) (remaining: \(pending.count))")
+        print("[PeachyPet] Permission resolved with answers for \(permission.toolName) (remaining: \(pending.count))")
     }
 
     /// Resolve with allow + user feedback text (for ExitPlanMode "tell Claude what to change")
@@ -602,7 +602,7 @@ final class PendingPermissionStore {
         onPendingChange?()
         onPendingCountChange?()
         onResolved?(permission.event, .allowed)
-        print("[peachy-code] Permission resolved with feedback for \(permission.toolName) (remaining: \(pending.count))")
+        print("[PeachyPet] Permission resolved with feedback for \(permission.toolName) (remaining: \(pending.count))")
     }
 
     /// Resolve with allow + updatedPermissions (for "always allow" suggestions)
@@ -620,7 +620,7 @@ final class PendingPermissionStore {
         onPendingChange?()
         onPendingCountChange?()
         onResolved?(permission.event, .allowed)
-        print("[peachy-code] Permission resolved with \(suggestions.count) always-allow rules for \(permission.toolName) (remaining: \(pending.count))")
+        print("[PeachyPet] Permission resolved with \(suggestions.count) always-allow rules for \(permission.toolName) (remaining: \(pending.count))")
     }
 
     func resolveAll(decision: PermissionDecision) {

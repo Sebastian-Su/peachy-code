@@ -29,7 +29,7 @@ final class EdgeAudioService {
         // Download async then play
         Task {
             guard let localURL = await resolveAudio(sound.url) else {
-                print("[peachy-code] Audio: failed to resolve \(sound.url)")
+                print("[PeachyPet] Audio: failed to resolve \(sound.url)")
                 return
             }
             playLocal(localURL, loop: shouldLoop, volume: volume, label: sound.url)
@@ -49,9 +49,9 @@ final class EdgeAudioService {
             let playing = newPlayer.play()
 
             let mode = loop ? "looping" : "one-shot"
-            if !playing { print("[peachy-code] Audio: play failed for \(url.lastPathComponent)") }
+            if !playing { print("[PeachyPet] Audio: play failed for \(url.lastPathComponent)") }
         } catch {
-            print("[peachy-code] Audio: playback error - \(error.localizedDescription)")
+            print("[PeachyPet] Audio: playback error - \(error.localizedDescription)")
         }
     }
 
@@ -75,15 +75,15 @@ final class EdgeAudioService {
     func preload(_ config: PeachyAnimationConfig) {
         let urls = config.edges.compactMap { $0.sound?.url }
         let unique = Set(urls)
-        print("[peachy-code] Audio: preloading \(unique.count) sound(s) from \(config.edges.count) edges")
+        print("[PeachyPet] Audio: preloading \(unique.count) sound(s) from \(config.edges.count) edges")
         guard !unique.isEmpty else {
-            print("[peachy-code] Audio: no sounds to preload")
+            print("[PeachyPet] Audio: no sounds to preload")
             return
         }
         Task {
             for urlString in unique {
                 let result = await resolveAudio(urlString)
-                if result == nil { print("[peachy-code] Audio: failed to preload \(urlString)") }
+                if result == nil { print("[PeachyPet] Audio: failed to preload \(urlString)") }
             }
         }
     }
@@ -122,10 +122,10 @@ final class EdgeAudioService {
 
             try data.write(to: localURL)
             downloadCache[urlString] = localURL
-            print("[peachy-code] Audio: cached \(filename)")
+            print("[PeachyPet] Audio: cached \(filename)")
             return localURL
         } catch {
-            print("[peachy-code] Audio: download failed — \(error.localizedDescription)")
+            print("[PeachyPet] Audio: download failed — \(error.localizedDescription)")
             return nil
         }
     }

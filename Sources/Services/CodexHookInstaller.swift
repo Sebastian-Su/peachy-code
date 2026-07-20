@@ -1,10 +1,10 @@
 import Foundation
 
-/// Manages peachy-code hook registration in ~/.codex/hooks.json (Codex CLI).
+/// Manages PeachyPet hook registration in ~/.codex/hooks.json (Codex CLI).
 /// Reuses the same hook-sender.sh script installed by HookInstaller.
 enum CodexHookInstaller {
 
-    private static let hookCommand = "~/.peachy-code/hooks/hook-sender.sh"
+    private static let hookCommand = "~/.peachypet/hooks/hook-sender.sh"
 
     /// Codex-supported events we subscribe to (camelCase, matches Codex 0.144.5).
     static let hookEvents = [

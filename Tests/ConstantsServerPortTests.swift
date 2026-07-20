@@ -1,5 +1,5 @@
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 final class ConstantsServerPortTests: XCTestCase {
     private let defaults = UserDefaults.standard

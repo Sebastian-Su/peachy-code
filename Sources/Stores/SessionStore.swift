@@ -199,7 +199,7 @@ final class SessionStore {
                           self.sessions[candidate.index].phase == .running else { continue }
                     self.sessions[candidate.index].phase = .idle
                     changed = true
-                    print("[peachy-code] Interrupt detected for session \(candidate.id) via transcript")
+                    print("[PeachyPet] Interrupt detected for session \(candidate.id) via transcript")
                 }
                 if changed {
                     self.persist()

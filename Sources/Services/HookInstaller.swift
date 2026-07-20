@@ -6,8 +6,8 @@ enum HookInstaller {
     // MARK: - Constants
 
     private static let claudeSettingsPath = NSHomeDirectory() + "/.claude/settings.json"
-    private static let hookScriptPath = NSHomeDirectory() + "/.peachy-code/hooks/hook-sender.sh"
-    private static let hookCommand = "~/.peachy-code/hooks/hook-sender.sh"
+    private static let hookScriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
+    private static let hookCommand = "~/.peachypet/hooks/hook-sender.sh"
 
     /// All Claude Code event types we want to subscribe to
     private static let hookEvents = [
@@ -164,7 +164,7 @@ enum HookInstaller {
         """
         #!/bin/bash
         \(scriptVersion)
-        # hook-sender.sh — Forwards Claude Code / Codex hook events to peachy-code
+        # hook-sender.sh — Forwards Claude Code / Codex hook events to PeachyPet
         # Exit instantly if the desktop app server isn't reachable (avoids curl timeout latency)
         # Use health endpoint instead of pgrep (works regardless of binary name)
         curl -s --connect-timeout 0.3 "http://localhost:\(Constants.serverPort)/health" >/dev/null 2>&1 || exit 0

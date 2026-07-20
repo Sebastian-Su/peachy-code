@@ -1,5 +1,5 @@
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 final class CodexAdapterInstallTests: XCTestCase {
     // assistantClientKind 是分发依据 — 固化其对 codex-cli / claude 的判定

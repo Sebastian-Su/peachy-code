@@ -232,9 +232,9 @@ struct PeachyDesktopApp: App {
         }
     }
 
-    /// Handle peachy:// URL scheme (e.g. peachy://install/my-mascot-slug)
+    /// Handle peachypet:// URL scheme (e.g. peachypet://install/my-mascot-slug)
     private func handlePeachyURL(_ url: URL) {
-        guard url.scheme == "peachy" else { return }
+        guard url.scheme == "peachypet" else { return }
 
         switch url.host {
         case "install":

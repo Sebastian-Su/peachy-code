@@ -214,7 +214,7 @@ final class GlobalHotkeyManager {
     /// Log to a file for debugging (stdout is lost when backgrounded)
     static func debugLog(_ msg: String) {
         #if DEBUG
-        let path = NSHomeDirectory() + "/.peachy-code/hotkey-debug.log"
+        let path = NSHomeDirectory() + "/.peachypet/hotkey-debug.log"
         let line = "\(Date()): \(msg)\n"
         if let handle = FileHandle(forWritingAtPath: path) {
             handle.seekToEndOfFile()
@@ -250,7 +250,7 @@ final class GlobalHotkeyManager {
         ) else {
             let trusted = AXIsProcessTrusted()
             Self.debugLog("CGEvent tap FAILED — AXIsProcessTrusted=\(trusted)")
-            print("[peachy-code] CGEvent tap failed — AXIsProcessTrusted=\(trusted)")
+            print("[PeachyPet] CGEvent tap failed — AXIsProcessTrusted=\(trusted)")
             isActive = false
             // Only prompt once - if the user already denied, don't keep showing the dialog
             if !UserDefaults.standard.bool(forKey: "accessibilityDenied") {
@@ -269,7 +269,7 @@ final class GlobalHotkeyManager {
         UserDefaults.standard.removeObject(forKey: "accessibilityDenied")
 
         Self.debugLog("Started! shortcut=\(shortcutLabel), keyCode=\(shared.keyCode), mods=\(shared.modifiersRaw)")
-        print("[peachy-code] Global hotkey manager started (shortcut: \(shortcutLabel))")
+        print("[PeachyPet] Global hotkey manager started (shortcut: \(shortcutLabel))")
     }
 
     func stop() {
@@ -283,7 +283,7 @@ final class GlobalHotkeyManager {
         shared.eventTap = nil
         runLoopSource = nil
         isActive = false
-        print("[peachy-code] Global hotkey manager stopped")
+        print("[PeachyPet] Global hotkey manager stopped")
     }
 
     /// Prompt the macOS Accessibility permission dialog.

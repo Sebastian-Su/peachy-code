@@ -135,12 +135,12 @@ final class OverlayStateMachine {
 
     /// Start the state machine: play the initial node's loop video
     func start() {
-        print("[peachy-code] State machine starting — initial node: \(currentNodeName) (\(currentNodeId))")
-        print("[peachy-code]   Config: \(config.nodes.count) nodes, \(config.edges.count) edges")
+        print("[PeachyPet] State machine starting — initial node: \(currentNodeName) (\(currentNodeId))")
+        print("[PeachyPet]   Config: \(config.nodes.count) nodes, \(config.edges.count) edges")
 
         let conditionlessCount = config.edges.filter { !$0.isLoop && ($0.conditions == nil || $0.conditions!.isEmpty) }.count
         if conditionlessCount > 0 {
-            print("[peachy-code] WARNING: \(conditionlessCount) transition edges have NO CONDITIONS")
+            print("[PeachyPet] WARNING: \(conditionlessCount) transition edges have NO CONDITIONS")
         }
 
         // Preload audio files
@@ -167,7 +167,7 @@ final class OverlayStateMachine {
             lastInputTime = Date()
         }
 
-        print("[peachy-code] Input: \(name) = \(conditionValueStr(value))")
+        print("[PeachyPet] Input: \(name) = \(conditionValueStr(value))")
 
         evaluateAndFire(changedInput: name)
     }
@@ -194,7 +194,7 @@ final class OverlayStateMachine {
         guard phase == .transitioning, let edge = pendingEdge else { return }
 
         let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
-        print("[peachy-code] Transition video ended — arriving at \(targetName)")
+        print("[PeachyPet] Transition video ended — arriving at \(targetName)")
 
         pendingEdge = nil
         arriveAtNode(edge.target)
@@ -214,7 +214,7 @@ final class OverlayStateMachine {
                     if pendingTarget == nil || best.target != pendingTarget {
                         pendingTarget = best.target
                         let targetName = config.nodes.first(where: { $0.id == best.target })?.name ?? best.target
-                        print("[peachy-code] Mid-transition: updated pendingTarget to \(targetName)")
+                        print("[PeachyPet] Mid-transition: updated pendingTarget to \(targetName)")
                     }
                 }
             }
@@ -253,11 +253,11 @@ final class OverlayStateMachine {
             if let best = bestAnyState, best.target != pendingTarget {
                 // Higher-priority state overrides
                 let targetName = config.nodes.first(where: { $0.id == best.target })?.name ?? best.target
-                print("[peachy-code] pendingTarget overridden by higher-priority → \(targetName)")
+                print("[PeachyPet] pendingTarget overridden by higher-priority → \(targetName)")
                 pendingTarget = best.target
             } else if bestAnyState == nil {
                 // No Any State matches - conditions cleared
-                print("[peachy-code] pendingTarget cleared (no matching Any State)")
+                print("[PeachyPet] pendingTarget cleared (no matching Any State)")
                 pendingTarget = nil
             }
         }
@@ -269,7 +269,7 @@ final class OverlayStateMachine {
             let targetName = config.nodes.first(where: { $0.id == target })?.name ?? target
             // Try direct edge to target
             if let directEdge = findEdgeWithVideo(from: currentNodeId, to: target) {
-                print("[peachy-code] pendingTarget: direct edge → \(targetName)")
+                print("[PeachyPet] pendingTarget: direct edge → \(targetName)")
                 pendingTarget = nil
                 resetTriggerInput(changedInput)
                 playTransition(directEdge)
@@ -280,13 +280,13 @@ final class OverlayStateMachine {
                 $0.source == currentNodeId && !$0.isLoop && $0.videos.hevc != nil
             }) {
                 let retTargetName = config.nodes.first(where: { $0.id == returnEdge.target })?.name ?? returnEdge.target
-                print("[peachy-code] pendingTarget: routing via \(retTargetName) → \(targetName)")
+                print("[PeachyPet] pendingTarget: routing via \(retTargetName) → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(returnEdge)
                 return
             }
             // No path found
-            print("[peachy-code] pendingTarget: no path to \(targetName) - giving up")
+            print("[PeachyPet] pendingTarget: no path to \(targetName) - giving up")
             pendingTarget = nil
         }
 
@@ -298,7 +298,7 @@ final class OverlayStateMachine {
             // Try direct edge with video
             if let directEdge = findEdgeWithVideo(from: currentNodeId, to: best.target) {
                 lastMatchResult = "Any State → \(targetName) (direct)"
-                print("[peachy-code] Any State: direct → \(targetName)")
+                print("[PeachyPet] Any State: direct → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(directEdge)
                 return
@@ -310,7 +310,7 @@ final class OverlayStateMachine {
             }) {
                 let retTargetName = config.nodes.first(where: { $0.id == returnEdge.target })?.name ?? returnEdge.target
                 lastMatchResult = "Any State → \(targetName) via \(retTargetName)"
-                print("[peachy-code] Any State: routing via \(retTargetName) → \(targetName)")
+                print("[PeachyPet] Any State: routing via \(retTargetName) → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(returnEdge)
                 return
@@ -325,7 +325,7 @@ final class OverlayStateMachine {
             if evaluateConditions(edge.conditions) {
                 let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
                 lastMatchResult = "Matched → \(targetName)"
-                print("[peachy-code] Conditions met → \(targetName)")
+                print("[PeachyPet] Conditions met → \(targetName)")
                 resetTriggerInput(changedInput)
                 playTransition(edge)
                 return
@@ -427,7 +427,7 @@ final class OverlayStateMachine {
             currentPlaybackRate = playbackRate(for: loopEdge, videoURL: resolved)
             isLoopVideo = true
             phase = .looping
-            print("[peachy-code] Arrived at \(nodeName) — looping")
+            print("[PeachyPet] Arrived at \(nodeName) — looping")
 
             // Play loop sound if present (e.g. permission alert loop)
             if let sound = loopEdge.sound {
@@ -435,11 +435,11 @@ final class OverlayStateMachine {
             }
         } else {
             phase = .idle
-            print("[peachy-code] Arrived at \(nodeName) — idle (no loop video)")
+            print("[PeachyPet] Arrived at \(nodeName) — idle (no loop video)")
         }
 
         if !availableEdges.isEmpty {
-            print("[peachy-code]   Edges: \(availableEdges.joined(separator: ", "))")
+            print("[PeachyPet]   Edges: \(availableEdges.joined(separator: ", "))")
         }
 
         // Start nodeTime timer if any edge uses it
@@ -488,14 +488,14 @@ final class OverlayStateMachine {
         guard phase == .looping || phase == .idle else { return }
         guard let hevc = edge.videos.hevc, let url = URL(string: hevc) else {
             let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
-            print("[peachy-code] No transition video — jumping directly to \(targetName)")
+            print("[PeachyPet] No transition video — jumping directly to \(targetName)")
             arriveAtNode(edge.target)
             return
         }
 
         let sourceName = config.nodes.first(where: { $0.id == edge.source })?.name ?? edge.source
         let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
-        print("[peachy-code] Playing transition: \(sourceName) → \(targetName)")
+        print("[PeachyPet] Playing transition: \(sourceName) → \(targetName)")
 
         cancelNodeTimeTimer()
 

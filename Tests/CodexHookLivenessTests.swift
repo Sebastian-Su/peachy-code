@@ -1,5 +1,5 @@
 import XCTest
-@testable import peachy_code
+@testable import PeachyPet
 
 @MainActor
 final class CodexHookLivenessTests: XCTestCase {

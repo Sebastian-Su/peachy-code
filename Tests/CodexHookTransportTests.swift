@@ -1,6 +1,6 @@
 import XCTest
 import Network
-@testable import peachy_code
+@testable import PeachyPet
 
 final class CodexHookTransportTests: XCTestCase {
     func testCapabilitiesOnlyPermissionResponse() {
