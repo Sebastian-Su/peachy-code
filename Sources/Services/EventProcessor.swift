@@ -56,6 +56,11 @@ final class EventProcessor {
                 let snapshotKey = event.taskId ?? sessionId
                 sessionStore.saveSnapshot(taskId: snapshotKey, sessionId: sessionId)
             }
+            // Also snapshot on SessionStart so an all-internalResult session (Codex approval-only
+            // JSONL) can be fully removed if no real work ever arrives.
+            if event.eventType == .sessionStart, !sessionId.isEmpty {
+                sessionStore.saveSnapshot(taskId: sessionId, sessionId: sessionId)
+            }
             sessionStore.recordEvent(event)
 
             if event.eventType == .sessionEnd, !sessionId.isEmpty {

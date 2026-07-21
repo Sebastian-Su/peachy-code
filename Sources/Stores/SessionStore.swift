@@ -473,6 +473,15 @@ final class SessionStore {
             return
         }
         guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        // If the session has no terminal, was never stopped (no idleUntil), and was only
+        // created by SessionStart + internal turns (Codex approval-only JSONL), remove it
+        // entirely rather than leaving a phantom idle entry.
+        let s = sessions[index]
+        if s.terminalPid == nil && s.idleUntil == nil && s.eventCount <= 2 && snapshot.phase == .idle {
+            sessions.remove(at: index)
+            persist()
+            return
+        }
         sessions[index].phase = snapshot.phase
         sessions[index].idleUntil = snapshot.idleUntil
         persist()
