@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "PeachyPet",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v14)
     ],
@@ -23,7 +24,9 @@ let package = Package(
                 .copy("Resources/Fonts"),
                 .copy("Resources/Images"),
                 .copy("Resources/Defaults"),
-                .copy("Resources/Extensions")
+                .copy("Resources/Extensions"),
+                .process("Resources/en.lproj"),
+                .process("Resources/zh.lproj")
             ]
         ),
         .testTarget(
