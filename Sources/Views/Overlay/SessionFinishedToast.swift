@@ -18,7 +18,7 @@ struct SessionFinishedToastView: View {
                         .foregroundStyle(Constants.textPrimary)
                         .lineLimit(1)
 
-                    Text("Task completed")
+                    Text(t("toast.task_completed"))
                         .font(Constants.body(size: 10, weight: .medium))
                         .foregroundStyle(Constants.textMuted)
                 }

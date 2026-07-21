@@ -273,7 +273,7 @@ struct OverlayContextMenuContent: View {
                     }
                 }
 
-            Text("min")
+            Text(t("overlay.min"))
                 .font(Constants.body(size: 12, weight: .medium))
                 .foregroundStyle(Constants.textMuted)
 
@@ -436,10 +436,10 @@ struct OverlayContextMenuContent: View {
                     .foregroundStyle(Constants.textMuted)
                     .frame(width: 16)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Disable Mascot")
+                    Text(t("overlay.disable_mascot"))
                         .font(Constants.heading(size: 13, weight: .medium))
                         .foregroundStyle(Constants.textPrimary)
-                    Text("Notifications will continue")
+                    Text(t("overlay.notifications_continue"))
                         .font(Constants.body(size: 10))
                         .foregroundStyle(Constants.textMuted)
                 }
@@ -465,7 +465,7 @@ struct OverlayContextMenuContent: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Constants.textMuted)
                     .frame(width: 16)
-                Text("Open Dashboard")
+                Text(t("overlay.open_dashboard"))
                     .font(Constants.heading(size: 13, weight: .medium))
                     .foregroundStyle(Constants.textPrimary)
                 Spacer()
@@ -490,7 +490,7 @@ struct OverlayContextMenuContent: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                     .frame(width: 16)
-                Text("Close")
+                Text(t("overlay.close"))
                     .font(Constants.heading(size: 13, weight: .medium))
                     .foregroundStyle(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                 Spacer()
@@ -543,7 +543,7 @@ struct StandaloneContextMenuContent: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Constants.textMuted)
                         .frame(width: 16)
-                    Text("Open Dashboard")
+                    Text(t("overlay.open_dashboard"))
                         .font(Constants.heading(size: 13, weight: .medium))
                         .foregroundStyle(Constants.textPrimary)
                     Spacer()
@@ -567,7 +567,7 @@ struct StandaloneContextMenuContent: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Constants.orangePrimary)
                         .frame(width: 16)
-                    Text("Enable Mascot")
+                    Text(t("overlay.enable_mascot"))
                         .font(Constants.heading(size: 13, weight: .medium))
                         .foregroundStyle(Constants.textPrimary)
                     Spacer()
@@ -591,7 +591,7 @@ struct StandaloneContextMenuContent: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                         .frame(width: 16)
-                    Text("Close")
+                    Text(t("overlay.close"))
                         .font(Constants.heading(size: 13, weight: .medium))
                         .foregroundStyle(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                     Spacer()

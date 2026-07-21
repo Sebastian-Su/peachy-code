@@ -16,10 +16,10 @@ struct ConnectionDoctorView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(Constants.orangePrimary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Connection Doctor")
+                    Text(t("doctor.title"))
                         .font(Constants.heading(size: 16, weight: .bold))
                         .foregroundStyle(Constants.textPrimary)
-                    Text("Diagnose and repair the connection to Claude Code")
+                    Text(t("doctor.subtitle"))
                         .font(Constants.body(size: 12))
                         .foregroundStyle(Constants.textMuted)
                 }
@@ -41,7 +41,7 @@ struct ConnectionDoctorView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                             .controlSize(.regular)
-                        Text("Running diagnostics...")
+                        Text(t("doctor.running"))
                             .font(Constants.body(size: 13))
                             .foregroundStyle(Constants.textMuted)
                     }
@@ -52,7 +52,7 @@ struct ConnectionDoctorView: View {
                         Image(systemName: "waveform.path.ecg")
                             .font(.system(size: 32))
                             .foregroundStyle(Constants.textMuted.opacity(0.4))
-                        Text("Click Run to start diagnostics")
+                        Text(t("doctor.idle"))
                             .font(Constants.body(size: 13))
                             .foregroundStyle(Constants.textMuted)
                     }
@@ -81,7 +81,7 @@ struct ConnectionDoctorView: View {
                         if errorCount == 0 && warningCount == 0 {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
-                            Text("All checks passed")
+                            Text(t("doctor.passed"))
                                 .font(Constants.body(size: 13, weight: .medium))
                                 .foregroundStyle(Constants.textPrimary)
                         } else {
@@ -152,7 +152,7 @@ struct ConnectionDoctorView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
-                                Text("Report sent!")
+                                Text(t("doctor.report_sent"))
                                     .font(Constants.body(size: 12, weight: .medium))
                                     .foregroundStyle(Constants.textPrimary)
                                 Text(code)
@@ -189,7 +189,7 @@ struct ConnectionDoctorView: View {
                             .disabled(isSendingReport)
 
                             if reportError {
-                                Text("Failed to send report. Check your internet connection.")
+                                Text(t("doctor.report_failed"))
                                     .font(.system(size: 11))
                                     .foregroundStyle(Constants.destructiveRed)
                             }

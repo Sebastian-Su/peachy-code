@@ -14,10 +14,10 @@ struct SessionListView: View {
                     Image(systemName: "terminal")
                         .font(.system(size: 36))
                         .foregroundColor(Constants.textMuted)
-                    Text("No Sessions")
+                    Text(t("sessions.no_sessions"))
                         .font(Constants.heading(size: 22, weight: .semibold))
                         .foregroundColor(Constants.textPrimary)
-                    Text("Claude Code and Codex sessions will appear here")
+                    Text(t("sessions.hint"))
                         .font(Constants.body(size: 14))
                         .foregroundColor(Constants.textMuted)
                     Spacer()
@@ -71,11 +71,11 @@ private struct SessionRow: View {
                     .font(Constants.heading(size: 14, weight: .semibold))
                     .foregroundColor(isSelected ? Constants.orangePrimary : Constants.textPrimary)
                 HStack {
-                    Text("\(session.eventCount) events")
+                    Text("\(session.eventCount) \(t("sessions.events"))")
                         .font(Constants.body(size: 11))
                         .foregroundColor(Constants.textMuted)
                     if let lastEvent = session.lastEventAt {
-                        Text("Last: \(relativeTimeString(from: lastEvent))")
+                        Text("\(t("sessions.last")) \(relativeTimeString(from: lastEvent))")
                             .font(Constants.body(size: 11))
                             .foregroundColor(Constants.textMuted)
                     }

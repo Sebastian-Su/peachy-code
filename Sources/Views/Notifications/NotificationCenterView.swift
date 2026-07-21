@@ -12,11 +12,11 @@ struct NotificationCenterView: View {
 
         VStack(spacing: 0) {
             HStack {
-                Text("Notifications")
+                Text(t("notifications.title"))
                     .font(Constants.heading(size: 22, weight: .semibold))
                     .foregroundColor(Constants.textPrimary)
                 Spacer()
-                Button("Mark All Read") {
+                Button(t("notifications.mark_read")) {
                     appStore.notificationStore.markAllAsRead()
                 }
                 .buttonStyle(.plain)
@@ -24,7 +24,7 @@ struct NotificationCenterView: View {
                 .foregroundColor(hasUnread ? Constants.orangePrimary : Constants.textMuted)
                 .disabled(!hasUnread)
 
-                Button("Clear All") {
+                Button(t("notifications.clear")) {
                     showClearAllConfirmation = true
                 }
                 .buttonStyle(.plain)
@@ -43,10 +43,10 @@ struct NotificationCenterView: View {
                     Image(systemName: "bell")
                         .font(.system(size: 36))
                         .foregroundColor(Constants.textMuted)
-                    Text("No Notifications")
+                    Text(t("notifications.empty"))
                         .font(Constants.heading(size: 22, weight: .semibold))
                         .foregroundColor(Constants.textPrimary)
-                    Text("Notifications from Claude Code and Codex will appear here")
+                    Text(t("notifications.hint"))
                         .font(Constants.body(size: 14))
                         .foregroundColor(Constants.textMuted)
                     Spacer()
@@ -99,17 +99,17 @@ private struct ClearAllConfirmationDialog: View {
                     .font(.system(size: 28))
                     .foregroundColor(Constants.destructiveRed)
 
-                Text("Clear All Notifications")
+                Text(t("notifications.clear_all"))
                     .font(Constants.heading(size: 16, weight: .semibold))
                     .foregroundColor(Constants.textPrimary)
 
-                Text("This will permanently delete all notifications.")
+                Text(t("notifications.clear_confirm"))
                     .font(Constants.body(size: 13))
                     .foregroundColor(Constants.textMuted)
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 12) {
-                    Button("Cancel") { onCancel() }
+                    Button(t("notifications.cancel")) { onCancel() }
                         .buttonStyle(.plain)
                         .font(Constants.body(size: 13, weight: .medium))
                         .foregroundColor(Constants.textPrimary)
@@ -120,7 +120,7 @@ private struct ClearAllConfirmationDialog: View {
                                 .stroke(Constants.border, lineWidth: 1)
                         )
 
-                    Button("Clear All") { onConfirm() }
+                    Button(t("notifications.clear")) { onConfirm() }
                         .buttonStyle(.plain)
                         .font(Constants.body(size: 13, weight: .medium))
                         .foregroundColor(.white)

@@ -46,7 +46,7 @@ struct MenuBarView: View {
 
             // Recent notifications
             if appStore.notificationStore.recent.isEmpty {
-                Text("No recent notifications")
+                Text(t("menu.no_notifications"))
                     .font(Constants.body(size: 12))
                     .foregroundColor(Constants.textMuted)
                     .padding()
@@ -63,7 +63,7 @@ struct MenuBarView: View {
             // Active sessions
             if !appStore.sessionStore.activeSessions.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Active Sessions")
+                    Text(t("menu.active_sessions"))
                         .font(Constants.heading(size: 11, weight: .medium))
                         .foregroundColor(Constants.textMuted)
                     ForEach(appStore.sessionStore.activeSessions) { session in
@@ -100,7 +100,7 @@ struct MenuBarView: View {
                 Image(systemName: overlayManager.isOverlayEnabled ? "eye" : "eye.slash")
                     .font(.system(size: 12))
                     .foregroundColor(Constants.textMuted)
-                Text("Mascot Overlay")
+                Text(t("menu.mascot_overlay"))
                     .font(Constants.body(size: 12))
                     .foregroundColor(Constants.textPrimary)
                 Spacer()
@@ -132,7 +132,7 @@ struct MenuBarView: View {
                 AppDelegate.showDashboard()
             }) {
                 HStack {
-                    Text("Open Peachy Dashboard")
+                    Text(t("menu.open_dashboard"))
                         .font(Constants.body(size: 13))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
@@ -153,7 +153,7 @@ struct MenuBarView: View {
                     Image(systemName: "stethoscope")
                         .font(.system(size: 12))
                         .foregroundColor(Constants.orangePrimary)
-                    Text("Diagnose Connection...")
+                    Text(t("menu.diagnose"))
                         .font(Constants.body(size: 13))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
@@ -166,7 +166,7 @@ struct MenuBarView: View {
             if appUpdater.isAvailable {
                 Button(action: { appUpdater.checkForUpdates() }) {
                     HStack {
-                        Text("Check for Updates...")
+                        Text(t("settings.check_updates"))
                             .font(Constants.body(size: 13))
                             .foregroundColor(Constants.textPrimary)
                         Spacer()
@@ -182,7 +182,7 @@ struct MenuBarView: View {
                 NSApplication.shared.terminate(nil)
             }) {
                 HStack {
-                    Text("Quit")
+                    Text(t("menu.quit"))
                         .font(Constants.body(size: 13))
                         .foregroundColor(Constants.textMuted)
                     Spacer()

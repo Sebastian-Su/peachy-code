@@ -16,10 +16,10 @@ struct ApprovalRequestView: View {
                     Image(systemName: "hand.raised")
                         .font(.system(size: 36))
                         .foregroundColor(Constants.textMuted)
-                    Text("No Approvals")
+                    Text(t("approvals.no_approvals"))
                         .font(Constants.heading(size: 22, weight: .semibold))
                         .foregroundColor(Constants.textPrimary)
-                    Text("Permission requests from supported assistants will appear here")
+                    Text(t("approvals.hint"))
                         .font(Constants.body(size: 14))
                         .foregroundColor(Constants.textMuted)
                     Spacer()
@@ -116,7 +116,7 @@ private struct PendingApprovalRow: View {
 
                     Spacer()
 
-                    Button("Deny") {
+                    Button(t("permission.deny")) {
                         appStore.pendingPermissionStore.resolve(id: permission.id, decision: .deny)
                     }
                     .buttonStyle(BrandGhostButton(color: Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255)))
@@ -165,7 +165,7 @@ private struct HistoryApprovalRow: View {
 
                     Text("·")
                         .foregroundColor(Constants.textMuted)
-                    Text("resolved ")
+                    Text(t("approvals.resolved") + " ")
                         .font(Constants.body(size: 11))
                         .foregroundColor(Constants.textMuted)
                     + Text(relativeTimeString(from: record.resolvedAt))

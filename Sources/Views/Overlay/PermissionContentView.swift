@@ -224,7 +224,7 @@ struct PermissionContentView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { state.isContentExpanded = false }
 
-                Text("tap to collapse")
+                Text(t("permission.tap_collapse"))
                     .font(.system(size: 9))
                     .foregroundStyle(OverlayStyle.textHint)
             } else {
@@ -246,12 +246,12 @@ struct PermissionContentView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { state.isContentExpanded = true }
 
-                Text("tap to expand full plan")
+                Text(t("permission.tap_expand"))
                     .font(.system(size: 9))
                     .foregroundStyle(OverlayStyle.textHint)
             }
         } else {
-            Text("Plan file not found")
+            Text(t("permission.plan_not_found"))
                 .font(.system(size: codeFont))
                 .foregroundStyle(OverlayStyle.textMuted)
         }
@@ -384,7 +384,7 @@ struct PermissionContentView: View {
                         .foregroundStyle(isCustom ? OverlayStyle.orange : OverlayStyle.radioBorder)
                         .frame(width: isExpanded ? 16 : 13)
 
-                    Text("Other")
+                    Text(t("permission.other"))
                         .font(Constants.body(size: optionFont, weight: .medium))
                         .foregroundStyle(OverlayStyle.textMuted)
 
@@ -450,7 +450,7 @@ struct PermissionContentView: View {
             .contentShape(Rectangle())
             .onTapGesture { state.isContentExpanded = false }
 
-            Text("tap to collapse")
+            Text(t("permission.tap_collapse"))
                 .font(.system(size: 9))
                 .foregroundStyle(OverlayStyle.textHint)
         } else {
@@ -485,7 +485,7 @@ struct PermissionContentView: View {
 
     private var terminalFallbackActionsView: some View {
         HStack(spacing: isExpanded ? 10 : 8) {
-            Text("Reply in terminal")
+            Text(t("permission.reply_terminal"))
                 .font(Constants.body(size: isExpanded ? 12 : 10, weight: .medium))
                 .foregroundStyle(OverlayStyle.textMuted)
 
@@ -506,7 +506,7 @@ struct PermissionContentView: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "terminal.fill")
-                Text("Open Terminal")
+                Text(t("permission.open_terminal"))
                     .font(Constants.heading(size: buttonFont, weight: .semibold))
             }
             .foregroundStyle(.white)
@@ -563,7 +563,7 @@ struct PermissionContentView: View {
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(OverlayStyle.orange.opacity(0.2), lineWidth: 1))
                     .overlay(alignment: .topLeading) {
                         if state.feedbackText.isEmpty {
-                            Text("Tell Claude what to change...")
+                            Text(t("permission.tell_claude"))
                                 .font(.system(size: 13))
                                 .foregroundStyle(OverlayStyle.textPrimary.opacity(0.3))
                                 .padding(.horizontal, 14)
@@ -589,8 +589,8 @@ struct PermissionContentView: View {
 
             // Approve / Deny
             approveAndDenyButtons(
-                approveLabel: "Approve",
-                denyLabel: "Deny",
+                approveLabel: t("permission.approve"),
+                denyLabel: t("permission.deny"),
                 approveDisabled: state.selectedOption == 3 && state.feedbackText.isEmpty,
                 onApprove: {
                     if state.selectedOption == 3 && !state.feedbackText.isEmpty {
@@ -654,8 +654,8 @@ struct PermissionContentView: View {
 
     private var questionActionsView: some View {
         approveAndDenyButtons(
-            approveLabel: "Submit",
-            denyLabel: "Skip",
+            approveLabel: t("permission.submit"),
+            denyLabel: t("permission.skip"),
             approveDisabled: !state.allAnswered(for: questions),
             onApprove: {
                 let answers = state.buildAnswers(for: questions)
@@ -670,8 +670,8 @@ struct PermissionContentView: View {
     private var standardActionsView: some View {
         VStack(spacing: isExpanded ? 10 : 3) {
             approveAndDenyButtons(
-                approveLabel: "Allow",
-                denyLabel: "Deny",
+                approveLabel: t("permission.allow"),
+                denyLabel: t("permission.deny"),
                 approveDisabled: false,
                 onApprove: { onDecision(.allow) },
                 onDeny: { onDecision(.deny) }
@@ -881,8 +881,8 @@ struct PermissionContentView: View {
     }
 
     private var titleText: String {
-        if isPlan { return "Plan Ready" }
-        if isQuestion { return "Question" }
+        if isPlan { return t("permission.plan_ready") }
+        if isQuestion { return t("permission.question") }
         return permission.toolName
     }
 

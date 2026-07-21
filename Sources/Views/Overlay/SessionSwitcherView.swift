@@ -10,7 +10,7 @@ struct SessionSwitcherView: View {
         if store.isActive {
             VStack(alignment: .leading, spacing: 0) {
                 if store.sessions.isEmpty {
-                    Text("No active sessions")
+                    Text(t("switcher.no_sessions"))
                         .font(Constants.body(size: 11))
                         .foregroundStyle(Constants.textMuted)
                         .padding(.horizontal, 12)

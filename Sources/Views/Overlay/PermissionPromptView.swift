@@ -296,7 +296,7 @@ struct AskUserQuestionView: View {
                 Image(systemName: "questionmark.circle.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(OverlayStyle.orange)
-                Text("Question")
+                Text(t("permission.question"))
                     .font(Constants.heading(size: 11, weight: .bold))
                     .foregroundStyle(OverlayStyle.textPrimary)
 
@@ -364,7 +364,7 @@ struct AskUserQuestionView: View {
                     onAnswer(answers)
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Submit")
+                        Text(t("permission.submit"))
                             .font(Constants.heading(size: 11, weight: .semibold))
                             .foregroundStyle(.white)
                         if showShortcuts { ActionBadge(label: "⌘↩") }
@@ -381,7 +381,7 @@ struct AskUserQuestionView: View {
                     onDeny()
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Skip")
+                        Text(t("permission.skip"))
                             .font(Constants.heading(size: 11, weight: .semibold))
                             .foregroundStyle(OverlayStyle.denyText)
                         if showShortcuts { ActionBadge(label: "⌘⎋") }
@@ -568,7 +568,7 @@ struct AskUserQuestionView: View {
                         .foregroundStyle(isCustom ? OverlayStyle.orange : OverlayStyle.radioBorder)
                         .frame(width: 13)
 
-                    Text("Other")
+                    Text(t("permission.other"))
                         .font(Constants.body(size: 11, weight: .medium))
                         .foregroundStyle(OverlayStyle.textMuted)
 
@@ -643,7 +643,7 @@ struct ExitPlanModeView: View {
                 Image(systemName: "doc.text.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(OverlayStyle.orange)
-                Text("Plan Ready")
+                Text(t("permission.plan_ready"))
                     .font(Constants.heading(size: 11, weight: .bold))
                     .foregroundStyle(OverlayStyle.textPrimary)
 
@@ -704,7 +704,7 @@ struct ExitPlanModeView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { isExpanded = false }
 
-                    Text("tap to collapse")
+                    Text(t("permission.tap_collapse"))
                         .font(.system(size: 9))
                         .foregroundStyle(OverlayStyle.textHint)
                 } else {
@@ -724,12 +724,12 @@ struct ExitPlanModeView: View {
                         .contentShape(Rectangle())
                         .onTapGesture { isExpanded = true }
 
-                    Text("tap to expand full plan")
+                    Text(t("permission.tap_expand"))
                         .font(.system(size: 9))
                         .foregroundStyle(OverlayStyle.textHint)
                 }
             } else {
-                Text("Plan file not found")
+                Text(t("permission.plan_not_found"))
                     .font(.system(size: 10))
                     .foregroundStyle(OverlayStyle.textMuted)
             }
@@ -801,7 +801,7 @@ struct ExitPlanModeView: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Approve")
+                        Text(t("permission.approve"))
                             .font(Constants.heading(size: 11, weight: .semibold))
                             .foregroundStyle(.white)
                         if showShortcuts { ActionBadge(label: "⌘↩") }
@@ -822,7 +822,7 @@ struct ExitPlanModeView: View {
                     onDecision(.deny)
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Deny")
+                        Text(t("permission.deny"))
                             .font(Constants.heading(size: 11, weight: .semibold))
                             .foregroundStyle(OverlayStyle.denyText)
                         if showShortcuts { ActionBadge(label: "⌘⎋") }
@@ -987,7 +987,7 @@ struct PermissionPromptView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { isExpanded = false }
 
-                Text("tap to collapse")
+                Text(t("permission.tap_collapse"))
                     .font(.system(size: 9))
                     .foregroundStyle(OverlayStyle.textHint)
             } else {
@@ -1014,7 +1014,7 @@ struct PermissionPromptView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Spacer(minLength: 0)
-                            Text("Allow")
+                            Text(t("permission.allow"))
                                 .font(Constants.heading(size: 11, weight: .semibold))
                                 .foregroundStyle(.white)
                             if showShortcuts { ActionBadge(label: "⌘↩") }
@@ -1031,7 +1031,7 @@ struct PermissionPromptView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Spacer(minLength: 0)
-                            Text("Deny")
+                            Text(t("permission.deny"))
                                 .font(Constants.heading(size: 11, weight: .semibold))
                                 .foregroundStyle(OverlayStyle.denyText)
                             if showShortcuts { ActionBadge(label: "⌘⎋") }
@@ -1166,7 +1166,7 @@ private struct CollapsedPermissionPill: View {
                     HStack(spacing: 3) {
                         Image(systemName: "terminal.fill")
                             .font(.system(size: 8))
-                        Text("Open Terminal")
+                        Text(t("permission.open_terminal"))
                             .font(Constants.heading(size: 9, weight: .semibold))
                     }
                     .foregroundStyle(.white)
@@ -1178,7 +1178,7 @@ private struct CollapsedPermissionPill: View {
                 .buttonStyle(.plain)
             } else {
                 Button { onAllow() } label: {
-                    Text("Allow")
+                    Text(t("permission.allow"))
                         .font(Constants.heading(size: 9, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
@@ -1189,7 +1189,7 @@ private struct CollapsedPermissionPill: View {
                 .buttonStyle(.plain)
 
                 Button { onDeny() } label: {
-                    Text("Deny")
+                    Text(t("permission.deny"))
                         .font(Constants.heading(size: 9, weight: .semibold))
                         .foregroundStyle(OverlayStyle.denyText)
                         .padding(.horizontal, 6)
@@ -1256,7 +1256,7 @@ struct PermissionStackView: View {
                         Button {
                             pendingPermissionStore.resolveAll(decision: .allow)
                         } label: {
-                            Text("Allow All")
+                            Text(t("permission.allow_all"))
                                 .font(Constants.heading(size: 10, weight: .semibold))
                                 .foregroundStyle(OverlayStyle.orange)
                                 .padding(.horizontal, 4)
@@ -1268,7 +1268,7 @@ struct PermissionStackView: View {
                         Button {
                             pendingPermissionStore.resolveAll(decision: .deny)
                         } label: {
-                            Text("Deny All")
+                            Text(t("permission.deny_all"))
                                 .font(Constants.heading(size: 10, weight: .semibold))
                                 .foregroundStyle(.red)
                                 .padding(.horizontal, 4)
@@ -1372,7 +1372,7 @@ struct DialogScalePreview: View {
 
             // Fake buttons
             HStack(spacing: 4) {
-                Text("Allow")
+                Text(t("permission.allow"))
                     .font(Constants.heading(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -1380,7 +1380,7 @@ struct DialogScalePreview: View {
                     .background(OverlayStyle.orange)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                Text("Deny")
+                Text(t("permission.deny"))
                     .font(Constants.heading(size: 11, weight: .semibold))
                     .foregroundStyle(OverlayStyle.denyText)
                     .frame(maxWidth: .infinity)

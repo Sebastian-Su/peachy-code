@@ -12,7 +12,7 @@ struct ActivityFeedView: View {
             // Filter bar
             HStack {
                 Picker("Filter", selection: $filterType) {
-                    Text("All Events").tag(nil as HookEventType?)
+                    Text(t("activity.title")).tag(nil as HookEventType?)
                     ForEach(HookEventType.allCases) { type in
                         Label(type.displayName, systemImage: type.sfSymbol)
                             .tag(type as HookEventType?)
@@ -45,10 +45,10 @@ struct ActivityFeedView: View {
                     Image(systemName: "list.bullet")
                         .font(.system(size: 36))
                         .foregroundColor(Constants.textMuted)
-                    Text("No Events")
+                    Text(t("activity.empty"))
                         .font(Constants.heading(size: 22, weight: .semibold))
                         .foregroundColor(Constants.textPrimary)
-                    Text("Claude Code and Codex events will appear here in real-time")
+                    Text(t("activity.hint"))
                         .font(Constants.body(size: 14))
                         .foregroundColor(Constants.textMuted)
                     Spacer()

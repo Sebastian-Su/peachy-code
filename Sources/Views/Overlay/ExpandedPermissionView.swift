@@ -216,7 +216,7 @@ struct ExpandedPermissionView: View {
             Text(permission.event.message ?? "This agent requires a response in the terminal.")
                 .font(Constants.body(size: 14))
                 .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
-            Text("This agent can't accept a decision from here. Open the terminal to respond.")
+            Text(t("permission.terminal_only"))
                 .font(.system(size: 12))
                 .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.6))
         }
@@ -234,7 +234,7 @@ struct ExpandedPermissionView: View {
                 sessions: sessionStore.sessions
             )
         } label: {
-            Text("Open Terminal")
+            Text(t("permission.open_terminal"))
                 .font(Constants.heading(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -366,7 +366,7 @@ struct ExpandedPermissionView: View {
                             : Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.2))
                         .frame(width: 16)
 
-                    Text("Other")
+                    Text(t("permission.other"))
                         .font(Constants.body(size: 13, weight: .medium))
                         .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.55))
 
@@ -441,7 +441,7 @@ struct ExpandedPermissionView: View {
                 onClose()
             } label: {
                 HStack(spacing: 5) {
-                    Text("Skip")
+                    Text(t("permission.skip"))
                         .font(Constants.heading(size: 13, weight: .semibold))
                     if showShortcuts { ActionBadge(label: "⌘⎋") }
                 }
@@ -457,7 +457,7 @@ struct ExpandedPermissionView: View {
 
             Button { submitAnswers() } label: {
                 HStack(spacing: 5) {
-                    Text("Submit")
+                    Text(t("permission.submit"))
                         .font(Constants.heading(size: 13, weight: .semibold))
                     if showShortcuts { ActionBadge(label: "⌘↵") }
                 }
@@ -529,7 +529,7 @@ struct ExpandedPermissionView: View {
                     )
                     .overlay(alignment: .topLeading) {
                         if feedbackText.isEmpty {
-                            Text("Tell Claude what to change...")
+                            Text(t("permission.tell_claude"))
                                 .font(.system(size: 13))
                                 .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.3))
                                 .padding(.horizontal, 14)
@@ -607,7 +607,7 @@ struct ExpandedPermissionView: View {
                 onClose()
             } label: {
                 HStack(spacing: 5) {
-                    Text("Deny")
+                    Text(t("permission.deny"))
                         .font(Constants.heading(size: 13, weight: .semibold))
                     if showShortcuts { ActionBadge(label: "⌘⎋") }
                 }
@@ -623,7 +623,7 @@ struct ExpandedPermissionView: View {
 
             Button { performApprove() } label: {
                 HStack(spacing: 5) {
-                    Text(isPlan ? "Approve" : "Allow")
+                    Text(isPlan ? t("permission.approve") : t("permission.allow"))
                         .font(Constants.heading(size: 13, weight: .semibold))
                     if showShortcuts { ActionBadge(label: "⌘↵") }
                 }
