@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var autoHideDelayText: String = "15"
     @State private var toastDurationText: String = "8"
     @State private var showConnectionDoctor = false
+    @State private var selectedLanguage: AppLanguage = LanguageManager.shared.language
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
@@ -32,7 +33,27 @@ struct SettingsView: View {
         Form {
             Section {
                 HStack {
-                    Text("Assistant Events")
+                    Text(t("settings.language"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    Picker("", selection: $selectedLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .onChange(of: selectedLanguage) { _, lang in
+                        LanguageManager.shared.setLanguage(lang)
+                    }
+                }
+            } header: {
+                Text(t("settings.appearance")).font(Constants.heading(size: 13, weight: .semibold))
+            }
+
+            Section {
+                HStack {
+                    Text(t("settings.assistant_events"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     HStack(spacing: 6) {
@@ -45,7 +66,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("Local Hook Server")
+                    Text(t("settings.local_server"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     HStack(spacing: 6) {
@@ -58,7 +79,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("Port")
+                    Text(t("settings.port"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     TextField("Port", text: $portText)
@@ -67,7 +88,7 @@ struct SettingsView: View {
                         .multilineTextAlignment(.trailing)
                         .font(.system(size: 12, design: .monospaced))
                         .onSubmit { applyPort() }
-                    Button("Apply") { applyPort() }
+                    Button(t("settings.apply")) { applyPort() }
                         .buttonStyle(.plain)
                         .foregroundColor(Constants.orangePrimary)
                         .font(.system(size: 12, weight: .medium))
@@ -80,19 +101,19 @@ struct SettingsView: View {
                 }
 
                 if !appStore.localServer.isRunning {
-                    Button("Restart Server") {
+                    Button(t("settings.restart_server")) {
                         appStore.localServer.restart(port: appStore.localServer.port)
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(Constants.orangePrimary)
                 }
             } header: {
-                Text("Connection").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.connection")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
                 HStack {
-                    Text("Events")
+                    Text(t("settings.events_section"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     HStack(spacing: 6) {
@@ -105,7 +126,7 @@ struct SettingsView: View {
                 }
 
                 Button(action: toggleHooks) {
-                    Text(isHookEnabled ? "Disable" : "Enable")
+                    Text(t(isHookEnabled ? "settings.disable" : "settings.enable"))
                         .foregroundColor(isHookEnabled ? Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255) : Constants.orangePrimary)
                 }
                 .buttonStyle(.plain)
@@ -122,14 +143,14 @@ struct SettingsView: View {
                         .foregroundColor(Constants.textMuted)
                 }
 
-                Toggle("Auto-hide when no sessions", isOn: Binding(
+                Toggle(t("settings.auto_hide"), isOn: Binding(
                     get: { overlayManager.isAutoHideEnabled },
                     set: { overlayManager.setAutoHideEnabled($0) }
                 ))
                 .foregroundColor(Constants.textPrimary)
 
                 HStack {
-                    Text("Hide delay (seconds)")
+                    Text(t("settings.hide_delay"))
                         .foregroundColor(overlayManager.isAutoHideEnabled ? Constants.textPrimary : Constants.textMuted)
                     Spacer()
                     TextField("", text: $autoHideDelayText)
@@ -146,14 +167,14 @@ struct SettingsView: View {
                         }
                 }
 
-                Toggle("Show \"Task Completed\" toast", isOn: Binding(
+                Toggle(t("settings.toast_enabled"), isOn: Binding(
                     get: { appStore.sessionFinishedStore.isEnabled },
                     set: { appStore.sessionFinishedStore.isEnabled = $0 }
                 ))
                 .foregroundColor(Constants.textPrimary)
 
                 HStack {
-                    Text("Toast duration (seconds)")
+                    Text(t("settings.toast_duration"))
                         .foregroundColor(appStore.sessionFinishedStore.isEnabled ? Constants.textPrimary : Constants.textMuted)
                     Spacer()
                     TextField("", text: $toastDurationText)
@@ -170,12 +191,12 @@ struct SettingsView: View {
                         }
                 }
             } header: {
-                Text("Claude Code").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.claude_code")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
                 HStack {
-                    Text("Global Shortcuts")
+                    Text(t("settings.global_shortcuts"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     HStack(spacing: 6) {
@@ -188,7 +209,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("Focus Toggle")
+                    Text(t("settings.focus_toggle"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     ShortcutRecorderView(hotkeyManager: appStore.hotkeyManager)
@@ -201,14 +222,14 @@ struct SettingsView: View {
                 .padding(.vertical, 2)
 
                 if !appStore.hotkeyManager.isActive {
-                    Button("Grant Accessibility Permission") {
+                    Button(t("settings.grant_accessibility")) {
                         appStore.hotkeyManager.requestAccessibilityPermission()
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(Constants.orangePrimary)
                 }
             } header: {
-                Text("Keyboard Shortcuts").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.keyboard_shortcuts")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
@@ -223,7 +244,7 @@ struct SettingsView: View {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.green)
                                     .font(.system(size: 12))
-                                Text("Installed")
+                                Text(t("settings.installed"))
                                     .foregroundColor(Constants.textMuted)
                             }
                         } else if ide.isDetected {
@@ -234,7 +255,7 @@ struct SettingsView: View {
                                 Button {
                                     installExtension(command: ide.command)
                                 } label: {
-                                    Text("Install")
+                                    Text(t("settings.install"))
                                         .font(Constants.heading(size: 11, weight: .semibold))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 10)
@@ -245,7 +266,7 @@ struct SettingsView: View {
                                 .buttonStyle(.plain)
                             }
                         } else {
-                            Text("Not detected")
+                            Text(t("settings.not_detected"))
                                 .foregroundColor(Constants.textMuted.opacity(0.5))
                         }
                     }
@@ -258,28 +279,28 @@ struct SettingsView: View {
                         Spacer()
                         ProgressView()
                             .controlSize(.small)
-                        Text("Installing...")
+                        Text(t("settings.installing"))
                             .font(.system(size: 12))
                             .foregroundColor(Constants.textMuted)
                         Spacer()
                     }
                 } else if ideExtensionInstalled {
-                    Toggle("Enable terminal switching", isOn: $ideExtensionEnabled)
+                    Toggle(t("settings.enable_terminal_switching"), isOn: $ideExtensionEnabled)
                         .foregroundColor(Constants.textPrimary)
                     HStack(spacing: 12) {
                         Button(action: installExtension) {
-                            Text("Reinstall")
+                            Text(t("settings.reinstall"))
                                 .foregroundColor(Constants.orangePrimary)
                         }
                         .buttonStyle(.plain)
                         Button(action: uninstallExtension) {
-                            Text("Uninstall")
+                            Text(t("settings.uninstall"))
                                 .foregroundColor(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                         }
                         .buttonStyle(.plain)
                     }
                 } else if ideStatuses.contains(where: { $0.isDetected }) {
-                    Text("Install the extension to jump to the exact terminal tab running Claude Code.")
+                    Text(t("settings.ide_hint"))
                         .font(.system(size: 11))
                         .foregroundColor(Constants.textMuted)
                 }
@@ -288,7 +309,7 @@ struct SettingsView: View {
                     Text(error).font(.system(size: 11)).foregroundColor(.red)
                 }
             } header: {
-                Text("IDE Integration").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.ide_integration")).font(Constants.heading(size: 13, weight: .semibold))
             }
             .animation(.easeInOut(duration: 0.25), value: ideExtensionInstalled)
             .animation(.easeInOut(duration: 0.25), value: extensionBusy)
@@ -302,35 +323,35 @@ struct SettingsView: View {
                         .foregroundColor(Constants.textMuted)
                 }
                 HStack {
-                    Text("Sessions")
+                    Text(t("settings.sessions"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     Text("\(appStore.sessionStore.sessions.count)")
                         .foregroundColor(Constants.textMuted)
                 }
                 HStack {
-                    Text("Notifications")
+                    Text(t("settings.notifications"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     Text("\(appStore.notificationStore.notifications.count)")
                         .foregroundColor(Constants.textMuted)
                 }
                 HStack {
-                    Text("Video Cache")
+                    Text(t("settings.video_cache"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     Text(formatBytes(videoCacheSize))
                         .foregroundColor(Constants.textMuted)
                 }
                 Button(action: clearVideoCache) {
-                    Text("Clear Video Cache")
+                    Text(t("settings.clear_video_cache"))
                         .foregroundColor(Constants.orangePrimary)
                 }
                 .buttonStyle(.plain)
                 .disabled(videoCacheSize == 0)
 
                 HStack {
-                    Text("Data Location")
+                    Text(t("settings.data_location"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     Text(LocalStorage.appSupportDir.path)
@@ -340,28 +361,28 @@ struct SettingsView: View {
                         .truncationMode(.middle)
                 }
             } header: {
-                Text("Storage").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.storage")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
                 if appUpdater.isAvailable {
                     @Bindable var updater = appUpdater
-                    Toggle("Automatically check for updates", isOn: $updater.automaticallyChecksForUpdates)
+                    Toggle(t("settings.auto_check_updates"), isOn: $updater.automaticallyChecksForUpdates)
                         .foregroundColor(Constants.textPrimary)
 
                     Button(action: { appUpdater.checkForUpdates() }) {
-                        Text("Check for Updates...")
+                        Text(t("settings.check_updates"))
                             .foregroundColor(Constants.orangePrimary)
                     }
                     .buttonStyle(.plain)
                     .disabled(!appUpdater.canCheckForUpdates)
                 } else {
-                    Text("Updates unavailable (unsigned build)")
+                    Text(t("settings.updates_unavailable"))
                         .font(.system(size: 12))
                         .foregroundColor(Constants.textMuted)
                 }
             } header: {
-                Text("Updates").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.updates")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
@@ -371,7 +392,7 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "stethoscope")
                             .foregroundColor(Constants.orangePrimary)
-                        Text("Run Connection Doctor")
+                        Text(t("settings.run_doctor"))
                             .foregroundColor(Constants.orangePrimary)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -381,16 +402,16 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
-                Text("Diagnose and repair issues with the Claude Code connection.")
+                Text(t("settings.doctor_hint"))
                     .font(.system(size: 11))
                     .foregroundColor(Constants.textMuted)
             } header: {
-                Text("Troubleshooting").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.troubleshooting")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
                 HStack {
-                    Text("Version")
+                    Text(t("settings.version"))
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     Text("\(appVersion) (\(buildNumber))")
@@ -398,7 +419,7 @@ struct SettingsView: View {
                 }
                 Link(destination: URL(string: Constants.repoURL)!) {
                     HStack {
-                        Text("GitHub Repository")
+                        Text(t("settings.github"))
                             .foregroundColor(Constants.orangePrimary)
                         Spacer()
                         Image(systemName: "arrow.up.forward")
@@ -411,7 +432,7 @@ struct SettingsView: View {
                         Image(systemName: "sparkles")
                             .foregroundColor(Constants.orangePrimary)
                             .font(.system(size: 12))
-                        Text("Browse Skins")
+                        Text(t("settings.browse_skins"))
                             .foregroundColor(Constants.orangePrimary)
                         Spacer()
                         Image(systemName: "arrow.up.forward")
@@ -420,20 +441,20 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("About").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.about")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             Section {
                 Button(action: { showUninstallConfirm = true }) {
                     HStack {
                         Image(systemName: "trash")
-                        Text("Uninstall Peachy")
+                        Text(t("settings.uninstall_peachy"))
                     }
                     .foregroundColor(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                 }
                 .buttonStyle(.plain)
 
-                Text("Removes Claude Code hooks, local data, and quits the app.")
+                Text(t("settings.uninstall_hint"))
                     .font(.system(size: 11))
                     .foregroundColor(Constants.textMuted)
             } header: {
@@ -450,6 +471,7 @@ struct SettingsView: View {
             videoCacheSize = VideoCache.shared.cacheSize
             autoHideDelayText = String(Int(overlayManager.autoHideDelay))
             toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
+            selectedLanguage = LanguageManager.shared.language
             portText = String(appStore.localServer.port)
 
             // Show cached IDE statuses immediately (no flash on repeat visits)
@@ -477,10 +499,10 @@ struct SettingsView: View {
             showConnectionDoctor = true
         }
         .alert("Uninstall Peachy?", isPresented: $showUninstallConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Uninstall", role: .destructive) { performUninstall() }
+            Button(t("permission.cancel"), role: .cancel) {}
+            Button(t("settings.uninstall_peachy"), role: .destructive) { performUninstall() }
         } message: {
-            Text("This will remove Claude Code hooks, delete all local data, and quit the app. You can reinstall anytime.")
+            Text(t("settings.uninstall_confirm"))
         }
     }
 
@@ -670,7 +692,7 @@ struct ShortcutRecorderView: View {
         } label: {
             HStack(spacing: 4) {
                 if isRecording {
-                    Text("Press shortcut...")
+                    Text(t("settings.press_shortcut"))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Constants.orangePrimary)
                 } else {
