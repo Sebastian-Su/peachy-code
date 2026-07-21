@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var extensionBusy = false
     @State private var installingIDE: String?  // command of IDE currently being installed
     @State private var autoHideDelayText: String = "15"
+    @State private var toastDurationText: String = "8"
     @State private var showConnectionDoctor = false
 
     private var appVersion: String {
@@ -127,23 +128,46 @@ struct SettingsView: View {
                 ))
                 .foregroundColor(Constants.textPrimary)
 
-                if overlayManager.isAutoHideEnabled {
-                    HStack {
-                        Text("Delay (seconds)")
-                            .foregroundColor(Constants.textPrimary)
-                        Spacer()
-                        TextField("", text: $autoHideDelayText)
-                            .frame(width: 70)
-                            .textFieldStyle(.roundedBorder)
-                            .multilineTextAlignment(.trailing)
-                            .font(.system(size: 12, design: .monospaced))
-                            .onSubmit {
-                                if let value = Int(autoHideDelayText), value >= 0 {
-                                    overlayManager.setAutoHideDelay(TimeInterval(value))
-                                }
-                                autoHideDelayText = String(Int(overlayManager.autoHideDelay))
+                HStack {
+                    Text("Hide delay (seconds)")
+                        .foregroundColor(overlayManager.isAutoHideEnabled ? Constants.textPrimary : Constants.textMuted)
+                    Spacer()
+                    TextField("", text: $autoHideDelayText)
+                        .frame(width: 70)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .font(.system(size: 12, design: .monospaced))
+                        .disabled(!overlayManager.isAutoHideEnabled)
+                        .onSubmit {
+                            if let value = Int(autoHideDelayText), value >= 1 {
+                                overlayManager.setAutoHideDelay(TimeInterval(value))
                             }
-                    }
+                            autoHideDelayText = String(Int(overlayManager.autoHideDelay))
+                        }
+                }
+
+                Toggle("Show \"Task Completed\" toast", isOn: Binding(
+                    get: { appStore.sessionFinishedStore.isEnabled },
+                    set: { appStore.sessionFinishedStore.isEnabled = $0 }
+                ))
+                .foregroundColor(Constants.textPrimary)
+
+                HStack {
+                    Text("Toast duration (seconds)")
+                        .foregroundColor(appStore.sessionFinishedStore.isEnabled ? Constants.textPrimary : Constants.textMuted)
+                    Spacer()
+                    TextField("", text: $toastDurationText)
+                        .frame(width: 70)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .font(.system(size: 12, design: .monospaced))
+                        .disabled(!appStore.sessionFinishedStore.isEnabled)
+                        .onSubmit {
+                            if let value = Double(toastDurationText), value >= 1 {
+                                appStore.sessionFinishedStore.toastDuration = value
+                            }
+                            toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
+                        }
                 }
             } header: {
                 Text("Claude Code").font(Constants.heading(size: 13, weight: .semibold))
@@ -425,6 +449,7 @@ struct SettingsView: View {
             isHookEnabled = HookInstaller.isRegistered()
             videoCacheSize = VideoCache.shared.cacheSize
             autoHideDelayText = String(Int(overlayManager.autoHideDelay))
+            toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
             portText = String(appStore.localServer.port)
 
             // Show cached IDE statuses immediately (no flash on repeat visits)

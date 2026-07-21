@@ -50,14 +50,14 @@ struct SessionFinishedToastView: View {
             .animation(.easeInOut(duration: 0.25), value: store.current != nil)
             .onAppear {
                 progress = 1.0
-                withAnimation(.linear(duration: 8)) {
+                withAnimation(.linear(duration: toast.duration)) {
                     progress = 0
                 }
             }
             .onChange(of: store.current != nil) { _, visible in
-                if visible {
+                if visible, let t = store.current {
                     progress = 1.0
-                    withAnimation(.linear(duration: 8)) {
+                    withAnimation(.linear(duration: t.duration)) {
                         progress = 0
                     }
                 }
