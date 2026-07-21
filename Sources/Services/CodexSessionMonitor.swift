@@ -208,6 +208,7 @@ final class CodexSessionMonitor {
             // Skip transient phase events during bootstrap - they represent
             // momentary states (compacting) that are meaningless when replayed.
             if isBootstrapping, event.eventType == .preCompact { continue }
+            PeachyLog.codex.debug("JSONL event: \(event.hookEventName) sid=\(event.sessionId ?? "-")")
             onEventReceived?(event)
         }
     }

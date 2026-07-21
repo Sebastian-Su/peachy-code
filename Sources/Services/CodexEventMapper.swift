@@ -1088,12 +1088,19 @@ enum CodexEventMapper {
         if keys.isSubset(of: approvalKeys),
            let outcome = (json["outcome"] as? String)?.lowercased(),
            outcome == "allow" || outcome == "deny" {
+            PeachyLog.codex.debug("InternalResult schema: approval outcome=\(outcome)")
             return true
         }
         // Exclude: sole key is "exclude" with Array value
-        if keys == ["exclude"], json["exclude"] is [Any] { return true }
+        if keys == ["exclude"], json["exclude"] is [Any] {
+            PeachyLog.codex.debug("InternalResult schema: exclude")
+            return true
+        }
         // Suggestions: sole key is "suggestions" with Array value
-        if keys == ["suggestions"], json["suggestions"] is [Any] { return true }
+        if keys == ["suggestions"], json["suggestions"] is [Any] {
+            PeachyLog.codex.debug("InternalResult schema: suggestions")
+            return true
+        }
         return false
     }
 

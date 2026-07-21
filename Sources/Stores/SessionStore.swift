@@ -235,7 +235,7 @@ final class SessionStore {
                     self.sessions[candidate.index].phase = .idle
                     self.setIdleUntil(for: candidate.id)
                     changed = true
-                    print("[PeachyPet] Interrupt detected for session \(candidate.id) via transcript")
+                    PeachyLog.session.info("Session interrupted: \(candidate.id) → idle")
                 }
                 if changed {
                     self.persist()
@@ -347,6 +347,7 @@ final class SessionStore {
                 sessions[i].status = .ended
                 sessions[i].phase = .idle
                 sessions[i].activeSubagentCount = 0
+                PeachyLog.session.warning("Session ended (no process): \(self.sessions[i].id)")
                 changed = true
             }
         } else {
@@ -436,6 +437,7 @@ final class SessionStore {
                 if idleUntil <= now {
                     sessions[i].status = .ended
                     sessions[i].idleUntil = nil
+                    PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                     changed = true
                 }
             } else {
@@ -444,6 +446,7 @@ final class SessionStore {
                 let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
                 if ref.addingTimeInterval(idleRetentionDuration) <= now {
                     sessions[i].status = .ended
+                    PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                     changed = true
                 }
             }
@@ -492,6 +495,7 @@ final class SessionStore {
         guard let snapshot = internalTurnSnapshots[taskId] else { return }
         if !snapshot.existed {
             sessions.removeAll(where: { $0.id == sessionId })
+            PeachyLog.session.debug("Internal turn rolled back: taskId=\(taskId) sessionId=\(sessionId)")
             persist()
             return
         }
@@ -527,6 +531,7 @@ final class SessionStore {
                     if idleUntil <= now {
                         sessions[i].status = .ended
                         sessions[i].idleUntil = nil
+                        PeachyLog.session.info("Session ended (startup migration): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                         changed = true
                     }
                 } else {
@@ -535,6 +540,7 @@ final class SessionStore {
                     let computed = ref.addingTimeInterval(idleRetentionDuration)
                     if computed <= now {
                         sessions[i].status = .ended
+                        PeachyLog.session.info("Session ended (startup migration): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                         changed = true
                     } else {
                         sessions[i].idleUntil = computed
@@ -551,6 +557,7 @@ final class SessionStore {
                 if staleAt <= now {
                     sessions[i].status = .ended
                     sessions[i].phase = .idle
+                    PeachyLog.session.info("Session ended (startup migration): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                     changed = true
                 }
             }
@@ -664,8 +671,10 @@ final class SessionStore {
             case .stop, .stopFailure:
                 sessions[index].phase = .idle
                 setIdleUntil(for: sessionId)
+                PeachyLog.session.debug("Session idle (Stop): \(sessionId) idleUntil=+\(Int(self.idleRetentionDuration))s")
 
             case .sessionEnd:
+                PeachyLog.session.info("Session ended (SessionEnd): \(sessionId)")
                 sessions[index].status = .ended
                 sessions[index].phase = .idle
                 sessions[index].activeSubagentCount = 0
@@ -716,6 +725,7 @@ final class SessionStore {
             }
             session.shellPid = event.shellPid
             session.transcriptPath = event.transcriptPath
+            PeachyLog.session.info("Session created: \(sessionId) project=\(session.projectName ?? "/") src=\(session.rawSource ?? "-")")
             sessions.insert(session, at: 0)
         }
         persist()

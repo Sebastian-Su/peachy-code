@@ -35,6 +35,7 @@ final class EventProcessor {
 
     @MainActor func process(_ event: AgentEvent) async {
         eventStore.append(event)
+        PeachyLog.event.debug("Processing \(event.hookEventName) sid=\(event.sessionId ?? "-") src=\(event.source ?? "-")")
 
         let disp = disposition(for: event)
         let sessionId = event.sessionId ?? ""
@@ -44,6 +45,7 @@ final class EventProcessor {
             // internalResult → rollback using taskId if present, else sessionId as fallback key
             if event.eventType == .internalResult, !sessionId.isEmpty {
                 let snapshotKey = event.taskId ?? sessionId
+                PeachyLog.event.debug("InternalResult rollback: taskId=\(snapshotKey) sid=\(sessionId)")
                 sessionStore.rollbackInternalTurn(taskId: snapshotKey, sessionId: sessionId)
             }
             // taskCompleted → no session or notification action

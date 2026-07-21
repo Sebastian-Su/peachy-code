@@ -75,6 +75,7 @@ final class LanguageManager {
             // Load strings directly — works for both text and binary .strings format
             if let dict = loadStrings(at: stringsFile) {
                 stringsCache = dict
+                PeachyLog.lang.info("Language set to \(lang.rawValue): loaded \(dict.count) keys from \(stringsFile)")
                 // Also try to set bundle for compatibility
                 if let b = Bundle(path: root) { bundle = b }
                 return
@@ -82,6 +83,7 @@ final class LanguageManager {
         }
 
         // Last resort: try Bundle.main (works in app target at runtime)
+        PeachyLog.lang.warning("Language \(lang.rawValue): no .lproj found, using fallback bundle")
         bundle = .main
     }
 
