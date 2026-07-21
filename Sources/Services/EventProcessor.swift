@@ -41,17 +41,20 @@ final class EventProcessor {
 
         switch disp {
         case .recordOnly:
-            // internalResult with taskId → rollback the snapshot saved at task_started time
-            if event.eventType == .internalResult, let taskId = event.taskId, !sessionId.isEmpty {
-                sessionStore.rollbackInternalTurn(taskId: taskId, sessionId: sessionId)
+            // internalResult → rollback using taskId if present, else sessionId as fallback key
+            if event.eventType == .internalResult, !sessionId.isEmpty {
+                let snapshotKey = event.taskId ?? sessionId
+                sessionStore.rollbackInternalTurn(taskId: snapshotKey, sessionId: sessionId)
             }
             // taskCompleted → no session or notification action
 
         case .sessionActivity:
-            // Save snapshot BEFORE recordEvent if this is a userPromptSubmit with a taskId
-            // (may be the start of an internal turn — we won't know until task_complete)
-            if event.eventType == .userPromptSubmit, let taskId = event.taskId, !sessionId.isEmpty {
-                sessionStore.saveSnapshot(taskId: taskId, sessionId: sessionId)
+            // Save snapshot BEFORE recordEvent for userPromptSubmit.
+            // Use taskId if present; fall back to sessionId so turns without turn_id
+            // (e.g. namiwork Codex tasks) can still be rolled back on internalResult.
+            if event.eventType == .userPromptSubmit, !sessionId.isEmpty {
+                let snapshotKey = event.taskId ?? sessionId
+                sessionStore.saveSnapshot(taskId: snapshotKey, sessionId: sessionId)
             }
             sessionStore.recordEvent(event)
 
