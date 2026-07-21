@@ -424,17 +424,29 @@ final class SessionStore {
     }
 
     /// Ends all sessions whose idleUntil has passed. Called by timer and in tests.
+    /// Also expires active+idle sessions that have no idleUntil but whose lastEventAt
+    /// is older than idleRetentionDuration (handles sessions that never received a Stop).
     func expireIdleSessions() {
         let now = Date()
         var changed = false
         for i in sessions.indices {
             guard sessions[i].status == .active,
-                  sessions[i].phase == .idle,
-                  let idleUntil = sessions[i].idleUntil,
-                  idleUntil <= now else { continue }
-            sessions[i].status = .ended
-            sessions[i].idleUntil = nil
-            changed = true
+                  sessions[i].phase == .idle else { continue }
+            if let idleUntil = sessions[i].idleUntil {
+                if idleUntil <= now {
+                    sessions[i].status = .ended
+                    sessions[i].idleUntil = nil
+                    changed = true
+                }
+            } else {
+                // No idleUntil: session went idle without a Stop event (e.g. Codex Desktop JSONL).
+                // Use lastEventAt + retention as implicit expiry.
+                let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
+                if ref.addingTimeInterval(idleRetentionDuration) <= now {
+                    sessions[i].status = .ended
+                    changed = true
+                }
+            }
         }
         if changed {
             persist()
@@ -445,8 +457,18 @@ final class SessionStore {
 
     private func scheduleIdleExpiryTimer() {
         idleExpiryTimer?.invalidate()
-        let nextExpiry = sessions.compactMap { $0.status == .active ? $0.idleUntil : nil }.min()
-        guard let nextExpiry else { return }
+        // Compute the nearest expiry: from explicit idleUntil, or implicit lastEventAt + retention
+        let explicitExpiry = sessions.compactMap { s -> Date? in
+            guard s.status == .active else { return nil }
+            return s.idleUntil
+        }.min()
+        let implicitExpiry = sessions.compactMap { s -> Date? in
+            guard s.status == .active, s.phase == .idle, s.idleUntil == nil else { return nil }
+            let ref = s.lastEventAt ?? s.startedAt
+            return ref.addingTimeInterval(idleRetentionDuration)
+        }.min()
+        let candidates = [explicitExpiry, implicitExpiry].compactMap { $0 }
+        guard let nextExpiry = candidates.min() else { return }
         let delay = max(0, nextExpiry.timeIntervalSinceNow)
         idleExpiryTimer = Timer.scheduledTimer(withTimeInterval: delay + 0.1, repeats: false) { [weak self] _ in
             DispatchQueue.main.async { self?.expireIdleSessions() }
