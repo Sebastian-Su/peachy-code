@@ -7,16 +7,16 @@ enum CodexHookInstaller {
     private static let hookCommand = "~/.peachypet/hooks/hook-sender.sh"
 
     /// Codex-supported events we subscribe to (camelCase, matches Codex 0.144.5).
+    /// PostToolUse and PostCompact omitted — same reasoning as Claude hooks:
+    /// phase transitions are already covered by PreToolUse and subsequent events.
+    /// SubagentStart omitted — SubagentStop alone is sufficient to maintain the count.
     static let hookEvents = [
         "SessionStart",
         "UserPromptSubmit",
         "PreToolUse",
-        "PostToolUse",
         "Stop",
-        "SubagentStart",
         "SubagentStop",
         "PreCompact",
-        "PostCompact",
     ]
 
     /// Older PeachyPet versions intercepted Codex approvals here. That overrides Codex's

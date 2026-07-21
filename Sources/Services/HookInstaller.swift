@@ -9,27 +9,25 @@ enum HookInstaller {
     private static let hookScriptPath = NSHomeDirectory() + "/.peachypet/hooks/hook-sender.sh"
     private static let hookCommand = "~/.peachypet/hooks/hook-sender.sh"
 
-    /// All Claude Code event types we want to subscribe to
+    /// All Claude Code event types we want to subscribe to.
+    /// Deliberately omitted vs a naive "subscribe to all":
+    ///   PostToolUse — phase transition identical to PreToolUse (.running); pure noise
+    ///   PostCompact — phase transition to .running already covered by subsequent PreToolUse/UserPromptSubmit
+    ///   StopFailure — treated identically to Stop in SessionStore; rare enough not to warrant a separate hook
+    ///   SubagentStart — only drove activeSubagentCount++; SubagentStop adjusts the count on its own
+    ///   ConfigChange / TeammateIdle / WorktreeCreate / WorktreeRemove — no downstream handler, zero UI effect
     private static let hookEvents = [
         "PreToolUse",
-        "PostToolUse",
         "PostToolUseFailure",
         "Stop",
-        "StopFailure",
         "Notification",
         "SessionStart",
         "SessionEnd",
         "TaskCompleted",
         "PermissionRequest",
         "UserPromptSubmit",
-        "SubagentStart",
         "SubagentStop",
         "PreCompact",
-        "PostCompact",
-        "ConfigChange",
-        "TeammateIdle",
-        "WorktreeCreate",
-        "WorktreeRemove",
     ]
 
     // MARK: - Public API
