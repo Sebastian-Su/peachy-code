@@ -40,12 +40,22 @@ final class LanguageManager {
     func setLanguage(_ lang: AppLanguage) {
         language = lang
         UserDefaults.standard.set(lang.rawValue, forKey: "appLanguage")
-        if let path = sourceBundle.path(forResource: lang.rawValue, ofType: "lproj"),
-           let langBundle = Bundle(path: path) {
-            bundle = langBundle
-        } else {
-            bundle = sourceBundle
+        // SPM packages their processed resources into a sub-bundle named
+        // <TargetName>_<TargetName>.bundle inside the app's Resources directory.
+        // We must search there first, then fall back to the source bundle directly.
+        let candidates: [Bundle] = [
+            Bundle(path: sourceBundle.bundlePath + "/PeachyPet_PeachyPet.bundle"),
+            Bundle(path: sourceBundle.resourcePath.map { $0 + "/PeachyPet_PeachyPet.bundle" } ?? ""),
+        ].compactMap { $0 } + [sourceBundle]
+
+        for candidate in candidates {
+            if let path = candidate.path(forResource: lang.rawValue, ofType: "lproj"),
+               let langBundle = Bundle(path: path) {
+                bundle = langBundle
+                return
+            }
         }
+        bundle = sourceBundle
     }
 }
 
