@@ -488,22 +488,37 @@ final class SessionStore {
     func runStartupMigration() {
         let now = Date()
         var changed = false
-        for i in sessions.indices where sessions[i].status == .active && sessions[i].phase == .idle {
-            if let idleUntil = sessions[i].idleUntil {
-                if idleUntil <= now {
-                    sessions[i].status = .ended
-                    sessions[i].idleUntil = nil
-                    changed = true
-                }
-            } else {
-                // Old session without idleUntil: compute from lastEventAt or startedAt
-                let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
-                let computed = ref.addingTimeInterval(idleRetentionDuration)
-                if computed <= now {
-                    sessions[i].status = .ended
-                    changed = true
+        for i in sessions.indices where sessions[i].status == .active {
+            switch sessions[i].phase {
+            case .idle:
+                if let idleUntil = sessions[i].idleUntil {
+                    if idleUntil <= now {
+                        sessions[i].status = .ended
+                        sessions[i].idleUntil = nil
+                        changed = true
+                    }
                 } else {
-                    sessions[i].idleUntil = computed
+                    // Old session without idleUntil: compute from lastEventAt or startedAt
+                    let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
+                    let computed = ref.addingTimeInterval(idleRetentionDuration)
+                    if computed <= now {
+                        sessions[i].status = .ended
+                        changed = true
+                    } else {
+                        sessions[i].idleUntil = computed
+                        changed = true
+                    }
+                }
+            case .running, .compacting:
+                // A running/compacting session with no recent events and no terminalPid is a
+                // headless agent (e.g. namiwork Claude Code) that exited without sending Stop.
+                // Treat it the same as idle: expire after idleRetentionDuration from lastEventAt.
+                guard sessions[i].terminalPid == nil else { break }
+                let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
+                let staleAt = ref.addingTimeInterval(idleRetentionDuration)
+                if staleAt <= now {
+                    sessions[i].status = .ended
+                    sessions[i].phase = .idle
                     changed = true
                 }
             }
