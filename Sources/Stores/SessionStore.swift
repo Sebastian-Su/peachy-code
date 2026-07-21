@@ -233,6 +233,7 @@ final class SessionStore {
                           self.sessions[candidate.index].id == candidate.id,
                           self.sessions[candidate.index].phase == .running else { continue }
                     self.sessions[candidate.index].phase = .idle
+                    self.setIdleUntil(for: candidate.id)
                     changed = true
                     print("[PeachyPet] Interrupt detected for session \(candidate.id) via transcript")
                 }
