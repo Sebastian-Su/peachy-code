@@ -16,9 +16,14 @@
 "settings.events_section" = "Events";
 "settings.enable" = "Enable";
 "settings.disable" = "Disable";
+"settings.codex" = "Codex";
+"settings.codex_hook_hint" = "Codex hooks are installed in non-blocking mode. Approvals are still handled by Codex (including auto-approve).";
+
+/* Settings – Overlay */
+"settings.overlay" = "Overlay";
 "settings.auto_hide" = "Auto-hide when no sessions";
 "settings.hide_delay" = "Hide delay (seconds)";
-"settings.toast_enabled" = "Show \"Task Completed\" toast";
+"settings.toast_enabled" = "Task completed toast";
 "settings.toast_duration" = "Toast duration (seconds)";
 "settings.enable_terminal_switching" = "Enable terminal switching";
 
@@ -143,4 +148,5 @@
 /* Activity Feed */
 "activity.title" = "All Events";
 "activity.empty" = "No Events";
-"activity.hint" = "Claude Code and Codex events will appear here in real-time";
+"activity.hint" = "Claude Code and Codex events will appear here in real-tim
+"settings.seconds_unit" = "sec";

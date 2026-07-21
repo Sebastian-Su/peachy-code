@@ -3,13 +3,11 @@ import XCTest
 
 final class LanguageManagerTests: XCTestCase {
     override func setUp() {
-        // Locate the resource bundle produced by the PeachyPet executable target.
-        // In SPM the bundle lives next to the test binary as PeachyPet_PeachyPet.bundle.
-        let testBinDir = (Bundle(for: LanguageManagerTests.self).bundlePath as NSString).deletingLastPathComponent
-        let bundlePath = (testBinDir as NSString).appendingPathComponent("PeachyPet_PeachyPet.bundle")
-        if let resourceBundle = Bundle(path: bundlePath) {
-            LanguageManager.shared.setSourceBundle(resourceBundle)
-        }
+        // The PeachyPet_PeachyPet.bundle lives next to PeachyPetPackageTests.xctest
+        // in the same debug directory. Point LanguageManager at that directory.
+        let xctest = Bundle(for: LanguageManagerTests.self).bundlePath
+        let debugDir = (xctest as NSString).deletingLastPathComponent
+        LanguageManager.shared.setResourceRootPath(debugDir)
         LanguageManager.shared.setLanguage(.en)
     }
 

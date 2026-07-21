@@ -21,44 +21,110 @@ final class LanguageManager {
 
     private(set) var language: AppLanguage = .en
     private(set) var bundle: Bundle = .main
-    /// Source bundle to look up .lproj directories from. Defaults to Bundle.main;
-    /// tests can override via setSourceBundle(_:) to use Bundle.module.
-    private var sourceBundle: Bundle = .main
+    /// Cached strings dictionary for the current language (used when Bundle lookup fails)
+    private var stringsCache: [String: String] = [:]
+    /// Candidate root directories to search for .lproj subdirectories
+    private var searchRoots: [String] = []
 
     private init() {
+        searchRoots = Self.buildSearchRoots(from: .main)
         let stored = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
         let lang = AppLanguage(rawValue: stored) ?? .en
         setLanguage(lang)
     }
 
-    /// For testing only — override the bundle used to locate .lproj resources.
+    /// For testing — override the root path containing .lproj directories.
     func setSourceBundle(_ src: Bundle) {
-        sourceBundle = src
+        searchRoots = Self.buildSearchRoots(from: src)
         setLanguage(language)
+    }
+
+    /// For testing — set the root directory path that contains .lproj directories directly.
+    func setResourceRootPath(_ path: String) {
+        searchRoots = [
+            (path as NSString).appendingPathComponent("PeachyPet_PeachyPet.bundle"),
+            path,
+        ]
+        setLanguage(language)
+    }
+
+    private static func buildSearchRoots(from b: Bundle) -> [String] {
+        var roots: [String] = []
+        // Sub-bundle produced by SPM .process() for the PeachyPet target
+        let subBundleName = "PeachyPet_PeachyPet.bundle"
+        if let rp = b.resourcePath {
+            roots.append((rp as NSString).appendingPathComponent(subBundleName))
+            roots.append(rp)
+        }
+        roots.append((b.bundlePath as NSString).appendingPathComponent(subBundleName))
+        roots.append(b.bundlePath)
+        return roots
     }
 
     func setLanguage(_ lang: AppLanguage) {
         language = lang
         UserDefaults.standard.set(lang.rawValue, forKey: "appLanguage")
-        // SPM packages their processed resources into a sub-bundle named
-        // <TargetName>_<TargetName>.bundle inside the app's Resources directory.
-        // We must search there first, then fall back to the source bundle directly.
-        let candidates: [Bundle] = [
-            Bundle(path: sourceBundle.bundlePath + "/PeachyPet_PeachyPet.bundle"),
-            Bundle(path: sourceBundle.resourcePath.map { $0 + "/PeachyPet_PeachyPet.bundle" } ?? ""),
-        ].compactMap { $0 } + [sourceBundle]
+        stringsCache = [:]
 
-        for candidate in candidates {
-            if let path = candidate.path(forResource: lang.rawValue, ofType: "lproj"),
-               let langBundle = Bundle(path: path) {
-                bundle = langBundle
+        // Try to find a Bundle wrapping the .lproj, then fall back to direct file read
+        for root in searchRoots {
+            let lprojDir = (root as NSString).appendingPathComponent("\(lang.rawValue).lproj")
+            let stringsFile = (lprojDir as NSString).appendingPathComponent("Localizable.strings")
+            guard FileManager.default.fileExists(atPath: stringsFile) else { continue }
+
+            // Load strings directly — works for both text and binary .strings format
+            if let dict = loadStrings(at: stringsFile) {
+                stringsCache = dict
+                // Also try to set bundle for compatibility
+                if let b = Bundle(path: root) { bundle = b }
                 return
             }
         }
-        bundle = sourceBundle
+
+        // Last resort: try Bundle.main (works in app target at runtime)
+        bundle = .main
+    }
+
+    private func loadStrings(at path: String) -> [String: String]? {
+        // Apple .strings format: "key" = "value"; — not a standard plist.
+        // Use NSString.stringByContentsOfFile + simple parsing, or try NSDictionary
+        // which handles the compiled binary format used in app bundles.
+        // For text-format .strings (UTF-8), parse manually.
+        guard let str = try? String(contentsOfFile: path, encoding: .utf8) else {
+            return NSDictionary(contentsOfFile: path) as? [String: String]
+        }
+        var result: [String: String] = [:]
+        // Simple regex-free parser: match lines like "key" = "value";
+        let lines = str.components(separatedBy: "\n")
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("\"") else { continue }
+            // Split on " = "
+            guard let eqRange = trimmed.range(of: "\" = \"") else { continue }
+            let key = String(trimmed[trimmed.index(after: trimmed.startIndex)..<eqRange.lowerBound])
+            var value = String(trimmed[trimmed.index(eqRange.upperBound, offsetBy: 0)...])
+            // Remove trailing "; and unescape
+            if let semiRange = value.range(of: "\";", options: .backwards) {
+                value = String(value[value.startIndex..<semiRange.lowerBound])
+            } else if value.hasSuffix("\"") {
+                value = String(value.dropLast())
+            }
+            value = value
+                .replacingOccurrences(of: "\\n", with: "\n")
+                .replacingOccurrences(of: "\\\"", with: "\"")
+                .replacingOccurrences(of: "\\\\", with: "\\")
+            result[key] = value
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    func localizedString(forKey key: String) -> String {
+        if let value = stringsCache[key] { return value }
+        let result = bundle.localizedString(forKey: key, value: nil, table: nil)
+        return result == key ? key : result
     }
 }
 
 func t(_ key: String) -> String {
-    LanguageManager.shared.bundle.localizedString(forKey: key, value: key, table: nil)
+    LanguageManager.shared.localizedString(forKey: key)
 }

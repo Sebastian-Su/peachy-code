@@ -31,6 +31,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            // MARK: – Appearance
             Section {
                 HStack {
                     Text(t("settings.language"))
@@ -51,20 +52,118 @@ struct SettingsView: View {
                 Text(t("settings.appearance")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            // MARK: – Overlay
             Section {
+                // Auto-hide: toggle + delay in one row
                 HStack {
-                    Text(t("settings.assistant_events"))
+                    Text(t("settings.auto_hide"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    if overlayManager.isAutoHideEnabled {
+                        TextField("", text: $autoHideDelayText)
+                            .frame(width: 52)
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .font(.system(size: 12, design: .monospaced))
+                            .onSubmit {
+                                if let value = Int(autoHideDelayText), value >= 1 {
+                                    overlayManager.setAutoHideDelay(TimeInterval(value))
+                                }
+                                autoHideDelayText = String(Int(overlayManager.autoHideDelay))
+                            }
+                        Text(t("settings.seconds_unit"))
+                            .font(.system(size: 11))
+                            .foregroundColor(Constants.textMuted)
+                    }
+                    Toggle("", isOn: Binding(
+                        get: { overlayManager.isAutoHideEnabled },
+                        set: { overlayManager.setAutoHideEnabled($0) }
+                    ))
+                    .labelsHidden()
+                }
+
+                // Toast: toggle + duration in one row
+                HStack {
+                    Text(t("settings.toast_enabled"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    if appStore.sessionFinishedStore.isEnabled {
+                        TextField("", text: $toastDurationText)
+                            .frame(width: 52)
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .font(.system(size: 12, design: .monospaced))
+                            .onSubmit {
+                                if let value = Double(toastDurationText), value >= 1 {
+                                    appStore.sessionFinishedStore.toastDuration = value
+                                }
+                                toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
+                            }
+                        Text(t("settings.seconds_unit"))
+                            .font(.system(size: 11))
+                            .foregroundColor(Constants.textMuted)
+                    }
+                    Toggle("", isOn: Binding(
+                        get: { appStore.sessionFinishedStore.isEnabled },
+                        set: { appStore.sessionFinishedStore.isEnabled = $0 }
+                    ))
+                    .labelsHidden()
+                }
+            } header: {
+                Text(t("settings.overlay")).font(Constants.heading(size: 13, weight: .semibold))
+            }
+
+            // MARK: – Assistants (Claude ​Code + Codex)
+            Section {
+                // Claude ​Code hook status row
+                HStack {
+                    Text("Claude ​Code")
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(appStore.isAssistantEventIngestionActive ? Color.green : Color.red)
+                            .fill(isHookEnabled ? Color.green : Color.gray.opacity(0.4))
                             .frame(width: 8, height: 8)
-                        Text(appStore.assistantEventIngestionStatusText)
+                        Text(isHookEnabled ? "Enabled" : "Disabled")
+                            .foregroundColor(Constants.textMuted)
+                    }
+                    Button(action: toggleHooks) {
+                        Text(t(isHookEnabled ? "settings.disable" : "settings.enable"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(isHookEnabled ? Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255) : Constants.orangePrimary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if let error = hookError {
+                    Text(error).font(.system(size: 11)).foregroundColor(.red)
+                }
+
+                // Codex hook status row
+                HStack {
+                    Text("Codex")
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(CodexHookInstaller.isRegistered() ? Color.green : Color.gray.opacity(0.4))
+                            .frame(width: 8, height: 8)
+                        Text(CodexHookInstaller.isRegistered() ? "Enabled" : "Disabled")
                             .foregroundColor(Constants.textMuted)
                     }
                 }
 
+                if isHookEnabled && CodexHookInstaller.isRegistered() {
+                    Text(t("settings.codex_hook_hint"))
+                        .font(.system(size: 11))
+                        .foregroundColor(Constants.textMuted)
+                }
+            } header: {
+                Text(t("settings.assistant_events")).font(Constants.heading(size: 13, weight: .semibold))
+            }
+
+            // MARK: – Connection
+            Section {
                 HStack {
                     Text(t("settings.local_server"))
                         .foregroundColor(Constants.textPrimary)
@@ -95,9 +194,7 @@ struct SettingsView: View {
                 }
 
                 if let error = portError {
-                    Text(error)
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
+                    Text(error).font(.system(size: 11)).foregroundColor(.red)
                 }
 
                 if !appStore.localServer.isRunning {
@@ -111,89 +208,7 @@ struct SettingsView: View {
                 Text(t("settings.connection")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
-            Section {
-                HStack {
-                    Text(t("settings.events_section"))
-                        .foregroundColor(Constants.textPrimary)
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(isHookEnabled ? Color.green : Color.gray.opacity(0.4))
-                            .frame(width: 8, height: 8)
-                        Text(isHookEnabled ? "Enabled" : "Disabled")
-                            .foregroundColor(Constants.textMuted)
-                    }
-                }
-
-                Button(action: toggleHooks) {
-                    Text(t(isHookEnabled ? "settings.disable" : "settings.enable"))
-                        .foregroundColor(isHookEnabled ? Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255) : Constants.orangePrimary)
-                }
-                .buttonStyle(.plain)
-
-                if let error = hookError {
-                    Text(error)
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
-                }
-
-                if isHookEnabled && CodexHookInstaller.isRegistered() {
-                    Text("已为 Codex 安装非阻塞状态 hook；审批仍由 Codex 按自身设置处理，包括「替我审批」。")
-                        .font(.system(size: 11))
-                        .foregroundColor(Constants.textMuted)
-                }
-
-                Toggle(t("settings.auto_hide"), isOn: Binding(
-                    get: { overlayManager.isAutoHideEnabled },
-                    set: { overlayManager.setAutoHideEnabled($0) }
-                ))
-                .foregroundColor(Constants.textPrimary)
-
-                HStack {
-                    Text(t("settings.hide_delay"))
-                        .foregroundColor(overlayManager.isAutoHideEnabled ? Constants.textPrimary : Constants.textMuted)
-                    Spacer()
-                    TextField("", text: $autoHideDelayText)
-                        .frame(width: 70)
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: 12, design: .monospaced))
-                        .disabled(!overlayManager.isAutoHideEnabled)
-                        .onSubmit {
-                            if let value = Int(autoHideDelayText), value >= 1 {
-                                overlayManager.setAutoHideDelay(TimeInterval(value))
-                            }
-                            autoHideDelayText = String(Int(overlayManager.autoHideDelay))
-                        }
-                }
-
-                Toggle(t("settings.toast_enabled"), isOn: Binding(
-                    get: { appStore.sessionFinishedStore.isEnabled },
-                    set: { appStore.sessionFinishedStore.isEnabled = $0 }
-                ))
-                .foregroundColor(Constants.textPrimary)
-
-                HStack {
-                    Text(t("settings.toast_duration"))
-                        .foregroundColor(appStore.sessionFinishedStore.isEnabled ? Constants.textPrimary : Constants.textMuted)
-                    Spacer()
-                    TextField("", text: $toastDurationText)
-                        .frame(width: 70)
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: 12, design: .monospaced))
-                        .disabled(!appStore.sessionFinishedStore.isEnabled)
-                        .onSubmit {
-                            if let value = Double(toastDurationText), value >= 1 {
-                                appStore.sessionFinishedStore.toastDuration = value
-                            }
-                            toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
-                        }
-                }
-            } header: {
-                Text(t("settings.claude_code")).font(Constants.heading(size: 13, weight: .semibold))
-            }
-
+            // MARK: – Keyboard Shortcuts
             Section {
                 HStack {
                     Text(t("settings.global_shortcuts"))
@@ -232,8 +247,8 @@ struct SettingsView: View {
                 Text(t("settings.keyboard_shortcuts")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            // MARK: – IDE Integration
             Section {
-                // Per-IDE status list
                 ForEach(ideStatuses) { ide in
                     HStack {
                         Text(ide.name)
@@ -249,8 +264,7 @@ struct SettingsView: View {
                             }
                         } else if ide.isDetected {
                             if installingIDE == ide.command {
-                                ProgressView()
-                                    .controlSize(.small)
+                                ProgressView().controlSize(.small)
                             } else {
                                 Button {
                                     installExtension(command: ide.command)
@@ -273,24 +287,24 @@ struct SettingsView: View {
                     .font(.system(size: 13))
                 }
 
-                // Actions
                 if extensionBusy {
                     HStack {
                         Spacer()
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(t("settings.installing"))
-                            .font(.system(size: 12))
-                            .foregroundColor(Constants.textMuted)
+                        ProgressView().controlSize(.small)
+                        Text(t("settings.installing")).font(.system(size: 12)).foregroundColor(Constants.textMuted)
                         Spacer()
                     }
                 } else if ideExtensionInstalled {
-                    Toggle(t("settings.enable_terminal_switching"), isOn: $ideExtensionEnabled)
-                        .foregroundColor(Constants.textPrimary)
+                    // Terminal switching toggle — one row
+                    HStack {
+                        Text(t("settings.enable_terminal_switching"))
+                            .foregroundColor(Constants.textPrimary)
+                        Spacer()
+                        Toggle("", isOn: $ideExtensionEnabled).labelsHidden()
+                    }
                     HStack(spacing: 12) {
                         Button(action: installExtension) {
-                            Text(t("settings.reinstall"))
-                                .foregroundColor(Constants.orangePrimary)
+                            Text(t("settings.reinstall")).foregroundColor(Constants.orangePrimary)
                         }
                         .buttonStyle(.plain)
                         Button(action: uninstallExtension) {
@@ -300,9 +314,7 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 } else if ideStatuses.contains(where: { $0.isDetected }) {
-                    Text(t("settings.ide_hint"))
-                        .font(.system(size: 11))
-                        .foregroundColor(Constants.textMuted)
+                    Text(t("settings.ide_hint")).font(.system(size: 11)).foregroundColor(Constants.textMuted)
                 }
 
                 if let error = extensionError {
@@ -314,45 +326,31 @@ struct SettingsView: View {
             .animation(.easeInOut(duration: 0.25), value: ideExtensionInstalled)
             .animation(.easeInOut(duration: 0.25), value: extensionBusy)
 
+            // MARK: – Storage
             Section {
                 HStack {
-                    Text("Events")
-                        .foregroundColor(Constants.textPrimary)
+                    Text(t("settings.sessions")).foregroundColor(Constants.textPrimary)
                     Spacer()
-                    Text("\(appStore.eventStore.events.count)")
-                        .foregroundColor(Constants.textMuted)
+                    Text("\(appStore.sessionStore.sessions.count)").foregroundColor(Constants.textMuted)
                 }
                 HStack {
-                    Text(t("settings.sessions"))
-                        .foregroundColor(Constants.textPrimary)
+                    Text(t("settings.notifications")).foregroundColor(Constants.textPrimary)
                     Spacer()
-                    Text("\(appStore.sessionStore.sessions.count)")
-                        .foregroundColor(Constants.textMuted)
+                    Text("\(appStore.notificationStore.notifications.count)").foregroundColor(Constants.textMuted)
                 }
                 HStack {
-                    Text(t("settings.notifications"))
-                        .foregroundColor(Constants.textPrimary)
+                    Text(t("settings.video_cache")).foregroundColor(Constants.textPrimary)
                     Spacer()
-                    Text("\(appStore.notificationStore.notifications.count)")
-                        .foregroundColor(Constants.textMuted)
-                }
-                HStack {
-                    Text(t("settings.video_cache"))
-                        .foregroundColor(Constants.textPrimary)
-                    Spacer()
-                    Text(formatBytes(videoCacheSize))
-                        .foregroundColor(Constants.textMuted)
+                    Text(formatBytes(videoCacheSize)).foregroundColor(Constants.textMuted)
                 }
                 Button(action: clearVideoCache) {
-                    Text(t("settings.clear_video_cache"))
-                        .foregroundColor(Constants.orangePrimary)
+                    Text(t("settings.clear_video_cache")).foregroundColor(Constants.orangePrimary)
                 }
                 .buttonStyle(.plain)
                 .disabled(videoCacheSize == 0)
 
                 HStack {
-                    Text(t("settings.data_location"))
-                        .foregroundColor(Constants.textPrimary)
+                    Text(t("settings.data_location")).foregroundColor(Constants.textPrimary)
                     Spacer()
                     Text(LocalStorage.appSupportDir.path)
                         .font(.system(size: 10))
@@ -364,87 +362,65 @@ struct SettingsView: View {
                 Text(t("settings.storage")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            // MARK: – Updates
             Section {
                 if appUpdater.isAvailable {
                     @Bindable var updater = appUpdater
                     Toggle(t("settings.auto_check_updates"), isOn: $updater.automaticallyChecksForUpdates)
                         .foregroundColor(Constants.textPrimary)
-
                     Button(action: { appUpdater.checkForUpdates() }) {
-                        Text(t("settings.check_updates"))
-                            .foregroundColor(Constants.orangePrimary)
+                        Text(t("settings.check_updates")).foregroundColor(Constants.orangePrimary)
                     }
                     .buttonStyle(.plain)
                     .disabled(!appUpdater.canCheckForUpdates)
                 } else {
                     Text(t("settings.updates_unavailable"))
-                        .font(.system(size: 12))
-                        .foregroundColor(Constants.textMuted)
+                        .font(.system(size: 12)).foregroundColor(Constants.textMuted)
                 }
             } header: {
                 Text(t("settings.updates")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            // MARK: – Troubleshooting
             Section {
                 Button {
                     showConnectionDoctor = true
                 } label: {
                     HStack {
-                        Image(systemName: "stethoscope")
-                            .foregroundColor(Constants.orangePrimary)
-                        Text(t("settings.run_doctor"))
-                            .foregroundColor(Constants.orangePrimary)
+                        Image(systemName: "stethoscope").foregroundColor(Constants.orangePrimary)
+                        Text(t("settings.run_doctor")).foregroundColor(Constants.orangePrimary)
                         Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(Constants.textMuted)
+                        Image(systemName: "chevron.right").font(.caption).foregroundColor(Constants.textMuted)
                     }
                 }
                 .buttonStyle(.plain)
-
-                Text(t("settings.doctor_hint"))
-                    .font(.system(size: 11))
-                    .foregroundColor(Constants.textMuted)
+                Text(t("settings.doctor_hint")).font(.system(size: 11)).foregroundColor(Constants.textMuted)
             } header: {
                 Text(t("settings.troubleshooting")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            // MARK: – About
             Section {
                 HStack {
-                    Text(t("settings.version"))
-                        .foregroundColor(Constants.textPrimary)
+                    Text(t("settings.version")).foregroundColor(Constants.textPrimary)
                     Spacer()
-                    Text("\(appVersion) (\(buildNumber))")
-                        .foregroundColor(Constants.textMuted)
+                    Text("\(appVersion) (\(buildNumber))").foregroundColor(Constants.textMuted)
                 }
                 Link(destination: URL(string: Constants.repoURL)!) {
                     HStack {
-                        Text(t("settings.github"))
-                            .foregroundColor(Constants.orangePrimary)
+                        Text(t("settings.github")).foregroundColor(Constants.orangePrimary)
                         Spacer()
-                        Image(systemName: "arrow.up.forward")
-                            .foregroundColor(Constants.orangePrimary)
-                            .font(.caption)
+                        Image(systemName: "arrow.up.forward").foregroundColor(Constants.orangePrimary).font(.caption)
                     }
                 }
                 Link(destination: URL(string: Constants.peachyBaseURL + "/community")!) {
                     HStack {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(Constants.orangePrimary)
-                            .font(.system(size: 12))
-                        Text(t("settings.browse_skins"))
-                            .foregroundColor(Constants.orangePrimary)
+                        Image(systemName: "sparkles").foregroundColor(Constants.orangePrimary).font(.system(size: 12))
+                        Text(t("settings.browse_skins")).foregroundColor(Constants.orangePrimary)
                         Spacer()
-                        Image(systemName: "arrow.up.forward")
-                            .foregroundColor(Constants.orangePrimary)
-                            .font(.caption)
+                        Image(systemName: "arrow.up.forward").foregroundColor(Constants.orangePrimary).font(.caption)
                     }
                 }
-            } header: {
-                Text(t("settings.about")).font(Constants.heading(size: 13, weight: .semibold))
-            }
-
-            Section {
                 Button(action: { showUninstallConfirm = true }) {
                     HStack {
                         Image(systemName: "trash")
@@ -453,12 +429,9 @@ struct SettingsView: View {
                     .foregroundColor(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
                 }
                 .buttonStyle(.plain)
-
-                Text(t("settings.uninstall_hint"))
-                    .font(.system(size: 11))
-                    .foregroundColor(Constants.textMuted)
+                Text(t("settings.uninstall_hint")).font(.system(size: 11)).foregroundColor(Constants.textMuted)
             } header: {
-                Text("Uninstall").font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.about")).font(Constants.heading(size: 13, weight: .semibold))
             }
         }
         .formStyle(.grouped)

@@ -13,13 +13,18 @@
 /* Settings – Claude Code */
 "settings.title" = "设置";
 "settings.claude_code" = "Claude Code";
+"settings.codex" = "Codex";
 "settings.events_section" = "事件";
 "settings.enable" = "启用";
 "settings.disable" = "禁用";
+"settings.codex_hook_hint" = "已为 Codex 安装非阻塞状态 hook；审批仍由 Codex 按自身设置处理，包括「替我审批」。";
+
+/* Settings – Overlay */
+"settings.overlay" = "覆盖层";
 "settings.auto_hide" = "无会话时自动隐藏";
 "settings.hide_delay" = "隐藏延迟（秒）";
-"settings.toast_enabled" = "显示「任务完成」提示";
-"settings.toast_duration" = "提示持续时间（秒）";
+"settings.toast_enabled" = "任务完成提示";
+"settings.toast_duration" = "提示持续（秒）";
 "settings.enable_terminal_switching" = "启用终端切换";
 
 /* Settings – Shortcuts */
@@ -143,4 +148,5 @@
 /* Activity Feed */
 "activity.title" = "全部事件";
 "activity.empty" = "无事件";
-"activity.hint" = "Claude Code 和 Codex 的事件将实时显示在这里";
+"activity.hint" = "Claude Code 和 Codex 的事件将实时显示在这里
+"settings.seconds_unit" = "秒";
