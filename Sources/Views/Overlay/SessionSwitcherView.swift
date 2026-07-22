@@ -87,7 +87,20 @@ private struct SessionSwitcherRow: View {
                 }
                 .font(Constants.body(size: 9))
                 .foregroundStyle(Constants.textMuted)
+
+                if visibleSubagentCount > 0 {
+                    HStack(spacing: 4) {
+                        ForEach(0..<visibleSubagentCount, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 1.25)
+                                .fill(Constants.orangePrimary)
+                                .frame(width: 10, height: 2.5)
+                        }
+                    }
+                    .padding(.top, 2)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                }
             }
+            .animation(.easeInOut(duration: 0.15), value: visibleSubagentCount)
 
             Spacer()
 
@@ -117,6 +130,10 @@ private struct SessionSwitcherRow: View {
         .background(isSelected ? Constants.orangePrimarySubtle : Color.clear)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
+    }
+
+    private var visibleSubagentCount: Int {
+        min(max(session.activeSubagentCount, 0), 5)
     }
 
     private var projectLabel: String {
