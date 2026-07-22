@@ -332,9 +332,9 @@ final class OverlayManager {
     func refreshInputs() {
         let active = sessionStore.activeSessions
 
-        // Auto-hide: fade out when all sessions idle, fade in when any session is working
-        let anyWorking = active.contains { $0.phase == .running || $0.phase == .compacting }
-        updateAutoHideState(isWorking: anyWorking)
+        // Auto-hide: fade out when all sessions have ended, fade in when any session is alive
+        let hasActive = !active.isEmpty
+        updateAutoHideState(hasActiveSessions: hasActive)
 
         guard let sm = currentStateMachine else { return }
 
@@ -363,9 +363,8 @@ final class OverlayManager {
         isAutoHideEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: "auto_hide_no_sessions")
         if enabled {
-            // Start tracking immediately
-            let anyWorking = sessionStore.activeSessions.contains { $0.phase == .running || $0.phase == .compacting }
-            updateAutoHideState(isWorking: anyWorking)
+            let hasActive = !sessionStore.activeSessions.isEmpty
+            updateAutoHideState(hasActiveSessions: hasActive)
         } else {
             // Cancel any pending hide and restore if hidden
             autoHideTimer?.invalidate()
@@ -383,23 +382,25 @@ final class OverlayManager {
         if autoHideTimer != nil {
             autoHideTimer?.invalidate()
             autoHideTimer = nil
-            let anyWorking = sessionStore.activeSessions.contains { $0.phase == .running || $0.phase == .compacting }
-            updateAutoHideState(isWorking: anyWorking)
+            let hasActive = !sessionStore.activeSessions.isEmpty
+            updateAutoHideState(hasActiveSessions: hasActive)
         }
     }
 
-    private func updateAutoHideState(isWorking: Bool) {
+    // hasActiveSessions: true when any session (running OR idle) is still active.
+    // Hide only when all sessions have ended (status == .ended), not just because they went idle.
+    private func updateAutoHideState(hasActiveSessions: Bool) {
         guard isAutoHideEnabled, isOverlayActive || isAutoHidden else { return }
 
-        if isWorking {
-            // A session is working — cancel any pending hide and restore if hidden
+        if hasActiveSessions {
+            // At least one session is alive — cancel any pending hide and restore if hidden
             autoHideTimer?.invalidate()
             autoHideTimer = nil
             if isAutoHidden {
                 fadeInFromAutoHide()
             }
         } else if !isAutoHidden && autoHideTimer == nil {
-            // All sessions idle — start countdown to fade out
+            // No sessions at all — start countdown to fade out
             autoHideTimer = Timer.scheduledTimer(withTimeInterval: autoHideDelay, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.fadeOutForAutoHide()
@@ -796,7 +797,7 @@ final class OverlayManager {
            let config = try? JSONDecoder().decode(PeachyAnimationConfig.self, from: configData) {
             showOverlayWithConfig(config)
             // Start auto-hide timer if no sessions active on launch
-            updateAutoHideState(isWorking: sessionStore.activeSessions.contains { $0.phase == .running || $0.phase == .compacting })
+            updateAutoHideState(hasActiveSessions: !sessionStore.activeSessions.isEmpty)
             return
         }
         // Fall back to URL-based overlay (single video loop)
@@ -804,7 +805,7 @@ final class OverlayManager {
               let url = URL(string: urlString) else { return }
         showOverlay(url: url)
         // Start auto-hide timer if no sessions active on launch
-        updateAutoHideState(isWorking: sessionStore.activeSessions.contains { $0.phase == .running || $0.phase == .compacting })
+        updateAutoHideState(hasActiveSessions: !sessionStore.activeSessions.isEmpty)
     }
 
     // MARK: - Private
