@@ -160,12 +160,22 @@ final class SessionStore {
     private var interruptWatcherTimer: Timer?
     private var idleExpiryTimer: Timer?
     private let idleRetentionDuration: TimeInterval
-    /// Snapshots for in-progress potentially-internal turns: taskId → (existed, phase, idleUntil)
-    private var internalTurnSnapshots: [String: (existed: Bool, phase: AgentSession.Phase, idleUntil: Date?)] = [:]
+    /// Snapshots for in-progress potentially-internal turns.
+    private var internalTurnSnapshots: [String: (
+        existed: Bool,
+        status: AgentSession.Status,
+        phase: AgentSession.Phase,
+        idleUntil: Date?,
+        activeSubagentIds: Set<String>,
+        anonymousSubagentCount: Int,
+        reconciledSubagentStopIds: Set<String>
+    )] = [:]
     /// Track active subagent IDs per session to prevent double-counting
     private var activeSubagentIds: [String: Set<String>] = [:]
     /// Track anonymous subagent events separately from identified agents
     private var anonymousSubagentCounts: [String: Int] = [:]
+    /// Identified stop events that consumed an anonymous subagent; prevents duplicate stops from decrementing again.
+    private var reconciledSubagentStopIds: [String: Set<String>] = [:]
 
     /// Called when session phases or active subagent counts change.
     /// Wire this to refresh overlay and session switcher snapshots.
@@ -431,6 +441,7 @@ final class SessionStore {
         let sessionId = sessions[index].id
         activeSubagentIds.removeValue(forKey: sessionId)
         anonymousSubagentCounts.removeValue(forKey: sessionId)
+        reconciledSubagentStopIds.removeValue(forKey: sessionId)
         sessions[index].activeSubagentCount = 0
     }
 
@@ -514,9 +525,25 @@ final class SessionStore {
     /// Called by EventProcessor BEFORE recordEvent for a userPromptSubmit that carries a taskId.
     func saveSnapshot(taskId: String, sessionId: String) {
         if let session = sessions.first(where: { $0.id == sessionId }) {
-            internalTurnSnapshots[taskId] = (existed: true, phase: session.phase, idleUntil: session.idleUntil)
+            internalTurnSnapshots[taskId] = (
+                existed: true,
+                status: session.status,
+                phase: session.phase,
+                idleUntil: session.idleUntil,
+                activeSubagentIds: activeSubagentIds[sessionId] ?? [],
+                anonymousSubagentCount: anonymousSubagentCounts[sessionId] ?? 0,
+                reconciledSubagentStopIds: reconciledSubagentStopIds[sessionId] ?? []
+            )
         } else {
-            internalTurnSnapshots[taskId] = (existed: false, phase: .idle, idleUntil: nil)
+            internalTurnSnapshots[taskId] = (
+                existed: false,
+                status: .ended,
+                phase: .idle,
+                idleUntil: nil,
+                activeSubagentIds: [],
+                anonymousSubagentCount: 0,
+                reconciledSubagentStopIds: []
+            )
         }
     }
 
@@ -527,9 +554,11 @@ final class SessionStore {
         if !snapshot.existed {
             activeSubagentIds.removeValue(forKey: sessionId)
             anonymousSubagentCounts.removeValue(forKey: sessionId)
+            reconciledSubagentStopIds.removeValue(forKey: sessionId)
             sessions.removeAll(where: { $0.id == sessionId })
             PeachyLog.session.debug("Internal turn rolled back: taskId=\(taskId) sessionId=\(sessionId)")
             persist()
+            onPhasesChanged?()
             return
         }
         guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
@@ -540,13 +569,32 @@ final class SessionStore {
         if s.terminalPid == nil && s.idleUntil == nil && s.eventCount <= 2 && snapshot.phase == .idle {
             activeSubagentIds.removeValue(forKey: sessionId)
             anonymousSubagentCounts.removeValue(forKey: sessionId)
+            reconciledSubagentStopIds.removeValue(forKey: sessionId)
             sessions.remove(at: index)
             persist()
+            onPhasesChanged?()
             return
         }
+        let previousStatus = sessions[index].status
+        let previousPhase = sessions[index].phase
+        let previousCount = sessions[index].activeSubagentCount
+        sessions[index].status = snapshot.status
         sessions[index].phase = snapshot.phase
         sessions[index].idleUntil = snapshot.idleUntil
+        if snapshot.status == .ended || snapshot.phase == .idle {
+            clearSubagents(at: index)
+        } else {
+            activeSubagentIds[sessionId] = snapshot.activeSubagentIds
+            anonymousSubagentCounts[sessionId] = snapshot.anonymousSubagentCount
+            reconciledSubagentStopIds[sessionId] = snapshot.reconciledSubagentStopIds
+            updateSubagentCount(at: index)
+        }
         persist()
+        if sessions[index].status != previousStatus
+            || sessions[index].phase != previousPhase
+            || sessions[index].activeSubagentCount != previousCount {
+            onPhasesChanged?()
+        }
     }
 
     /// Called by EventProcessor when a real stop arrives for a taskId that had a snapshot.
@@ -559,10 +607,11 @@ final class SessionStore {
     func runStartupMigration() {
         let now = Date()
         var changed = false
-        for i in sessions.indices where sessions[i].status == .active {
+        for i in sessions.indices {
             let hadPersistedSubagents = sessions[i].activeSubagentCount > 0
             clearSubagents(at: i)
             if hadPersistedSubagents { changed = true }
+            guard sessions[i].status == .active else { continue }
             switch sessions[i].phase {
             case .idle:
                 if let idleUntil = sessions[i].idleUntil {
@@ -728,6 +777,7 @@ final class SessionStore {
                 clearIdleUntil(for: sessionId)
                 let previousCount = sessions[index].activeSubagentCount
                 if let agentId = event.agentId {
+                    reconciledSubagentStopIds[sessionId]?.remove(agentId)
                     var ids = activeSubagentIds[sessionId] ?? []
                     ids.insert(agentId)
                     activeSubagentIds[sessionId] = ids
@@ -739,13 +789,22 @@ final class SessionStore {
 
             case .subagentStop:
                 let previousCount = sessions[index].activeSubagentCount
+                // Prefer an exact identity match. If one side omitted agentId, consume one entry from
+                // the opposite pool deterministically. Anonymous events cannot be duplicate-safe
+                // because they carry no stable identity; identified duplicate starts remain idempotent.
                 if let agentId = event.agentId {
+                    if activeSubagentIds[sessionId]?.remove(agentId) != nil {
+                        reconciledSubagentStopIds[sessionId, default: []].insert(agentId)
+                    } else if !(reconciledSubagentStopIds[sessionId]?.contains(agentId) ?? false),
+                       (anonymousSubagentCounts[sessionId] ?? 0) > 0 {
+                        anonymousSubagentCounts[sessionId, default: 0] -= 1
+                        reconciledSubagentStopIds[sessionId, default: []].insert(agentId)
+                    }
+                } else if (anonymousSubagentCounts[sessionId] ?? 0) > 0 {
+                    anonymousSubagentCounts[sessionId, default: 0] -= 1
+                } else if let agentId = activeSubagentIds[sessionId]?.sorted().first {
                     activeSubagentIds[sessionId]?.remove(agentId)
-                } else {
-                    anonymousSubagentCounts[sessionId] = max(
-                        0,
-                        (anonymousSubagentCounts[sessionId] ?? 0) - 1
-                    )
+                    reconciledSubagentStopIds[sessionId, default: []].insert(agentId)
                 }
                 updateSubagentCount(at: index)
                 shouldNotifyObservers = sessions[index].activeSubagentCount != previousCount
@@ -780,6 +839,7 @@ final class SessionStore {
             session.transcriptPath = event.transcriptPath
             if event.eventType == .subagentStart {
                 if let agentId = event.agentId {
+                    reconciledSubagentStopIds[sessionId]?.remove(agentId)
                     activeSubagentIds[sessionId] = [agentId]
                 } else {
                     anonymousSubagentCounts[sessionId] = 1

@@ -10,14 +10,16 @@ final class SessionStoreSubagentTests: XCTestCase {
     private func event(
         _ type: HookEventType,
         sessionId: String,
-        agentId: String? = nil
+        agentId: String? = nil,
+        taskId: String? = nil
     ) -> AgentEvent {
         AgentEvent(
             hookEventName: type.rawValue,
             sessionId: sessionId,
             cwd: "/tmp/subagent-test",
             source: "claude-code",
-            agentId: agentId
+            agentId: agentId,
+            taskId: taskId
         )
     }
 
@@ -182,5 +184,181 @@ final class SessionStoreSubagentTests: XCTestCase {
         store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
 
         XCTAssertEqual(notifications, 2)
+    }
+
+    func testIdleRollbackClearsSubagentsStartedByInternalTurn() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "rollback-idle-subagents-\(UUID().uuidString)"
+        let taskId = "internal-idle"
+
+        store.recordEvent(event(.userPromptSubmit, sessionId: sid))
+        store.recordEvent(event(.stop, sessionId: sid))
+        store.saveSnapshot(taskId: taskId, sessionId: sid)
+        store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "A"))
+
+        store.rollbackInternalTurn(taskId: taskId, sessionId: sid)
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.phase, .idle)
+        XCTAssertEqual(session?.activeSubagentCount, 0)
+    }
+
+    func testRunningRollbackRestoresPreviousSubagentState() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "rollback-running-subagents-\(UUID().uuidString)"
+        let taskId = "internal-running"
+
+        store.recordEvent(event(.sessionStart, sessionId: sid))
+        store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "A"))
+        store.recordEvent(event(.subagentStart, sessionId: sid))
+        store.saveSnapshot(taskId: taskId, sessionId: sid)
+        store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "B"))
+        store.recordEvent(event(.subagentStart, sessionId: sid))
+
+        store.rollbackInternalTurn(taskId: taskId, sessionId: sid)
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.phase, .running)
+        XCTAssertEqual(session?.activeSubagentCount, 2)
+
+        store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
+        store.recordEvent(event(.subagentStop, sessionId: sid))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 0)
+    }
+
+    func testRollbackTemporarySessionDeletionNotifiesObservers() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "rollback-delete-notify-\(UUID().uuidString)"
+        let taskId = "internal-new"
+        var notifications = 0
+        store.onPhasesChanged = { notifications += 1 }
+
+        store.saveSnapshot(taskId: taskId, sessionId: sid)
+        store.recordEvent(event(.userPromptSubmit, sessionId: sid, taskId: taskId))
+        notifications = 0
+
+        store.rollbackInternalTurn(taskId: taskId, sessionId: sid)
+
+        XCTAssertNil(store.sessions.first(where: { $0.id == sid }))
+        XCTAssertEqual(notifications, 1)
+    }
+
+    func testPhantomSessionDeletionRollbackNotifiesObservers() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "rollback-phantom-notify-\(UUID().uuidString)"
+        let taskId = "internal-phantom"
+        var notifications = 0
+        store.onPhasesChanged = { notifications += 1 }
+
+        // SessionStart creates an idle, terminal-less, eventCount<=2 entry — the phantom shape.
+        store.recordEvent(event(.sessionStart, sessionId: sid))
+        store.saveSnapshot(taskId: taskId, sessionId: sid)
+        store.recordEvent(event(.userPromptSubmit, sessionId: sid, taskId: taskId))
+        notifications = 0
+
+        store.rollbackInternalTurn(taskId: taskId, sessionId: sid)
+
+        XCTAssertNil(store.sessions.first(where: { $0.id == sid }))
+        XCTAssertEqual(notifications, 1)
+    }
+
+    func testStartupMigrationClearsPersistedCountFromEndedSession() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "ended-restart-subagents-\(UUID().uuidString)"
+        let session = AgentSession(
+            id: sid,
+            projectDir: "/tmp/subagent-test",
+            projectName: "subagent-test",
+            agentSource: .claudeCode,
+            status: .ended,
+            phase: .idle,
+            eventCount: 1,
+            startedAt: Date(),
+            lastEventAt: Date(),
+            activeSubagentCount: 3
+        )
+        store.injectSessionForTesting(session)
+
+        store.runStartupMigration()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 0)
+    }
+
+    func testAnonymousStopReconcilesIdentifiedStart() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "asymmetric-identified-start-\(UUID().uuidString)"
+
+        store.recordEvent(event(.sessionStart, sessionId: sid))
+        store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "A"))
+        store.recordEvent(event(.subagentStop, sessionId: sid))
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 0)
+    }
+
+    func testIdentifiedStopReconcilesAnonymousStart() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "asymmetric-anonymous-start-\(UUID().uuidString)"
+
+        store.recordEvent(event(.sessionStart, sessionId: sid))
+        store.recordEvent(event(.subagentStart, sessionId: sid))
+        store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 0)
+
+        store.recordEvent(event(.subagentStart, sessionId: sid))
+        store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
+        XCTAssertEqual(
+            store.sessions.first(where: { $0.id == sid })?.activeSubagentCount,
+            1,
+            "duplicate identified stop must not consume another anonymous subagent"
+        )
+    }
+
+    func testDuplicateIdentifiedStopDoesNotConsumeLiveAnonymousSubagent() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let sid = "dup-identified-stop-\(UUID().uuidString)"
+
+        store.recordEvent(event(.sessionStart, sessionId: sid))
+        store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "A"))
+        store.recordEvent(event(.subagentStart, sessionId: sid))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 2)
+
+        store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
+        // Redelivered exact-match stop (dual hook + JSONL delivery) must be a no-op,
+        // not decrement the still-live anonymous subagent.
+        store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
+        XCTAssertEqual(
+            store.sessions.first(where: { $0.id == sid })?.activeSubagentCount,
+            1,
+            "redelivered identified stop must not consume the live anonymous subagent"
+        )
+    }
+
+    func testAnonymousStopFallbackIsDeterministic() {
+        let sid = "deterministic-fallback"
+        func remainingIdentifiedID() -> String? {
+            let store = SessionStore(idleRetentionDuration: 300)
+            defer { store.stopTimers() }
+            store.recordEvent(event(.sessionStart, sessionId: sid))
+            store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "A"))
+            store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "B"))
+            // Anonymous stop with no anonymous pool must consume a deterministic identified entry.
+            store.recordEvent(event(.subagentStop, sessionId: sid))
+            XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 1)
+            // The surviving identified stop tells us which ID was consumed.
+            store.recordEvent(event(.subagentStop, sessionId: sid, agentId: "A"))
+            let afterA = store.sessions.first(where: { $0.id == sid })?.activeSubagentCount
+            return afterA == 0 ? "A" : "B"
+        }
+        // "A".sorted().first < "B", so the anonymous stop always removes "A".
+        XCTAssertEqual(remainingIdentifiedID(), "B")
+        XCTAssertEqual(remainingIdentifiedID(), "B")
     }
 }
