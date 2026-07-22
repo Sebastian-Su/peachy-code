@@ -197,12 +197,6 @@ enum IDETerminalFocus {
 
         let script: String?
         switch bundleId {
-        case "com.mitchellh.ghostty":
-            // Ghostty's AppleScript dictionary and System Events AX tree both lack reliable
-            // tab/TTY APIs. The safest approach is a plain activate — this brings Ghostty to
-            // the front without creating new tabs. The TTY-index approach caused AXPress on
-            // wrong tabs which Ghostty interpreted as "insert new tab at position N".
-            script = "tell application \"Ghostty\" to activate"
         case "com.googlecode.iterm2":
             script = """
             tell application "iTerm2"
