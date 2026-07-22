@@ -115,11 +115,13 @@ enum IDETerminalFocus {
         }
 
         // Raise the first window of the specific PID via Accessibility API before activating.
-        // Plain app.activate() without a prior window raise causes Ghostty (and some other
-        // terminals) to open a new tab instead of focusing an existing window.
+        // For Ghostty: AXRaise + frontmost is sufficient — calling app.activate() afterwards
+        // causes Ghostty to open a new tab. Return immediately after a successful raise.
         if let pid = terminalPid,
            NSRunningApplication(processIdentifier: pid_t(pid)) != nil {
-            raiseFirstWindow(pid: pid)
+            if raiseFirstWindow(pid: pid) {
+                return
+            }
         }
 
         // Activate the SPECIFIC process by PID (correct window with multiple instances)
@@ -317,9 +319,11 @@ enum IDETerminalFocus {
     }
 
     /// Raise the first window of a process by PID via Accessibility API (AXRaise).
-    /// Must be called BEFORE app.activate() to prevent terminals like Ghostty from
-    /// opening a new tab when activated without a specific window already in front.
-    private static func raiseFirstWindow(pid: Int) {
+    /// Returns true if the raise succeeded (process has windows and no error).
+    /// For terminals like Ghostty, AXRaise + frontmost is sufficient to bring a window
+    /// to the front without triggering new-tab creation (which app.activate() causes).
+    @discardableResult
+    private static func raiseFirstWindow(pid: Int) -> Bool {
         let src = """
         tell application "System Events"
             set targetProcess to first process whose unix id is \(pid)
@@ -327,16 +331,21 @@ enum IDETerminalFocus {
             if (count of wins) > 0 then
                 perform action "AXRaise" of item 1 of wins
                 set frontmost of targetProcess to true
+                return true
             end if
+            return false
         end tell
         """
         if let script = NSAppleScript(source: src) {
             var error: NSDictionary?
-            script.executeAndReturnError(&error)
+            let result = script.executeAndReturnError(&error)
             if let err = error {
                 let code = err[NSAppleScript.errorNumber] as? Int ?? 0
-                if code == -1743 { runOsascript(src) }
+                if code == -1743 { return runOsascript(src) }
+                return false
             }
+            return result.booleanValue
         }
+        return false
     }
 }
