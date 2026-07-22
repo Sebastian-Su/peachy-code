@@ -198,50 +198,11 @@ enum IDETerminalFocus {
         let script: String?
         switch bundleId {
         case "com.mitchellh.ghostty":
-            // Ghostty doesn't expose tab TTY via AppleScript.
-            // Instead: find which window owns the TTY by checking the cwd of each window's
-            // first shell child (Ghostty child processes map 1:1 with windows/tabs).
-            // We match against the shell PID's TTY directly via ps.
-            script = """
-            tell application "System Events"
-                set proc to first process whose bundle identifier is "com.mitchellh.ghostty"
-                set allWins to windows of proc
-                -- find the window whose children include a process on tty \(tty)
-                -- proxy: iterate windows, AXRaise each and check if we can match by title
-                -- Better: use ps to find all Ghostty children on this tty, then match window by index
-                -- Ghostty maps tab/window order to tty order (ttys000=first tab, etc.)
-                -- Parse tty index from "\(tty)" (e.g. ttys003 → 3)
-                set ttyNum to \(tty.replacingOccurrences(of: "ttys", with: ""))
-                set ttyNum to ttyNum as integer
-                -- Count tabs across windows; find the window/tab at the right index
-                set globalIdx to 0
-                repeat with w in allWins
-                    set tgList to (UI elements of w whose role is "AXTabGroup")
-                    if (count of tgList) > 0 then
-                        set tg to first item of tgList
-                        set tabList to (UI elements of tg whose role is "AXRadioButton")
-                        set tabCount to count of tabList
-                        if globalIdx + tabCount > ttyNum then
-                            -- the target tab is in this window
-                            set localIdx to ttyNum - globalIdx + 1
-                            perform action "AXPress" of item localIdx of tabList
-                            perform action "AXRaise" of w
-                            set frontmost of proc to true
-                            return
-                        end if
-                        set globalIdx to globalIdx + tabCount
-                    else
-                        -- single-tab window (no tab bar)
-                        if globalIdx = ttyNum then
-                            perform action "AXRaise" of w
-                            set frontmost of proc to true
-                            return
-                        end if
-                        set globalIdx to globalIdx + 1
-                    end if
-                end repeat
-            end tell
-            """
+            // Ghostty's AppleScript dictionary and System Events AX tree both lack reliable
+            // tab/TTY APIs. The safest approach is a plain activate — this brings Ghostty to
+            // the front without creating new tabs. The TTY-index approach caused AXPress on
+            // wrong tabs which Ghostty interpreted as "insert new tab at position N".
+            script = "tell application \"Ghostty\" to activate"
         case "com.googlecode.iterm2":
             script = """
             tell application "iTerm2"
