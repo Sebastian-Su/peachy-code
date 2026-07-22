@@ -164,9 +164,11 @@ final class SessionStore {
     private var internalTurnSnapshots: [String: (existed: Bool, phase: AgentSession.Phase, idleUntil: Date?)] = [:]
     /// Track active subagent IDs per session to prevent double-counting
     private var activeSubagentIds: [String: Set<String>] = [:]
+    /// Track anonymous subagent events separately from identified agents
+    private var anonymousSubagentCounts: [String: Int] = [:]
 
-    /// Called when interrupt detection flips a running session to idle.
-    /// Wire this to refresh overlay inputs.
+    /// Called when session phases or active subagent counts change.
+    /// Wire this to refresh overlay and session switcher snapshots.
     var onPhasesChanged: (() -> Void)?
 
     init(idleRetentionDuration: TimeInterval = 300) {
@@ -233,6 +235,7 @@ final class SessionStore {
                           self.sessions[candidate.index].id == candidate.id,
                           self.sessions[candidate.index].phase == .running else { continue }
                     self.sessions[candidate.index].phase = .idle
+                    self.clearSubagents(at: candidate.index)
                     self.setIdleUntil(for: candidate.id)
                     changed = true
                     PeachyLog.session.info("Session interrupted: \(candidate.id) → idle")
@@ -356,7 +359,7 @@ final class SessionStore {
             for i in sessions.indices where sessions[i].status == .active {
                 sessions[i].status = .ended
                 sessions[i].phase = .idle
-                sessions[i].activeSubagentCount = 0
+                clearSubagents(at: i)
                 PeachyLog.session.warning("Session ended (no process): \(self.sessions[i].id)")
                 changed = true
             }
@@ -377,7 +380,7 @@ final class SessionStore {
                     }
                     sessions[i].status = .ended
                     sessions[i].phase = .idle
-                    sessions[i].activeSubagentCount = 0
+                    clearSubagents(at: i)
                     changed = true
                 }
             }
@@ -415,6 +418,22 @@ final class SessionStore {
         }
     }
 
+    private func updateSubagentCount(at index: Int) {
+        guard sessions.indices.contains(index) else { return }
+        let sessionId = sessions[index].id
+        let identifiedCount = activeSubagentIds[sessionId]?.count ?? 0
+        let anonymousCount = anonymousSubagentCounts[sessionId] ?? 0
+        sessions[index].activeSubagentCount = identifiedCount + anonymousCount
+    }
+
+    private func clearSubagents(at index: Int) {
+        guard sessions.indices.contains(index) else { return }
+        let sessionId = sessions[index].id
+        activeSubagentIds.removeValue(forKey: sessionId)
+        anonymousSubagentCounts.removeValue(forKey: sessionId)
+        sessions[index].activeSubagentCount = 0
+    }
+
     // MARK: - Persistence
 
     private func persist() {
@@ -447,6 +466,7 @@ final class SessionStore {
                 if idleUntil <= now {
                     sessions[i].status = .ended
                     sessions[i].idleUntil = nil
+                    clearSubagents(at: i)
                     PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                     changed = true
                 }
@@ -456,6 +476,7 @@ final class SessionStore {
                 let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
                 if ref.addingTimeInterval(idleRetentionDuration) <= now {
                     sessions[i].status = .ended
+                    clearSubagents(at: i)
                     PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                     changed = true
                 }
@@ -504,6 +525,8 @@ final class SessionStore {
         defer { internalTurnSnapshots.removeValue(forKey: taskId) }
         guard let snapshot = internalTurnSnapshots[taskId] else { return }
         if !snapshot.existed {
+            activeSubagentIds.removeValue(forKey: sessionId)
+            anonymousSubagentCounts.removeValue(forKey: sessionId)
             sessions.removeAll(where: { $0.id == sessionId })
             PeachyLog.session.debug("Internal turn rolled back: taskId=\(taskId) sessionId=\(sessionId)")
             persist()
@@ -515,6 +538,8 @@ final class SessionStore {
         // entirely rather than leaving a phantom idle entry.
         let s = sessions[index]
         if s.terminalPid == nil && s.idleUntil == nil && s.eventCount <= 2 && snapshot.phase == .idle {
+            activeSubagentIds.removeValue(forKey: sessionId)
+            anonymousSubagentCounts.removeValue(forKey: sessionId)
             sessions.remove(at: index)
             persist()
             return
@@ -535,6 +560,9 @@ final class SessionStore {
         let now = Date()
         var changed = false
         for i in sessions.indices where sessions[i].status == .active {
+            let hadPersistedSubagents = sessions[i].activeSubagentCount > 0
+            clearSubagents(at: i)
+            if hadPersistedSubagents { changed = true }
             switch sessions[i].phase {
             case .idle:
                 if let idleUntil = sessions[i].idleUntil {
@@ -609,8 +637,10 @@ final class SessionStore {
 
     func recordEvent(_ event: AgentEvent) {
         guard let sessionId = event.sessionId, !sessionId.isEmpty else { return }
+        var shouldNotifyObservers = false
 
         if let index = sessions.firstIndex(where: { $0.id == sessionId }) {
+            let previousSubagentCount = sessions[index].activeSubagentCount
             sessions[index].eventCount += 1
             sessions[index].lastEventAt = Date()
             if let toolName = event.toolName {
@@ -642,7 +672,7 @@ final class SessionStore {
                     sessions[index].status = .active
                     sessions[index].phase = (eventType == .preCompact) ? .compacting
                         : (eventType == .sessionStart) ? .idle : .running
-                    sessions[index].activeSubagentCount = 0
+                    clearSubagents(at: index)
                     sessions[index].idleUntil = nil
                 } else {
                     // Truly stale event (e.g. Stop, SessionEnd) — count it but skip transitions
@@ -656,6 +686,7 @@ final class SessionStore {
             case .sessionStart:
                 sessions[index].status = .active
                 sessions[index].phase = .idle
+                clearSubagents(at: index)
                 if let pid = event.terminalPid {
                     sessions[index].terminalPid = pid
                     sessions[index].terminalBundleId = Self.resolveBundleId(pid: pid)
@@ -680,43 +711,55 @@ final class SessionStore {
 
             case .stop, .stopFailure:
                 sessions[index].phase = .idle
+                clearSubagents(at: index)
                 setIdleUntil(for: sessionId)
+                shouldNotifyObservers = true
                 PeachyLog.session.debug("Session idle (Stop): \(sessionId) idleUntil=+\(Int(self.idleRetentionDuration))s")
 
             case .sessionEnd:
                 PeachyLog.session.info("Session ended (SessionEnd): \(sessionId)")
                 sessions[index].status = .ended
                 sessions[index].phase = .idle
-                sessions[index].activeSubagentCount = 0
-                activeSubagentIds.removeValue(forKey: sessionId)
-                onPhasesChanged?()
+                clearSubagents(at: index)
+                shouldNotifyObservers = true
 
             case .subagentStart:
                 sessions[index].phase = .running
+                clearIdleUntil(for: sessionId)
+                let previousCount = sessions[index].activeSubagentCount
                 if let agentId = event.agentId {
                     var ids = activeSubagentIds[sessionId] ?? []
                     ids.insert(agentId)
                     activeSubagentIds[sessionId] = ids
-                    sessions[index].activeSubagentCount = ids.count
                 } else {
-                    sessions[index].activeSubagentCount += 1
+                    anonymousSubagentCounts[sessionId, default: 0] += 1
                 }
+                updateSubagentCount(at: index)
+                shouldNotifyObservers = sessions[index].activeSubagentCount != previousCount
 
             case .subagentStop:
-                sessions[index].phase = .running
+                let previousCount = sessions[index].activeSubagentCount
                 if let agentId = event.agentId {
                     activeSubagentIds[sessionId]?.remove(agentId)
-                    sessions[index].activeSubagentCount = activeSubagentIds[sessionId]?.count ?? 0
                 } else {
-                    sessions[index].activeSubagentCount = max(0, sessions[index].activeSubagentCount - 1)
+                    anonymousSubagentCounts[sessionId] = max(
+                        0,
+                        (anonymousSubagentCounts[sessionId] ?? 0) - 1
+                    )
                 }
+                updateSubagentCount(at: index)
+                shouldNotifyObservers = sessions[index].activeSubagentCount != previousCount
 
             default:
                 break
             }
+            if sessions[index].activeSubagentCount != previousSubagentCount {
+                shouldNotifyObservers = true
+            }
         } else {
             // New session
-            let phase: AgentSession.Phase = event.eventType == .userPromptSubmit ? .running : .idle
+            let startsRunning = event.eventType == .userPromptSubmit || event.eventType == .subagentStart
+            let phase: AgentSession.Phase = startsRunning ? .running : .idle
             var session = AgentSession(
                 id: sessionId,
                 projectDir: event.cwd,
@@ -735,10 +778,22 @@ final class SessionStore {
             }
             session.shellPid = event.shellPid
             session.transcriptPath = event.transcriptPath
+            if event.eventType == .subagentStart {
+                if let agentId = event.agentId {
+                    activeSubagentIds[sessionId] = [agentId]
+                } else {
+                    anonymousSubagentCounts[sessionId] = 1
+                }
+                session.activeSubagentCount = 1
+                shouldNotifyObservers = true
+            }
             PeachyLog.session.info("Session created: \(sessionId) project=\(session.projectName ?? "/") src=\(session.rawSource ?? "-")")
             sessions.insert(session, at: 0)
         }
         persist()
+        if shouldNotifyObservers {
+            onPhasesChanged?()
+        }
     }
 
     private static func resolveBundleId(pid: Int) -> String? {
