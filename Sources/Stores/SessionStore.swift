@@ -269,7 +269,10 @@ final class SessionStore {
             let type = obj["type"] as? String ?? ""
             if type == "progress" || type == "file-history-snapshot" || type == "summary" { continue }
 
-            // Check timestamp — only act on entries newer than our last hook event
+            // Check timestamp — only act on entries newer than our last hook event.
+            // Exception: if the session has been running for a long time without a Stop hook
+            // (e.g. user killed the process), allow matching interrupt entries regardless of age.
+            let staleCutoffMinutes: Double = 10
             if let timestamp = obj["timestamp"] as? String, let lastEventAt {
                 let formatter = ISO8601DateFormatter()
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -280,7 +283,14 @@ final class SessionStore {
                     entryDate = formatter.date(from: timestamp)
                 }
                 if let entryDate, entryDate <= lastEventAt {
-                    return false // This entry is older than our last event — stale
+                    // Entry is older than our last hook event.
+                    // If the session has been idle for a long time, still check for interrupt
+                    // (the interrupt may have happened before the last hook event we received).
+                    let sessionAge = -lastEventAt.timeIntervalSinceNow / 60
+                    if sessionAge < staleCutoffMinutes {
+                        return false // Recent session — stale entry, skip
+                    }
+                    // Old session — fall through and check if it's an interrupt entry
                 }
                 // If timestamp still can't be parsed, treat as stale to avoid false positives
                 if entryDate == nil {
