@@ -87,7 +87,8 @@ private struct SessionSwitcherRow: View {
                 }
                 .font(Constants.body(size: 9))
                 .foregroundStyle(Constants.textMuted)
-
+            }
+            .overlay(alignment: .bottomLeading) {
                 if visibleSubagentCount > 0 {
                     HStack(spacing: 4) {
                         ForEach(0..<visibleSubagentCount, id: \.self) { _ in
@@ -96,7 +97,7 @@ private struct SessionSwitcherRow: View {
                                 .frame(width: 10, height: 2.5)
                         }
                     }
-                    .padding(.top, 2)
+                    .offset(y: 4.5)
                     .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                 }
             }

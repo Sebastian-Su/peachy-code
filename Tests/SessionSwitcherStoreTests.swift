@@ -29,9 +29,10 @@ final class SessionSwitcherStoreTests: XCTestCase {
 
         store.refresh(sessions: [
             session(id: "A", subagents: 3, date: now),
-            session(id: "B", subagents: 2, date: now.addingTimeInterval(-1)),
+            session(id: "B", subagents: 2, date: now.addingTimeInterval(1)),
         ])
 
+        XCTAssertEqual(store.sessions.map(\.id), ["B", "A"])
         XCTAssertEqual(store.selectedSession?.id, "B")
         XCTAssertEqual(store.selectedSession?.activeSubagentCount, 2)
         XCTAssertEqual(store.sessions.first(where: { $0.id == "A" })?.activeSubagentCount, 3)
