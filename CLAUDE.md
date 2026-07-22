@@ -162,6 +162,11 @@ Sources/
 
 两路通过 `CodexHookLiveness` 去重（hook 到达后标记为 live，抑制 JSONL 轮询的重复事件）。
 
+### Subagent 状态追踪
+
+- Claude Code 与 Codex 必须成对注册 `SubagentStart` / `SubagentStop`。
+- `SessionStore` 按 `sessionId + agentId` 追踪活跃 subagent；session 进入 idle/end 时强制清零，防止漏事件残留。
+
 ### 事件处置分类（EventDisposition）
 
 `EventProcessor.disposition(for:)` 决定每个事件的下游行为：

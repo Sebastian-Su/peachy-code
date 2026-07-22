@@ -14,9 +14,9 @@ enum HookInstaller {
     ///   PostToolUse — phase transition identical to PreToolUse (.running); pure noise
     ///   PostCompact — phase transition to .running already covered by subsequent PreToolUse/UserPromptSubmit
     ///   StopFailure — treated identically to Stop in SessionStore; rare enough not to warrant a separate hook
-    ///   SubagentStart — only drove activeSubagentCount++; SubagentStop adjusts the count on its own
     ///   ConfigChange / TeammateIdle / WorktreeCreate / WorktreeRemove — no downstream handler, zero UI effect
-    private static let hookEvents = [
+    /// SubagentStart and SubagentStop must remain paired so active subagents can be tracked by agentId.
+    static let hookEvents = [
         "PreToolUse",
         "PostToolUseFailure",
         "Stop",
@@ -26,6 +26,7 @@ enum HookInstaller {
         "TaskCompleted",
         "PermissionRequest",
         "UserPromptSubmit",
+        "SubagentStart",
         "SubagentStop",
         "PreCompact",
     ]

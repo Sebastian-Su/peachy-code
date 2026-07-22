@@ -9,12 +9,13 @@ enum CodexHookInstaller {
     /// Codex-supported events we subscribe to (camelCase, matches Codex 0.144.5).
     /// PostToolUse and PostCompact omitted — same reasoning as Claude hooks:
     /// phase transitions are already covered by PreToolUse and subsequent events.
-    /// SubagentStart omitted — SubagentStop alone is sufficient to maintain the count.
+    /// SubagentStart and SubagentStop remain paired for exact active-subagent tracking.
     static let hookEvents = [
         "SessionStart",
         "UserPromptSubmit",
         "PreToolUse",
         "Stop",
+        "SubagentStart",
         "SubagentStop",
         "PreCompact",
     ]

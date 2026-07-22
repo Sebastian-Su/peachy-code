@@ -31,6 +31,9 @@ final class CodexHookInstallerTests: XCTestCase {
             }
             XCTAssertTrue(hasOurs, "event \(event) missing our hook")
         }
+
+        XCTAssertTrue(CodexHookInstaller.hookEvents.contains("SubagentStart"))
+        XCTAssertTrue(CodexHookInstaller.hookEvents.contains("SubagentStop"))
     }
 
     func testInstallDoesNotRegisterBlockingPermissionRequestHook() throws {
