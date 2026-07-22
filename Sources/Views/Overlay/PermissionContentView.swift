@@ -1,5 +1,21 @@
+import AppKit
 import MarkdownUI
 import SwiftUI
+
+func permissionTargetBundleId(
+    event: AgentEvent,
+    sessions: [AgentSession],
+    bundleIdForPid: (Int) -> String? = {
+        NSRunningApplication(processIdentifier: pid_t($0))?.bundleIdentifier
+    }
+) -> String? {
+    if let session = sessions.first(where: { $0.id == event.sessionId }),
+       let bundleId = session.focusAppBundleId {
+        return bundleId
+    }
+    guard let pid = event.terminalPid else { return nil }
+    return bundleIdForPid(pid)
+}
 
 /// Unified permission content view that renders in either compact (speech bubble)
 /// or expanded (fullscreen panel) mode. Handles all 3 permission types:
@@ -138,15 +154,36 @@ struct PermissionContentView: View {
 
             Spacer()
 
-            // Terminal button
-            headerButton(icon: "terminal.fill", badge: hotkeyManager.shortcutLabel, help: "Open terminal") {
-                focusTerminal(
-                    pid: permission.event.terminalPid,
-                    shellPid: permission.event.shellPid,
-                    projectDir: permission.event.cwd,
-                    sessionId: permission.event.sessionId,
-                    sessions: sessionStore.sessions
-                )
+            // Target app button
+            HStack(spacing: 3) {
+                Button {
+                    focusTerminal(
+                        pid: permission.event.terminalPid,
+                        shellPid: permission.event.shellPid,
+                        projectDir: permission.event.cwd,
+                        sessionId: permission.event.sessionId,
+                        sessions: sessionStore.sessions
+                    )
+                } label: {
+                    if let bundleId = permissionTargetBundleId(
+                        event: permission.event,
+                        sessions: sessionStore.sessions
+                    ), let icon = AppIconProvider.icon(forBundleId: bundleId) {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .frame(width: isExpanded ? 16 : 13, height: isExpanded ? 16 : 13)
+                    } else {
+                        Image(systemName: "terminal.fill")
+                            .font(.system(size: isExpanded ? 11 : 10))
+                            .foregroundStyle(OverlayStyle.textHint)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help("Open target app")
+
+                if showShortcuts || (isExpanded && hotkeyManager.isCmdHeld) {
+                    ActionBadge(label: hotkeyManager.shortcutLabel)
+                }
             }
 
             // Later button
