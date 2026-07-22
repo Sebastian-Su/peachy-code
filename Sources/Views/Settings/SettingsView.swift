@@ -113,11 +113,11 @@ struct SettingsView: View {
                 Text(t("settings.overlay")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
-            // MARK: – Assistants (Claude ​Code + Codex)
+            // MARK: – Tools Integration (Claude Code + Codex + IDE Extensions unified)
             Section {
-                // Claude ​Code hook status row
+                // Claude Code hook row
                 HStack {
-                    Text("Claude ​Code")
+                    Text("Claude Code")
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     HStack(spacing: 6) {
@@ -134,12 +134,11 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-
                 if let error = hookError {
                     Text(error).font(.system(size: 11)).foregroundColor(.red)
                 }
 
-                // Codex hook status row
+                // Codex hook row
                 HStack {
                     Text("Codex")
                         .foregroundColor(Constants.textPrimary)
@@ -152,103 +151,13 @@ struct SettingsView: View {
                             .foregroundColor(Constants.textMuted)
                     }
                 }
-
                 if isHookEnabled && CodexHookInstaller.isRegistered() {
                     Text(t("settings.codex_hook_hint"))
                         .font(.system(size: 11))
                         .foregroundColor(Constants.textMuted)
                 }
-            } header: {
-                Text(t("settings.assistant_events")).font(Constants.heading(size: 13, weight: .semibold))
-            }
 
-            // MARK: – Connection
-            Section {
-                HStack {
-                    Text(t("settings.local_server"))
-                        .foregroundColor(Constants.textPrimary)
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(appStore.localServer.isRunning ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
-                        Text(appStore.localServer.isRunning ? "Port \(appStore.localServer.port)" : "Offline")
-                            .foregroundColor(Constants.textMuted)
-                    }
-                }
-
-                HStack {
-                    Text(t("settings.port"))
-                        .foregroundColor(Constants.textPrimary)
-                    Spacer()
-                    TextField("Port", text: $portText)
-                        .frame(width: 70)
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: 12, design: .monospaced))
-                        .onSubmit { applyPort() }
-                    Button(t("settings.apply")) { applyPort() }
-                        .buttonStyle(.plain)
-                        .foregroundColor(Constants.orangePrimary)
-                        .font(.system(size: 12, weight: .medium))
-                }
-
-                if let error = portError {
-                    Text(error).font(.system(size: 11)).foregroundColor(.red)
-                }
-
-                if !appStore.localServer.isRunning {
-                    Button(t("settings.restart_server")) {
-                        appStore.localServer.restart(port: appStore.localServer.port)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(Constants.orangePrimary)
-                }
-            } header: {
-                Text(t("settings.connection")).font(Constants.heading(size: 13, weight: .semibold))
-            }
-
-            // MARK: – Keyboard Shortcuts
-            Section {
-                HStack {
-                    Text(t("settings.global_shortcuts"))
-                        .foregroundColor(Constants.textPrimary)
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(appStore.hotkeyManager.isActive ? Color.green : Color.gray.opacity(0.4))
-                            .frame(width: 8, height: 8)
-                        Text(appStore.hotkeyManager.isActive ? "Active" : "Needs Accessibility")
-                            .foregroundColor(Constants.textMuted)
-                    }
-                }
-
-                HStack {
-                    Text(t("settings.focus_toggle"))
-                        .foregroundColor(Constants.textPrimary)
-                    Spacer()
-                    ShortcutRecorderView(hotkeyManager: appStore.hotkeyManager)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    shortcutRow("⌘1-9", "Accept Nth pending permission")
-                    shortcutRow("Hold ⌘", "Show numbered badges on permissions")
-                }
-                .padding(.vertical, 2)
-
-                if !appStore.hotkeyManager.isActive {
-                    Button(t("settings.grant_accessibility")) {
-                        appStore.hotkeyManager.requestAccessibilityPermission()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(Constants.orangePrimary)
-                }
-            } header: {
-                Text(t("settings.keyboard_shortcuts")).font(Constants.heading(size: 13, weight: .semibold))
-            }
-
-            // MARK: – IDE Integration
-            Section {
+                // IDE extensions
                 ForEach(ideStatuses) { ide in
                     HStack {
                         Text(ide.name)
@@ -295,7 +204,6 @@ struct SettingsView: View {
                         Spacer()
                     }
                 } else if ideExtensionInstalled {
-                    // Terminal switching toggle — one row
                     HStack {
                         Text(t("settings.enable_terminal_switching"))
                             .foregroundColor(Constants.textPrimary)
@@ -316,15 +224,93 @@ struct SettingsView: View {
                 } else if ideStatuses.contains(where: { $0.isDetected }) {
                     Text(t("settings.ide_hint")).font(.system(size: 11)).foregroundColor(Constants.textMuted)
                 }
-
                 if let error = extensionError {
                     Text(error).font(.system(size: 11)).foregroundColor(.red)
                 }
             } header: {
-                Text(t("settings.ide_integration")).font(Constants.heading(size: 13, weight: .semibold))
+                Text(t("settings.tools_integration")).font(Constants.heading(size: 13, weight: .semibold))
             }
             .animation(.easeInOut(duration: 0.25), value: ideExtensionInstalled)
             .animation(.easeInOut(duration: 0.25), value: extensionBusy)
+
+            // MARK: – Keyboard Shortcuts
+            Section {
+                HStack {
+                    Text(t("settings.global_shortcuts"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(appStore.hotkeyManager.isActive ? Color.green : Color.gray.opacity(0.4))
+                            .frame(width: 8, height: 8)
+                        Text(appStore.hotkeyManager.isActive ? "Active" : "Needs Accessibility")
+                            .foregroundColor(Constants.textMuted)
+                    }
+                }
+                HStack {
+                    Text(t("settings.focus_toggle"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    ShortcutRecorderView(hotkeyManager: appStore.hotkeyManager)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    shortcutRow("⌘1-9", "Accept Nth pending permission")
+                    shortcutRow("Hold ⌘", "Show numbered badges on permissions")
+                }
+                .padding(.vertical, 2)
+                if !appStore.hotkeyManager.isActive {
+                    Button(t("settings.grant_accessibility")) {
+                        appStore.hotkeyManager.requestAccessibilityPermission()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(Constants.orangePrimary)
+                }
+            } header: {
+                Text(t("settings.keyboard_shortcuts")).font(Constants.heading(size: 13, weight: .semibold))
+            }
+
+            // MARK: – Connection
+            Section {
+                HStack {
+                    Text(t("settings.local_server"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(appStore.localServer.isRunning ? Color.green : Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(appStore.localServer.isRunning ? "Port \(appStore.localServer.port)" : "Offline")
+                            .foregroundColor(Constants.textMuted)
+                    }
+                }
+                HStack {
+                    Text(t("settings.port"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    TextField("Port", text: $portText)
+                        .frame(width: 70)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .font(.system(size: 12, design: .monospaced))
+                        .onSubmit { applyPort() }
+                    Button(t("settings.apply")) { applyPort() }
+                        .buttonStyle(.plain)
+                        .foregroundColor(Constants.orangePrimary)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                if let error = portError {
+                    Text(error).font(.system(size: 11)).foregroundColor(.red)
+                }
+                if !appStore.localServer.isRunning {
+                    Button(t("settings.restart_server")) {
+                        appStore.localServer.restart(port: appStore.localServer.port)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(Constants.orangePrimary)
+                }
+            } header: {
+                Text(t("settings.connection")).font(Constants.heading(size: 13, weight: .semibold))
+            }
 
             // MARK: – Storage
             Section {

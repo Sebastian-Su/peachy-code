@@ -150,3 +150,4 @@
 "activity.empty" = "No Events";
 "activity.hint" = "Claude Code and Codex events will appear here in real-tim
 "settings.seconds_unit" = "sec";
+"settings.tools_integration" = "Tools";
