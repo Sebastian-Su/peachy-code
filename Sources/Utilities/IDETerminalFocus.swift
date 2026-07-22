@@ -117,11 +117,12 @@ enum IDETerminalFocus {
         // Raise the first window of the specific PID via Accessibility API before activating.
         // For Ghostty: AXRaise + frontmost is sufficient — calling app.activate() afterwards
         // causes Ghostty to open a new tab. Return immediately after a successful raise.
+        // If AXRaise fails (e.g. AX tree unavailable), still return for Ghostty — any further
+        // activation attempt (app.activate or activateApp) will open a new tab.
         if let pid = terminalPid,
            NSRunningApplication(processIdentifier: pid_t(pid)) != nil {
-            if raiseFirstWindow(pid: pid) {
-                return
-            }
+            raiseFirstWindow(pid: pid)
+            if bundleId == "com.mitchellh.ghostty" { return }
         }
 
         // Activate the SPECIFIC process by PID (correct window with multiple instances)
@@ -137,7 +138,8 @@ enum IDETerminalFocus {
             activateApp(bundleId: bundleId)
             return
         }
-        // Last resort: find any running terminal app
+        // Last resort: find any running terminal app.
+        // Ghostty is excluded — any activation attempt creates a new tab.
         let bundleIDs = [
             "com.apple.Terminal",
             "com.googlecode.iterm2",
@@ -148,7 +150,6 @@ enum IDETerminalFocus {
             "com.microsoft.VSCodeInsiders",
             "com.exafunction.windsurf",
             "dev.zed.Zed",
-            "com.mitchellh.ghostty",
             "org.alacritty",
             "dev.warp.Warp-Stable",
             "com.google.antigravity",
