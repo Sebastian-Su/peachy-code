@@ -50,10 +50,15 @@ enum IDETerminalFocus {
             return
         }
 
-        // Try IDE extension for exact terminal tab focus
+        // Try IDE extension for exact terminal tab focus.
+        // Gate on extension-capable IDEs only (JetBrains or a known URI scheme):
+        // plain terminals like Ghostty have no extension, and the bringWindowToFront
+        // below runs `open -b <id> <dir>`, which for a terminal opens a NEW tab.
         if let shellPid,
            let bundleId,
-           UserDefaults.standard.bool(forKey: "ideExtensionEnabled") {
+           UserDefaults.standard.bool(forKey: "ideExtensionEnabled"),
+           ExtensionInstaller.isJetBrainsIDE(bundleId: bundleId)
+             || ExtensionInstaller.uriScheme(forBundleId: bundleId) != nil {
             // Bring the correct workspace window to front (handles multi-window IDEs like Cursor)
             if let projectDir {
                 bringWindowToFront(bundleId: bundleId, projectDir: projectDir)
