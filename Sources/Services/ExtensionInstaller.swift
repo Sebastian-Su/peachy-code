@@ -246,6 +246,31 @@ enum ExtensionInstaller {
         throw ExtensionError.noIDEFound
     }
 
+    /// Uninstall the extension from a single IDE by command name.
+    static func uninstall(command: String) throws {
+        if let ide = vscodeConfigs.first(where: { $0.command == command }),
+           let cliPath = resolveCommand(ide) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: cliPath)
+            process.arguments = ["--uninstall-extension", extensionId]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try process.run()
+            process.waitUntilExit()
+            return
+        }
+
+        if let jb = jetbrainsConfigs.first(where: { $0.scheme == command }),
+           FileManager.default.fileExists(atPath: jb.appPath),
+           let pluginsDir = jetbrainsPluginsDir(bundleId: jb.bundleId) {
+            let pluginDir = (pluginsDir as NSString).appendingPathComponent("peachy-terminal-focus")
+            try? FileManager.default.removeItem(atPath: pluginDir)
+            return
+        }
+
+        throw ExtensionError.noIDEFound
+    }
+
     /// Uninstall the extension from all detected IDEs
     static func uninstall() {
         // VS Code family

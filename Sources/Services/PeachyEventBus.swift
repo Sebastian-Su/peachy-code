@@ -26,9 +26,29 @@ final class PeachyEventBus {
         adapters.append(adapter)
     }
 
-    /// Install hooks/plugins for all registered adapters
+    private static func installPreferenceKey(for source: AgentSource) -> String {
+        "integrationInstalled.\(source.rawValue)"
+    }
+
+    static func isInstallEnabled(
+        for source: AgentSource,
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        let key = installPreferenceKey(for: source)
+        return defaults.object(forKey: key) == nil || defaults.bool(forKey: key)
+    }
+
+    static func setInstallEnabled(
+        _ enabled: Bool,
+        for source: AgentSource,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.set(enabled, forKey: installPreferenceKey(for: source))
+    }
+
+    /// Install hooks/plugins for all registered adapters whose integration is enabled.
     func installAll() {
-        for adapter in adapters {
+        for adapter in adapters where Self.isInstallEnabled(for: adapter.source) {
             do {
                 try adapter.install()
             } catch {

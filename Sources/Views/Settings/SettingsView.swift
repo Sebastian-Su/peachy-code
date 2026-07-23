@@ -5,17 +5,15 @@ struct SettingsView: View {
     @Environment(AppUpdater.self) var appUpdater
     @Environment(OverlayManager.self) var overlayManager
     @State private var isHookEnabled = false
+    @State private var isCodexHookEnabled = false
     @State private var hookError: String?
     @State private var showUninstallConfirm = false
     @State private var portText: String = ""
     @State private var portError: String?
     @State private var videoCacheSize: Int64 = 0
-    @State private var ideExtensionInstalled = false
     @State private var ideStatuses: [ExtensionInstaller.IDEStatus] = []
-    @AppStorage("ideExtensionEnabled") private var ideExtensionEnabled = true
     @State private var extensionError: String?
-    @State private var extensionBusy = false
-    @State private var installingIDE: String?  // command of IDE currently being installed
+    @State private var installingIDE: String?
     @State private var autoHideDelayText: String = "15"
     @State private var toastDurationText: String = "8"
     @State private var showConnectionDoctor = false
@@ -120,19 +118,11 @@ struct SettingsView: View {
                     Text("Claude Code")
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(isHookEnabled ? Color.green : Color.gray.opacity(0.4))
-                            .frame(width: 8, height: 8)
-                        Text(isHookEnabled ? "Enabled" : "Disabled")
-                            .foregroundColor(Constants.textMuted)
-                    }
-                    Button(action: toggleHooks) {
-                        Text(t(isHookEnabled ? "settings.disable" : "settings.enable"))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(isHookEnabled ? Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255) : Constants.orangePrimary)
-                    }
-                    .buttonStyle(.plain)
+                    Toggle("", isOn: Binding(
+                        get: { isHookEnabled },
+                        set: { setClaudeHookEnabled($0) }
+                    ))
+                    .labelsHidden()
                 }
                 if let error = hookError {
                     Text(error).font(.system(size: 11)).foregroundColor(.red)
@@ -143,15 +133,13 @@ struct SettingsView: View {
                     Text("Codex")
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(CodexHookInstaller.isRegistered() ? Color.green : Color.gray.opacity(0.4))
-                            .frame(width: 8, height: 8)
-                        Text(CodexHookInstaller.isRegistered() ? "Enabled" : "Disabled")
-                            .foregroundColor(Constants.textMuted)
-                    }
+                    Toggle("", isOn: Binding(
+                        get: { isCodexHookEnabled },
+                        set: { setCodexHookEnabled($0) }
+                    ))
+                    .labelsHidden()
                 }
-                if isHookEnabled && CodexHookInstaller.isRegistered() {
+                if isHookEnabled && isCodexHookEnabled {
                     Text(t("settings.codex_hook_hint"))
                         .font(.system(size: 11))
                         .foregroundColor(Constants.textMuted)
@@ -163,75 +151,27 @@ struct SettingsView: View {
                         Text(ide.name)
                             .foregroundColor(ide.isDetected ? Constants.textPrimary : Constants.textMuted.opacity(0.5))
                         Spacer()
-                        if ide.isInstalled {
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.system(size: 12))
-                                Text(t("settings.installed"))
-                                    .foregroundColor(Constants.textMuted)
-                            }
-                        } else if ide.isDetected {
-                            if installingIDE == ide.command {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Button {
-                                    installExtension(command: ide.command)
-                                } label: {
-                                    Text(t("settings.install"))
-                                        .font(Constants.heading(size: 11, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 3)
-                                        .background(Constants.orangePrimary)
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
+                        if installingIDE == ide.command {
+                            ProgressView().controlSize(.small)
                         } else {
-                            Text(t("settings.not_detected"))
-                                .foregroundColor(Constants.textMuted.opacity(0.5))
+                            Toggle("", isOn: Binding(
+                                get: { ide.isInstalled },
+                                set: { setIDEExtension(ide, enabled: $0) }
+                            ))
+                            .labelsHidden()
+                            .disabled(!ide.isDetected)
                         }
                     }
                     .font(.system(size: 13))
                 }
 
-                if extensionBusy {
-                    HStack {
-                        Spacer()
-                        ProgressView().controlSize(.small)
-                        Text(t("settings.installing")).font(.system(size: 12)).foregroundColor(Constants.textMuted)
-                        Spacer()
-                    }
-                } else if ideExtensionInstalled {
-                    HStack {
-                        Text(t("settings.enable_terminal_switching"))
-                            .foregroundColor(Constants.textPrimary)
-                        Spacer()
-                        Toggle("", isOn: $ideExtensionEnabled).labelsHidden()
-                    }
-                    HStack(spacing: 12) {
-                        Button(action: installExtension) {
-                            Text(t("settings.reinstall")).foregroundColor(Constants.orangePrimary)
-                        }
-                        .buttonStyle(.plain)
-                        Button(action: uninstallExtension) {
-                            Text(t("settings.uninstall"))
-                                .foregroundColor(Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } else if ideStatuses.contains(where: { $0.isDetected }) {
-                    Text(t("settings.ide_hint")).font(.system(size: 11)).foregroundColor(Constants.textMuted)
-                }
                 if let error = extensionError {
                     Text(error).font(.system(size: 11)).foregroundColor(.red)
                 }
             } header: {
                 Text(t("settings.tools_integration")).font(Constants.heading(size: 13, weight: .semibold))
             }
-            .animation(.easeInOut(duration: 0.25), value: ideExtensionInstalled)
-            .animation(.easeInOut(duration: 0.25), value: extensionBusy)
+            .animation(.easeInOut(duration: 0.25), value: installingIDE)
 
             // MARK: – Keyboard Shortcuts
             Section {
@@ -427,6 +367,7 @@ struct SettingsView: View {
         .task {
             // Fast, synchronous — safe on main thread
             isHookEnabled = HookInstaller.isRegistered()
+            isCodexHookEnabled = CodexHookInstaller.isRegistered()
             videoCacheSize = VideoCache.shared.cacheSize
             autoHideDelayText = String(Int(overlayManager.autoHideDelay))
             toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
@@ -436,7 +377,6 @@ struct SettingsView: View {
             // Show cached IDE statuses immediately (no flash on repeat visits)
             if !appStore.cachedIDEStatuses.isEmpty {
                 ideStatuses = appStore.cachedIDEStatuses
-                ideExtensionInstalled = ideStatuses.contains { $0.isInstalled }
             }
 
             // Refresh in background — updates cache for next visit
@@ -447,7 +387,6 @@ struct SettingsView: View {
             }
             guard !Task.isCancelled else { return }
             ideStatuses = statuses
-            ideExtensionInstalled = statuses.contains { $0.isInstalled }
             appStore.cachedIDEStatuses = statuses
         }
         .sheet(isPresented: $showConnectionDoctor) {
@@ -478,18 +417,34 @@ struct SettingsView: View {
         portText = String(value)
     }
 
-    private func toggleHooks() {
+    private func setClaudeHookEnabled(_ enabled: Bool) {
         hookError = nil
         do {
-            if isHookEnabled {
-                try HookInstaller.uninstall()
-            } else {
+            if enabled {
                 try HookInstaller.install()
+            } else {
+                try HookInstaller.uninstall()
             }
-            isHookEnabled = HookInstaller.isRegistered()
+            PeachyEventBus.setInstallEnabled(enabled, for: .claudeCode)
         } catch {
             hookError = error.localizedDescription
         }
+        isHookEnabled = HookInstaller.isRegistered()
+    }
+
+    private func setCodexHookEnabled(_ enabled: Bool) {
+        hookError = nil
+        do {
+            if enabled {
+                try CodexHookInstaller.install()
+            } else {
+                try CodexHookInstaller.uninstall()
+            }
+            PeachyEventBus.setInstallEnabled(enabled, for: .codex)
+        } catch {
+            hookError = error.localizedDescription
+        }
+        isCodexHookEnabled = CodexHookInstaller.isRegistered()
     }
 
     private func clearVideoCache() {
@@ -506,71 +461,34 @@ struct SettingsView: View {
 
     private func refreshIDEStatuses() {
         ideStatuses = ExtensionInstaller.allIDEStatuses()
-        ideExtensionInstalled = ideStatuses.contains { $0.isInstalled }
     }
 
-    private func installExtension() {
+    private func setIDEExtension(_ ide: ExtensionInstaller.IDEStatus, enabled: Bool) {
         extensionError = nil
-        extensionBusy = true
+        installingIDE = ide.command
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                try ExtensionInstaller.install()
-                UserDefaults.standard.set(ExtensionInstaller.bundledVersion, forKey: "ideExtensionVersion")
+                if enabled {
+                    try ExtensionInstaller.install(command: ide.command)
+                    UserDefaults.standard.set(ExtensionInstaller.bundledVersion, forKey: "ideExtensionVersion")
+                } else {
+                    try ExtensionInstaller.uninstall(command: ide.command)
+                }
                 let statuses = ExtensionInstaller.allIDEStatuses()
                 DispatchQueue.main.async {
                     ideStatuses = statuses
-                    ideExtensionInstalled = statuses.contains { $0.isInstalled }
                     appStore.cachedIDEStatuses = statuses
-                    ideExtensionEnabled = true
-                    extensionBusy = false
-                    ExtensionInstaller.triggerPermissionPrompt()
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    extensionError = error.localizedDescription
-                    extensionBusy = false
-                }
-            }
-        }
-    }
-
-    private func installExtension(command: String) {
-        extensionError = nil
-        installingIDE = command
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                try ExtensionInstaller.install(command: command)
-                UserDefaults.standard.set(ExtensionInstaller.bundledVersion, forKey: "ideExtensionVersion")
-                let statuses = ExtensionInstaller.allIDEStatuses()
-                DispatchQueue.main.async {
-                    ideStatuses = statuses
-                    ideExtensionInstalled = statuses.contains { $0.isInstalled }
-                    appStore.cachedIDEStatuses = statuses
-                    ideExtensionEnabled = true
                     installingIDE = nil
-                    ExtensionInstaller.triggerPermissionPrompt()
+                    if enabled {
+                        ExtensionInstaller.triggerPermissionPrompt()
+                    }
                 }
             } catch {
                 DispatchQueue.main.async {
                     extensionError = error.localizedDescription
                     installingIDE = nil
+                    refreshIDEStatuses()
                 }
-            }
-        }
-    }
-
-    private func uninstallExtension() {
-        extensionError = nil
-        extensionBusy = true
-        DispatchQueue.global(qos: .userInitiated).async {
-            ExtensionInstaller.uninstall()
-            let statuses = ExtensionInstaller.allIDEStatuses()
-            DispatchQueue.main.async {
-                ideStatuses = statuses
-                ideExtensionInstalled = false
-                appStore.cachedIDEStatuses = statuses
-                ideExtensionEnabled = false
-                extensionBusy = false
             }
         }
     }

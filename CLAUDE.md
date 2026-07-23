@@ -154,6 +154,7 @@ Sources/
 - 目标：把 Claude Code 的事件流转为应用内状态与 UI 展示
 - hooks 的注册/卸载由 `Sources/Services/HookInstaller.swift` 管理，目标文件是：
   - `~/.claude/settings.json`
+- Settings → Tools 中 Claude Code / Codex / 各 IDE 均用安装 Toggle；关闭 Claude Code 或 Codex 后会持久化偏好，应用下次启动不会自动重新安装对应 hooks。
 
 ### Codex 事件 → PeachyPet（双路径）
 
