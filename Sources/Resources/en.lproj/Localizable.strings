@@ -88,6 +88,7 @@
 "permission.deny" = "Deny";
 "permission.approve" = "Approve";
 "permission.open_terminal" = "Open Terminal";
+"permission.open_app" = "Open App";
 "permission.submit" = "Submit";
 "permission.skip" = "Skip";
 "permission.other" = "Other";
@@ -98,6 +99,7 @@
 "permission.allow_all" = "Allow All";
 "permission.deny_all" = "Deny All";
 "permission.reply_terminal" = "Reply in terminal";
+"permission.reply_app" = "Reply in app";
 "permission.tell_claude" = "Tell Claude what to change...";
 "permission.terminal_only" = "This agent can't accept a decision from here. Open the terminal to respond.";
 "permission.cancel" = "Cancel";

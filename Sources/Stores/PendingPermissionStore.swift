@@ -537,6 +537,22 @@ final class PendingPermissionStore {
         print("[PeachyPet] Permission auto-dismissed (answered from terminal): \(permission.toolName) (remaining: \(pending.count))")
     }
 
+    func dismissFallbackOrDeny(id: UUID) {
+        guard let permission = pending.first(where: { $0.id == id }) else { return }
+        if permission.transport.capabilities == [.openTerminal] {
+            dismissLocally(id: id)
+        } else {
+            resolve(id: id, decision: .deny)
+        }
+    }
+
+    /// Dismiss a non-actionable permission locally without sending allow/deny.
+    func dismissLocally(id: UUID) {
+        guard let permission = pending.first(where: { $0.id == id }) else { return }
+        silentRemove(id: id)
+        permission.transport.cancel()
+    }
+
     func resolve(id: UUID, decision: PermissionDecision, isExpired: Bool = false) {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
         let permission = pending[index]

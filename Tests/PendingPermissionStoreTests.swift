@@ -3,6 +3,35 @@ import XCTest
 @testable import PeachyPet
 
 final class PendingPermissionStoreTests: XCTestCase {
+    func testDismissFallbackOrDenyRemovesFallbackWithoutSendingDecision() throws {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+
+        let transport = MockTransport()
+        transport.capabilities = [.openTerminal]
+        store.add(event: makeCodexPermissionEvent(toolUseId: "call_local", cmd: "git status"), transport: transport)
+        let id = try XCTUnwrap(store.pending.first?.id)
+
+        store.dismissFallbackOrDeny(id: id)
+
+        XCTAssertTrue(store.pending.isEmpty)
+        XCTAssertTrue(transport.decisions.isEmpty)
+    }
+
+    func testDismissFallbackOrDenySendsDenyForActionablePermission() throws {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+
+        let transport = MockTransport()
+        store.add(event: makeCodexPermissionEvent(toolUseId: "call_deny", cmd: "git push"), transport: transport)
+        let id = try XCTUnwrap(store.pending.first?.id)
+
+        store.dismissFallbackOrDeny(id: id)
+
+        XCTAssertTrue(store.pending.isEmpty)
+        XCTAssertEqual(transport.decisions, [.deny])
+    }
+
     func testResolveAllowSendsDecision() throws {
         let store = PendingPermissionStore()
         defer { store.stopTimers() }

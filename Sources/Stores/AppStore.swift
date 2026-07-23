@@ -332,7 +332,7 @@ final class AppStore {
             case .permission:
                 let reversed = Array(self.pendingPermissionStore.pending.reversed())
                 guard let topPerm = reversed.first(where: { !self.pendingPermissionStore.collapsed.contains($0.id) }) else { return }
-                self.pendingPermissionStore.resolve(id: topPerm.id, decision: .deny)
+                self.pendingPermissionStore.dismissFallbackOrDeny(id: topPerm.id)
             case .toast:
                 self.sessionFinishedStore.dismiss()
             case .none:

@@ -522,7 +522,7 @@ struct PermissionContentView: View {
 
     private var terminalFallbackActionsView: some View {
         HStack(spacing: isExpanded ? 10 : 8) {
-            Text(t("permission.reply_terminal"))
+            Text(t("permission.reply_app"))
                 .font(Constants.body(size: isExpanded ? 12 : 10, weight: .medium))
                 .foregroundStyle(OverlayStyle.textMuted)
 
@@ -533,17 +533,11 @@ struct PermissionContentView: View {
 
     private var terminalFallbackButton: some View {
         Button {
-            focusTerminal(
-                pid: permission.event.terminalPid,
-                shellPid: permission.event.shellPid,
-                projectDir: permission.event.cwd,
-                sessionId: permission.event.sessionId,
-                sessions: sessionStore.sessions
-            )
+            openTargetAppAndDismiss()
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "terminal.fill")
-                Text(t("permission.open_terminal"))
+                Image(systemName: "arrow.up.forward.app.fill")
+                Text(t("permission.open_app"))
                     .font(Constants.heading(size: buttonFont, weight: .semibold))
             }
             .foregroundStyle(.white)
@@ -836,6 +830,18 @@ struct PermissionContentView: View {
 
     // MARK: - Shortcut Handlers (compact mode only, via CGEvent tap)
 
+    private func openTargetAppAndDismiss() {
+        focusTerminal(
+            pid: permission.event.terminalPid,
+            shellPid: permission.event.shellPid,
+            projectDir: permission.event.cwd,
+            sessionId: permission.event.sessionId,
+            source: permission.event.source,
+            sessions: sessionStore.sessions
+        )
+        store.dismissLocally(id: permission.id)
+    }
+
     private func handleShortcutSelection(_ idx: Int) {
         if isOpenTerminalFallback {
             return
@@ -875,14 +881,7 @@ struct PermissionContentView: View {
 
     private func handleShortcutConfirm() {
         if isOpenTerminalFallback {
-            focusTerminal(
-                pid: permission.event.terminalPid,
-                shellPid: permission.event.shellPid,
-                projectDir: permission.event.cwd,
-                sessionId: permission.event.sessionId,
-                source: permission.event.source,
-                sessions: sessionStore.sessions
-            )
+            openTargetAppAndDismiss()
             return
         }
         if isPlan {

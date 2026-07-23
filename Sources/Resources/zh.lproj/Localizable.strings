@@ -88,6 +88,7 @@
 "permission.deny" = "拒绝";
 "permission.approve" = "批准";
 "permission.open_terminal" = "打开终端";
+"permission.open_app" = "打开应用";
 "permission.submit" = "提交";
 "permission.skip" = "跳过";
 "permission.other" = "其他";
@@ -98,6 +99,7 @@
 "permission.allow_all" = "全部允许";
 "permission.deny_all" = "全部拒绝";
 "permission.reply_terminal" = "在终端中回复";
+"permission.reply_app" = "在应用中回复";
 "permission.tell_claude" = "告诉 Claude 要修改什么...";
 "permission.terminal_only" = "此 Agent 无法在这里接受决策，请在终端中响应。";
 "permission.cancel" = "取消";
