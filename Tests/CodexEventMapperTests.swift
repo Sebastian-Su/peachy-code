@@ -3,6 +3,25 @@ import XCTest
 @testable import PeachyPet
 
 final class CodexEventMapperTests: XCTestCase {
+    func testSubagentSessionMetaMapsToParentSubagentStart() throws {
+        let parentId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
+        let childId = "019f8f01-9123-7a02-80be-53371dfea5f6"
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(childId).jsonl")
+        let line = """
+        {"type":"session_meta","payload":{"session_id":"\(parentId)","id":"\(childId)","parent_thread_id":"\(parentId)","cwd":"/Users/test/project","originator":"Codex Desktop","source":{"subagent":{"thread_spawn":{"parent_thread_id":"\(parentId)","depth":1,"agent_path":"/root/spec_review","agent_nickname":"Popper"}}},"thread_source":"subagent","agent_nickname":"Popper","agent_path":"/root/spec_review"}}
+        """
+
+        let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: nil)
+
+        XCTAssertEqual(result.events.count, 1)
+        let event = try XCTUnwrap(result.events.first)
+        XCTAssertEqual(event.eventType, .subagentStart)
+        XCTAssertEqual(event.sessionId, parentId)
+        XCTAssertEqual(event.agentId, childId)
+        XCTAssertEqual(event.agentType, "Popper")
+        XCTAssertEqual(event.source, "codex-desktop")
+    }
+
     func testSessionMetaMapsToSessionStartForDesktop() throws {
         let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
         let fileURL = URL(fileURLWithPath: "/tmp/rollout-2026-03-09T23-54-07-\(sessionId).jsonl")

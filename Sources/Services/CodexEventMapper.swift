@@ -74,6 +74,8 @@ enum CodexEventMapper {
         switch recordType {
         case "session_meta":
             guard let sessionId = (payload["id"] as? String) ?? fallbackSessionId else { return result }
+            let isSubagent = (payload["thread_source"] as? String)?.lowercased() == "subagent"
+            let parentSessionId = payload["parent_thread_id"] as? String
             let discovered = CodexSessionContext(
                 sessionId: sessionId,
                 cwd: payload["cwd"] as? String,
@@ -82,15 +84,30 @@ enum CodexEventMapper {
             )
             let mergedContext = merged(existing: context, update: discovered)
             result.context = mergedContext
-            result.events = [
-                AgentEvent(
-                    hookEventName: HookEventType.sessionStart.rawValue,
-                    sessionId: sessionId,
-                    cwd: mergedContext.cwd,
-                    source: mergedContext.normalizedSource,
-                    model: payload["cli_version"] as? String
-                ),
-            ]
+            if isSubagent, let parentSessionId {
+                result.events = [
+                    AgentEvent(
+                        hookEventName: HookEventType.subagentStart.rawValue,
+                        sessionId: parentSessionId,
+                        cwd: mergedContext.cwd,
+                        source: mergedContext.normalizedSource,
+                        model: payload["cli_version"] as? String,
+                        agentId: sessionId,
+                        agentType: (payload["agent_nickname"] as? String)
+                            ?? (payload["agent_path"] as? String)
+                    ),
+                ]
+            } else {
+                result.events = [
+                    AgentEvent(
+                        hookEventName: HookEventType.sessionStart.rawValue,
+                        sessionId: sessionId,
+                        cwd: mergedContext.cwd,
+                        source: mergedContext.normalizedSource,
+                        model: payload["cli_version"] as? String
+                    ),
+                ]
+            }
             return result
 
         case "turn_context":
