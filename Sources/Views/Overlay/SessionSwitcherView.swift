@@ -10,6 +10,10 @@ func subagentIndicatorCapacity(availableWidth: CGFloat) -> Int {
         / (subagentIndicatorWidth + subagentIndicatorSpacing)))
 }
 
+func subagentIndicatorTopOffset(containerHeight: CGFloat) -> CGFloat {
+    containerHeight + 2
+}
+
 /// Compact session switcher overlay positioned near the mascot.
 /// Triggered by double-tap Cmd when 2+ sessions are active.
 struct SessionSwitcherView: View {
@@ -112,7 +116,7 @@ private struct SessionSwitcherRow: View {
                                     .frame(width: subagentIndicatorWidth, height: 2.5)
                             }
                         }
-                        .offset(y: 4.5)
+                        .offset(y: subagentIndicatorTopOffset(containerHeight: geometry.size.height))
                         .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                     }
                 }
