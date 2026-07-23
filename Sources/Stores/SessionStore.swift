@@ -687,6 +687,17 @@ final class SessionStore {
     func recordEvent(_ event: AgentEvent) {
         guard let sessionId = event.sessionId, !sessionId.isEmpty else { return }
         var shouldNotifyObservers = false
+        var removedResidualChild = false
+
+        if event.eventType == .subagentStart,
+           let childSessionId = event.agentId,
+           childSessionId != sessionId,
+           let childIndex = sessions.firstIndex(where: { $0.id == childSessionId }) {
+            clearSubagents(at: childIndex)
+            sessions.remove(at: childIndex)
+            removedResidualChild = true
+            PeachyLog.session.info("Removed residual subagent session: \(childSessionId) parent=\(sessionId)")
+        }
 
         if let index = sessions.firstIndex(where: { $0.id == sessionId }) {
             let previousSubagentCount = sessions[index].activeSubagentCount
@@ -850,6 +861,7 @@ final class SessionStore {
             PeachyLog.session.info("Session created: \(sessionId) project=\(session.projectName ?? "/") src=\(session.rawSource ?? "-")")
             sessions.insert(session, at: 0)
         }
+        shouldNotifyObservers = shouldNotifyObservers || removedResidualChild
         persist()
         if shouldNotifyObservers {
             onPhasesChanged?()

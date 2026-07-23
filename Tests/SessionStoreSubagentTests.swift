@@ -23,6 +23,22 @@ final class SessionStoreSubagentTests: XCTestCase {
         )
     }
 
+    func testSubagentStartRemovesResidualChildSessionCard() {
+        let store = makeStore()
+        defer { store.stopTimers() }
+        let rootId = "root-\(UUID().uuidString)"
+        let childId = "child-\(UUID().uuidString)"
+
+        store.recordEvent(event(.userPromptSubmit, sessionId: childId))
+        XCTAssertNotNil(store.sessions.first(where: { $0.id == childId }))
+
+        store.recordEvent(event(.sessionStart, sessionId: rootId))
+        store.recordEvent(event(.subagentStart, sessionId: rootId, agentId: childId))
+
+        XCTAssertNil(store.sessions.first(where: { $0.id == childId }))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == rootId })?.activeSubagentCount, 1)
+    }
+
     func testDistinctStartsCountAndDuplicateStartIsIdempotent() {
         let store = makeStore()
         defer { store.stopTimers() }

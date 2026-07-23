@@ -6,6 +6,9 @@ struct CodexSessionContext {
     var source: String?
     var originator: String?
     var toolNamesByCallId: [String: String] = [:]
+    var rootSessionId: String?
+    var isSubagent = false
+    var subagentType: String?
 
     var normalizedSource: String {
         let sourceValue = source?.lowercased() ?? ""
@@ -33,7 +36,10 @@ struct CodexSessionContext {
             cwd: other.cwd ?? cwd,
             source: other.source ?? source,
             originator: other.originator ?? originator,
-            toolNamesByCallId: mergedToolNames
+            toolNamesByCallId: mergedToolNames,
+            rootSessionId: other.rootSessionId ?? rootSessionId,
+            isSubagent: other.isSubagent || isSubagent,
+            subagentType: other.subagentType ?? subagentType
         )
     }
 }
@@ -75,26 +81,29 @@ enum CodexEventMapper {
         case "session_meta":
             guard let sessionId = (payload["id"] as? String) ?? fallbackSessionId else { return result }
             let isSubagent = (payload["thread_source"] as? String)?.lowercased() == "subagent"
-            let parentSessionId = payload["parent_thread_id"] as? String
+            let rootSessionId = payload["session_id"] as? String
             let discovered = CodexSessionContext(
                 sessionId: sessionId,
                 cwd: payload["cwd"] as? String,
                 source: payload["source"] as? String,
-                originator: payload["originator"] as? String
+                originator: payload["originator"] as? String,
+                rootSessionId: rootSessionId,
+                isSubagent: isSubagent,
+                subagentType: (payload["agent_nickname"] as? String)
+                    ?? (payload["agent_path"] as? String)
             )
             let mergedContext = merged(existing: context, update: discovered)
             result.context = mergedContext
-            if isSubagent, let parentSessionId {
+            if isSubagent, let rootSessionId {
                 result.events = [
                     AgentEvent(
                         hookEventName: HookEventType.subagentStart.rawValue,
-                        sessionId: parentSessionId,
+                        sessionId: rootSessionId,
                         cwd: mergedContext.cwd,
                         source: mergedContext.normalizedSource,
                         model: payload["cli_version"] as? String,
                         agentId: sessionId,
-                        agentType: (payload["agent_nickname"] as? String)
-                            ?? (payload["agent_path"] as? String)
+                        agentType: mergedContext.subagentType
                     ),
                 ]
             } else {
@@ -128,18 +137,26 @@ enum CodexEventMapper {
             break
         }
 
-        guard let sessionId = context?.sessionId ?? fallbackSessionId else { return result }
-        var workingContext = context ?? CodexSessionContext(sessionId: sessionId, cwd: nil, source: nil, originator: nil)
+        guard let fileSessionId = context?.sessionId ?? fallbackSessionId else { return result }
+        var workingContext = context ?? CodexSessionContext(sessionId: fileSessionId, cwd: nil, source: nil, originator: nil)
         if let payloadCwd = payload["cwd"] as? String {
-            let update = CodexSessionContext(sessionId: sessionId, cwd: payloadCwd, source: nil, originator: nil)
+            let update = CodexSessionContext(sessionId: fileSessionId, cwd: payloadCwd, source: nil, originator: nil)
             workingContext = merged(existing: workingContext, update: update)
             result.context = workingContext
         }
         let source = workingContext.normalizedSource
+        let sessionId = workingContext.isSubagent
+            ? (workingContext.rootSessionId ?? fileSessionId)
+            : fileSessionId
+        func finalized(_ value: CodexParseResult) -> CodexParseResult {
+            var final = value
+            final.events = routeSubagentEvents(final.events, context: workingContext)
+            return final
+        }
 
         switch recordType {
         case "event_msg":
-            guard let messageType = payload["type"] as? String else { return result }
+            guard let messageType = payload["type"] as? String else { return finalized(result) }
             switch messageType {
             case "task_started":
                 result.events = [
@@ -166,7 +183,7 @@ enum CodexEventMapper {
                             taskId: turnId
                         ),
                     ]
-                    return result
+                    return finalized(result)
                 }
                 // Real user-visible completion
                 var events = [
@@ -219,7 +236,7 @@ enum CodexEventMapper {
                     ),
                 ]
             case "agent_message":
-                guard let message = nonEmptyString(payload["message"]) else { return result }
+                guard let message = nonEmptyString(payload["message"]) else { return finalized(result) }
                 var events = [
                     AgentEvent(
                         hookEventName: HookEventType.notification.rawValue,
@@ -245,7 +262,7 @@ enum CodexEventMapper {
                 }
                 result.events = events
             case "user_message":
-                guard let message = nonEmptyString(payload["message"]) else { return result }
+                guard let message = nonEmptyString(payload["message"]) else { return finalized(result) }
                 result.events = [
                     AgentEvent(
                         hookEventName: HookEventType.notification.rawValue,
@@ -257,7 +274,7 @@ enum CodexEventMapper {
                     ),
                 ]
             case "agent_reasoning":
-                guard let message = nonEmptyString(payload["text"]) else { return result }
+                guard let message = nonEmptyString(payload["text"]) else { return finalized(result) }
                 result.events = [
                     AgentEvent(
                         hookEventName: HookEventType.notification.rawValue,
@@ -474,7 +491,66 @@ enum CodexEventMapper {
             break
         }
 
-        return result
+        return finalized(result)
+    }
+
+    private static func routeSubagentEvents(
+        _ events: [AgentEvent],
+        context: CodexSessionContext
+    ) -> [AgentEvent] {
+        guard context.isSubagent, let rootSessionId = context.rootSessionId else { return events }
+        guard !events.isEmpty else { return [] }
+
+        if events.contains(where: {
+            [.stop, .taskCompleted, .internalResult].contains($0.eventType)
+        }) {
+            let terminal = events.first(where: { $0.eventType == .stop }) ?? events[0]
+            return [
+                AgentEvent(
+                    hookEventName: HookEventType.subagentStop.rawValue,
+                    sessionId: rootSessionId,
+                    cwd: terminal.cwd,
+                    message: terminal.message,
+                    source: terminal.source,
+                    reason: terminal.reason,
+                    lastAssistantMessage: terminal.lastAssistantMessage,
+                    agentId: context.sessionId,
+                    agentType: context.subagentType
+                ),
+            ]
+        }
+
+        return events.map { event in
+            let eventType = event.eventType == .userPromptSubmit
+                ? HookEventType.subagentStart.rawValue
+                : event.hookEventName
+            return AgentEvent(
+                hookEventName: eventType,
+                sessionId: rootSessionId,
+                cwd: event.cwd,
+                permissionMode: event.permissionMode,
+                transcriptPath: event.transcriptPath,
+                toolName: event.toolName,
+                toolInput: event.toolInput,
+                toolResponse: event.toolResponse,
+                toolUseId: event.toolUseId,
+                message: event.message,
+                title: event.title,
+                notificationType: event.notificationType,
+                source: event.source,
+                reason: event.reason,
+                model: event.model,
+                stopHookActive: event.stopHookActive,
+                lastAssistantMessage: event.lastAssistantMessage,
+                agentId: context.sessionId,
+                agentType: context.subagentType,
+                taskId: event.taskId,
+                taskSubject: event.taskSubject,
+                permissionSuggestions: event.permissionSuggestions,
+                terminalPid: event.terminalPid,
+                shellPid: event.shellPid
+            )
+        }
     }
 
     private static func mapToolEvents(

@@ -3,6 +3,36 @@ import XCTest
 @testable import PeachyPet
 
 final class CodexEventMapperTests: XCTestCase {
+    func testSubagentLifecycleStaysOnRootSessionWithoutChildTurnEvents() throws {
+        let rootId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
+        let childId = "019f8f26-6b9d-7d13-8342-b0dd55ee0803"
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(childId).jsonl")
+        let meta = """
+        {"type":"session_meta","payload":{"session_id":"\(rootId)","id":"\(childId)","parent_thread_id":"intermediate-child","cwd":"/Users/test/project","originator":"Codex Desktop","source":{"subagent":{"other":"guardian"}},"thread_source":"subagent"}}
+        """
+
+        let start = CodexEventMapper.parse(line: meta, fileURL: fileURL, context: nil)
+        let context = try XCTUnwrap(start.context)
+        let taskStarted = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+        let taskComplete = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-1","last_agent_message":"done"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+
+        XCTAssertEqual(start.events.first?.eventType, .subagentStart)
+        XCTAssertEqual(start.events.first?.sessionId, rootId)
+        XCTAssertEqual(taskStarted.events.map(\.eventType), [.subagentStart])
+        XCTAssertEqual(taskStarted.events.first?.sessionId, rootId)
+        XCTAssertEqual(taskStarted.events.first?.agentId, childId)
+        XCTAssertEqual(taskComplete.events.map(\.eventType), [.subagentStop])
+        XCTAssertEqual(taskComplete.events.first?.sessionId, rootId)
+        XCTAssertEqual(taskComplete.events.first?.agentId, childId)
+    }
     func testSubagentSessionMetaMapsToParentSubagentStart() throws {
         let parentId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
         let childId = "019f8f01-9123-7a02-80be-53371dfea5f6"
