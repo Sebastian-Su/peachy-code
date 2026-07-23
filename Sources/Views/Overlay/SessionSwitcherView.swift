@@ -1,5 +1,15 @@
 import SwiftUI
 
+private let subagentIndicatorWidth: CGFloat = 10
+private let subagentIndicatorSpacing: CGFloat = 4
+private let subagentIndicatorRightInset: CGFloat = 6
+
+func subagentIndicatorCapacity(availableWidth: CGFloat) -> Int {
+    let usableWidth = max(0, availableWidth - subagentIndicatorRightInset)
+    return max(0, Int((usableWidth + subagentIndicatorSpacing)
+        / (subagentIndicatorWidth + subagentIndicatorSpacing)))
+}
+
 /// Compact session switcher overlay positioned near the mascot.
 /// Triggered by double-tap Cmd when 2+ sessions are active.
 struct SessionSwitcherView: View {
@@ -89,21 +99,26 @@ private struct SessionSwitcherRow: View {
                 .foregroundStyle(Constants.textMuted)
             }
             .overlay(alignment: .bottomLeading) {
-                if visibleSubagentCount > 0 {
-                    HStack(spacing: 4) {
-                        ForEach(0..<visibleSubagentCount, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 1.25)
-                                .fill(Constants.orangePrimary)
-                                .frame(width: 10, height: 2.5)
+                GeometryReader { geometry in
+                    let count = min(
+                        max(session.activeSubagentCount, 0),
+                        subagentIndicatorCapacity(availableWidth: geometry.size.width)
+                    )
+                    if count > 0 {
+                        HStack(spacing: subagentIndicatorSpacing) {
+                            ForEach(0..<count, id: \.self) { _ in
+                                RoundedRectangle(cornerRadius: 1.25)
+                                    .fill(Constants.orangePrimary)
+                                    .frame(width: subagentIndicatorWidth, height: 2.5)
+                            }
                         }
+                        .offset(y: 4.5)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                     }
-                    .offset(y: 4.5)
-                    .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                 }
             }
-            .animation(.easeInOut(duration: 0.15), value: visibleSubagentCount)
-
-            Spacer()
+            .animation(.easeInOut(duration: 0.15), value: session.activeSubagentCount)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Real app icon (terminal / desktop client) — represents where a click goes
             if let bundleId = session.focusAppBundleId,
@@ -131,10 +146,6 @@ private struct SessionSwitcherRow: View {
         .background(isSelected ? Constants.orangePrimarySubtle : Color.clear)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
-    }
-
-    private var visibleSubagentCount: Int {
-        min(max(session.activeSubagentCount, 0), 5)
     }
 
     private var projectLabel: String {
