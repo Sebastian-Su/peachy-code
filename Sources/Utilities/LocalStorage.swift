@@ -3,8 +3,14 @@ import Foundation
 /// JSON file persistence for ~/Library/Application Support/PeachyPet/
 enum LocalStorage {
     static let appSupportDir: URL = {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("PeachyPet", isDirectory: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        // Isolate test runs so unit tests never read or write the real user data.
+        let isRunningTests = NSClassFromString("XCTestCase") != nil
+            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        let dir = isRunningTests
+            ? URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("PeachyPetTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+            : base.appendingPathComponent("PeachyPet", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
