@@ -147,9 +147,11 @@ final class SessionMetadataMonitor {
     private var activeSessions: [AgentSession] = []
 
     // Per-path read offset for incremental JSONL polling
-    private var transcriptOffsets: [String: UInt64] = [:]   // transcriptPath -> offset
+    private var transcriptOffsets: [String: UInt64] = [:]   // transcriptPath -> committed offset
+    private var transcriptPartialLines: [String: String] = [:]
     private var transcriptInodes: [String: UInt64] = [:]    // transcriptPath -> inode (detect atomic replacement)
     private var sessionIndexOffset: UInt64 = 0
+    private var sessionIndexPartialLine = ""
     private var sessionIndexInode: UInt64 = 0
 
     // First-prompt tracking (only set once per sessionId)
@@ -202,9 +204,19 @@ final class SessionMetadataMonitor {
         scheduleTimer()
     }
 
-    /// Update the active session list without resetting offsets.
+    /// Update the active session list and rescan existing Codex metadata for newly added sessions.
     func update(activeSessions: [AgentSession]) {
+        let previousIds = Set(self.activeSessions.map(\.id))
         self.activeSessions = activeSessions
+
+        let addedIds = Set(activeSessions.map(\.id)).subtracting(previousIds)
+        guard !addedIds.isEmpty else { return }
+
+        sessionIndexOffset = 0
+        sessionIndexPartialLine = ""
+        lastGlobalStateMtime = nil
+        scanSessionIndex(fromZero: true)
+        scanGlobalState()
     }
 
     /// Stop polling and clear all state.
@@ -212,8 +224,10 @@ final class SessionMetadataMonitor {
         timer?.invalidate()
         timer = nil
         transcriptOffsets.removeAll()
+        transcriptPartialLines.removeAll()
         transcriptInodes.removeAll()
         sessionIndexOffset = 0
+        sessionIndexPartialLine = ""
         sessionIndexInode = 0
         lastGlobalStateMtime = nil
         firstUserPrompts.removeAll()
@@ -237,8 +251,10 @@ final class SessionMetadataMonitor {
     private func scanAll(fromZero: Bool) {
         if fromZero {
             transcriptOffsets.removeAll()
+            transcriptPartialLines.removeAll()
             transcriptInodes.removeAll()
             sessionIndexOffset = 0
+            sessionIndexPartialLine = ""
             sessionIndexInode = 0
             lastGlobalStateMtime = nil
         }
@@ -266,27 +282,37 @@ final class SessionMetadataMonitor {
 
         let currentInode = attrs[.systemFileNumber] as? UInt64 ?? 0
         var offset: UInt64 = fromZero ? 0 : (transcriptOffsets[path] ?? 0)
+        var partialLine = fromZero ? "" : (transcriptPartialLines[path] ?? "")
+        var readOffset = offset + UInt64(partialLine.utf8.count)
 
         // Detect atomic replacement (new inode) or truncation (size shrank)
         let knownInode = transcriptInodes[path] ?? 0
-        if currentInode != knownInode || fileSize < offset {
+        if currentInode != knownInode || fileSize < readOffset {
             offset = 0
+            partialLine = ""
+            readOffset = 0
         }
         transcriptInodes[path] = currentInode
 
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return }
+        guard fileSize > readOffset,
+              let handle = try? FileHandle(forReadingFrom: url)
+        else {
+            transcriptOffsets[path] = offset
+            transcriptPartialLines[path] = partialLine
+            return
+        }
         defer { try? handle.close() }
 
-        try? handle.seek(toOffset: offset)
+        try? handle.seek(toOffset: readOffset)
         let newData = handle.readDataToEndOfFile()
-        let newOffset = offset + UInt64(newData.count)
-        transcriptOffsets[path] = newOffset
-
         guard !newData.isEmpty,
               let chunk = String(data: newData, encoding: .utf8)
         else { return }
 
-        let lines = chunk.components(separatedBy: "\n").filter { !$0.isEmpty }
+        let split = splitCompleteJSONLLines(partialLine: partialLine, chunk: chunk)
+        transcriptOffsets[path] = offset + split.committedBytes
+        transcriptPartialLines[path] = split.partialLine
+        let lines = split.lines
 
         // Parse custom-title from this chunk
         // "last wins" within the full file requires reading all lines every time we reset;
@@ -324,30 +350,40 @@ final class SessionMetadataMonitor {
         else { return }
 
         var offset: UInt64 = fromZero ? 0 : sessionIndexOffset
+        var partialLine = fromZero ? "" : sessionIndexPartialLine
+        var readOffset = offset + UInt64(partialLine.utf8.count)
 
         // Detect atomic replacement (new inode) or truncation
         let currentInode = attrs[.systemFileNumber] as? UInt64 ?? 0
-        if currentInode != sessionIndexInode || fileSize < offset {
+        if currentInode != sessionIndexInode || fileSize < readOffset {
             offset = 0
+            partialLine = ""
+            readOffset = 0
         }
         sessionIndexInode = currentInode
 
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return }
+        guard fileSize > readOffset,
+              let handle = try? FileHandle(forReadingFrom: url)
+        else {
+            sessionIndexOffset = offset
+            sessionIndexPartialLine = partialLine
+            return
+        }
         defer { try? handle.close() }
 
-        try? handle.seek(toOffset: offset)
+        try? handle.seek(toOffset: readOffset)
         let newData = handle.readDataToEndOfFile()
-        sessionIndexOffset = offset + UInt64(newData.count)
-
         guard !newData.isEmpty,
               let chunk = String(data: newData, encoding: .utf8)
         else { return }
 
-        let lines = chunk.components(separatedBy: "\n").filter { !$0.isEmpty }
+        let split = splitCompleteJSONLLines(partialLine: partialLine, chunk: chunk)
+        sessionIndexOffset = offset + split.committedBytes
+        sessionIndexPartialLine = split.partialLine
         let activeIds = Set(activeSessions.map(\.id))
 
         for sessionId in activeIds {
-            if let name = CodexSessionIndexParser.parseThreadName(lines: lines, sessionId: sessionId) {
+            if let name = CodexSessionIndexParser.parseThreadName(lines: split.lines, sessionId: sessionId) {
                 emitIfChanged(sessionId: sessionId, title: name, project: nil)
             }
         }
@@ -364,9 +400,10 @@ final class SessionMetadataMonitor {
 
         // Only re-read if mtime changed (or first scan)
         if let last = lastGlobalStateMtime, last == mtime { return }
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8),
+              content.data(using: .utf8).flatMap({ try? JSONSerialization.jsonObject(with: $0) }) != nil
+        else { return }
         lastGlobalStateMtime = mtime
-
-        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return }
 
         let activeIds = Set(activeSessions.map(\.id))
         for sessionId in activeIds {
@@ -374,6 +411,21 @@ final class SessionMetadataMonitor {
                 emitIfChanged(sessionId: sessionId, title: nil, project: projectName)
             }
         }
+    }
+
+    private func splitCompleteJSONLLines(
+        partialLine: String,
+        chunk: String
+    ) -> (lines: [String], partialLine: String, committedBytes: UInt64) {
+        let combined = partialLine + chunk
+        guard let newlineIndex = combined.lastIndex(of: "\n") else {
+            return ([], combined, 0)
+        }
+
+        let completeText = String(combined[...newlineIndex])
+        let leftover = String(combined[combined.index(after: newlineIndex)...])
+        let lines = completeText.components(separatedBy: "\n").filter { !$0.isEmpty }
+        return (lines, leftover, UInt64(completeText.utf8.count))
     }
 
     // MARK: - Emit helpers

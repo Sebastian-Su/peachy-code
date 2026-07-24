@@ -477,6 +477,168 @@ final class SessionMetadataMonitorTests: XCTestCase {
         )
     }
 
+    // MARK: Partial JSONL records are retained across polls
+
+    func testTranscriptRecordSplitAcrossPollsIsNotLost() throws {
+        let transcriptURL = makeTranscriptPath(name: "split-transcript.jsonl")
+        let record = #"{"type":"custom-title","customTitle":"分段标题","sessionId":"split-claude"}"#
+        let splitIndex = record.index(record.startIndex, offsetBy: record.count / 2)
+        try String(record[..<splitIndex]).write(to: transcriptURL, atomically: true, encoding: .utf8)
+
+        let session = makeSession(id: "split-claude", transcriptPath: transcriptURL)
+        var updates: [SessionMetadataUpdate] = []
+        let monitor = SessionMetadataMonitor(
+            homeDirectory: tempDir.path,
+            pollInterval: 0.01,
+            onUpdate: { updates.append($0) }
+        )
+        monitor.start(activeSessions: [session])
+        defer { monitor.stop() }
+
+        XCTAssertFalse(updates.contains(where: { $0.sessionTitle == "分段标题" }))
+
+        try append(lines: [String(record[splitIndex...])], to: transcriptURL)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+        XCTAssertTrue(
+            updates.contains(where: { $0.sessionId == "split-claude" && $0.sessionTitle == "分段标题" }),
+            "A transcript record split across polls must be parsed after its newline arrives"
+        )
+    }
+
+    func testSessionIndexRecordSplitAcrossPollsIsNotLost() throws {
+        let codexDir = tempDir.appendingPathComponent(".codex")
+        try FileManager.default.createDirectory(at: codexDir, withIntermediateDirectories: true)
+        let sessionIndexURL = codexDir.appendingPathComponent("session_index.jsonl")
+        let record = #"{"id":"split-codex","thread_name":"分段线程名","updated_at":"2026-07-24T10:00:00Z"}"#
+        let splitIndex = record.index(record.startIndex, offsetBy: record.count / 2)
+        try String(record[..<splitIndex]).write(to: sessionIndexURL, atomically: true, encoding: .utf8)
+
+        let session = makeSession(id: "split-codex", source: .codex)
+        var updates: [SessionMetadataUpdate] = []
+        let monitor = SessionMetadataMonitor(
+            homeDirectory: tempDir.path,
+            pollInterval: 0.01,
+            onUpdate: { updates.append($0) }
+        )
+        monitor.start(activeSessions: [session])
+        defer { monitor.stop() }
+
+        XCTAssertFalse(updates.contains(where: { $0.sessionTitle == "分段线程名" }))
+
+        try append(lines: [String(record[splitIndex...])], to: sessionIndexURL)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+        XCTAssertTrue(
+            updates.contains(where: { $0.sessionId == "split-codex" && $0.sessionTitle == "分段线程名" }),
+            "A session_index record split across polls must be parsed after its newline arrives"
+        )
+    }
+
+    // MARK: Global state retries after transient read failure
+
+    func testGlobalStateReadFailureDoesNotCacheModificationTime() throws {
+        let codexDir = tempDir.appendingPathComponent(".codex")
+        try FileManager.default.createDirectory(at: codexDir, withIntermediateDirectories: true)
+        let globalStateURL = codexDir.appendingPathComponent(".codex-global-state.json")
+        let content = """
+        {
+          "thread-project-assignments": {
+            "retry-codex": { "projectId": "proj-retry" }
+          },
+          "local-projects": {
+            "proj-retry": { "name": "retry-project" }
+          }
+        }
+        """
+        try content.write(to: globalStateURL, atomically: false, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: 0)],
+            ofItemAtPath: globalStateURL.path
+        )
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: NSNumber(value: 0o600)],
+                ofItemAtPath: globalStateURL.path
+            )
+        }
+        XCTAssertThrowsError(try String(contentsOf: globalStateURL, encoding: .utf8))
+
+        let session = makeSession(id: "retry-codex", source: .codex)
+        var updates: [SessionMetadataUpdate] = []
+        let monitor = SessionMetadataMonitor(
+            homeDirectory: tempDir.path,
+            pollInterval: 0.01,
+            onUpdate: { updates.append($0) }
+        )
+        monitor.start(activeSessions: [session])
+        defer { monitor.stop() }
+
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: 0o600)],
+            ofItemAtPath: globalStateURL.path
+        )
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+        XCTAssertTrue(
+            updates.contains(where: {
+                $0.sessionId == "retry-codex" && $0.projectDisplayName == "retry-project"
+            }),
+            "An unchanged mtime must be retried when the previous global-state read failed"
+        )
+    }
+
+    // MARK: Newly active sessions rescan existing Codex metadata
+
+    func testNewlyActiveSessionReceivesExistingIndexAndGlobalStateMetadata() throws {
+        let codexDir = tempDir.appendingPathComponent(".codex")
+        try FileManager.default.createDirectory(at: codexDir, withIntermediateDirectories: true)
+        let sessionIndexURL = codexDir.appendingPathComponent("session_index.jsonl")
+        try write(lines: [
+            #"{"id":"codex-a","thread_name":"线程 A"}"#,
+            #"{"id":"codex-b","thread_name":"线程 B"}"#,
+        ], to: sessionIndexURL)
+
+        let globalStateURL = codexDir.appendingPathComponent(".codex-global-state.json")
+        let globalState = """
+        {
+          "thread-project-assignments": {
+            "codex-a": { "projectId": "proj-a" },
+            "codex-b": { "projectId": "proj-b" }
+          },
+          "local-projects": {
+            "proj-a": { "name": "project-a" },
+            "proj-b": { "name": "project-b" }
+          }
+        }
+        """
+        try globalState.write(to: globalStateURL, atomically: true, encoding: .utf8)
+
+        let sessionA = makeSession(id: "codex-a", source: .codex)
+        let sessionB = makeSession(id: "codex-b", source: .codex)
+        var updates: [SessionMetadataUpdate] = []
+        let monitor = SessionMetadataMonitor(
+            homeDirectory: tempDir.path,
+            pollInterval: 0.01,
+            onUpdate: { updates.append($0) }
+        )
+        monitor.start(activeSessions: [sessionA])
+        defer { monitor.stop() }
+
+        updates.removeAll()
+        monitor.update(activeSessions: [sessionA, sessionB])
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+        XCTAssertTrue(
+            updates.contains(where: { $0.sessionId == "codex-b" && $0.sessionTitle == "线程 B" }),
+            "A newly active session must receive its existing session_index title"
+        )
+        XCTAssertTrue(
+            updates.contains(where: { $0.sessionId == "codex-b" && $0.projectDisplayName == "project-b" }),
+            "A newly active session must receive its existing global-state project"
+        )
+    }
+
     // MARK: Truncation resets offset and rereads from byte zero
 
     func testTranscriptTruncationRereadsFromByteZero() async throws {
