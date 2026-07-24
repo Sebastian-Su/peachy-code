@@ -21,8 +21,21 @@ struct AgentSession: Identifiable, Codable {
     var shellPid: Int?
     var transcriptPath: String?
     var idleUntil: Date?
+    var sessionTitle: String?
+    var projectDisplayName: String?
+    var firstUserPrompt: String?
 
     var isCompacting: Bool { phase == .compacting }
+
+    var displayProjectName: String {
+        projectDisplayName ?? projectName ?? projectDir.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Session"
+    }
+
+    var displaySessionTitle: String? {
+        let value = sessionTitle ?? firstUserPrompt
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
 
     /// Codex Desktop (ChatGPT.app) is a GUI app with no terminal — focus should
     /// activate the app directly rather than resolving a terminal window.
@@ -59,7 +72,10 @@ struct AgentSession: Identifiable, Codable {
         activeSubagentCount: Int = 0,
         terminalPid: Int? = nil,
         shellPid: Int? = nil,
-        transcriptPath: String? = nil
+        transcriptPath: String? = nil,
+        sessionTitle: String? = nil,
+        projectDisplayName: String? = nil,
+        firstUserPrompt: String? = nil
     ) {
         self.id = id
         self.projectDir = projectDir
@@ -75,6 +91,9 @@ struct AgentSession: Identifiable, Codable {
         self.terminalPid = terminalPid
         self.shellPid = shellPid
         self.transcriptPath = transcriptPath
+        self.sessionTitle = sessionTitle
+        self.projectDisplayName = projectDisplayName
+        self.firstUserPrompt = firstUserPrompt
     }
 
     enum Status: String, Codable {
@@ -109,6 +128,9 @@ struct AgentSession: Identifiable, Codable {
         case shellPid
         case transcriptPath
         case idleUntil
+        case sessionTitle
+        case projectDisplayName
+        case firstUserPrompt
     }
 
     init(from decoder: Decoder) throws {
@@ -139,6 +161,9 @@ struct AgentSession: Identifiable, Codable {
         transcriptPath = try container.decodeIfPresent(String.self, forKey: .transcriptPath)
         rawSource = try container.decodeIfPresent(String.self, forKey: .rawSource)
         idleUntil = try container.decodeIfPresent(Date.self, forKey: .idleUntil)
+        sessionTitle = try container.decodeIfPresent(String.self, forKey: .sessionTitle)
+        projectDisplayName = try container.decodeIfPresent(String.self, forKey: .projectDisplayName)
+        firstUserPrompt = try container.decodeIfPresent(String.self, forKey: .firstUserPrompt)
     }
 }
 

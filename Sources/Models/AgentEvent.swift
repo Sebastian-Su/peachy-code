@@ -11,6 +11,7 @@ struct AgentEvent: Identifiable, Codable {
 
     // Transcript
     let transcriptPath: String?
+    let prompt: String?
 
     // Tool events
     let toolName: String?
@@ -109,6 +110,7 @@ struct AgentEvent: Identifiable, Codable {
         case cwd
         case permissionMode = "permission_mode"
         case transcriptPath = "transcript_path"
+        case prompt
         case toolName = "tool_name"
         case toolInput = "tool_input"
         case toolResponse = "tool_response"
@@ -139,6 +141,7 @@ struct AgentEvent: Identifiable, Codable {
         self.cwd = try container.decodeIfPresent(String.self, forKey: .cwd)
         self.permissionMode = try container.decodeIfPresent(String.self, forKey: .permissionMode)
         self.transcriptPath = try container.decodeIfPresent(String.self, forKey: .transcriptPath)
+        self.prompt = try container.decodeIfPresent(String.self, forKey: .prompt)
         self.toolName = try container.decodeIfPresent(String.self, forKey: .toolName)
         self.toolInput = try container.decodeIfPresent([String: AnyCodable].self, forKey: .toolInput)
         self.toolResponse = try container.decodeIfPresent([String: AnyCodable].self, forKey: .toolResponse)
@@ -167,6 +170,7 @@ struct AgentEvent: Identifiable, Codable {
         cwd: String? = nil,
         permissionMode: String? = nil,
         transcriptPath: String? = nil,
+        prompt: String? = nil,
         toolName: String? = nil,
         toolInput: [String: AnyCodable]? = nil,
         toolResponse: [String: AnyCodable]? = nil,
@@ -193,6 +197,7 @@ struct AgentEvent: Identifiable, Codable {
         self.cwd = cwd
         self.permissionMode = permissionMode
         self.transcriptPath = transcriptPath
+        self.prompt = prompt
         self.toolName = toolName
         self.toolInput = toolInput
         self.toolResponse = toolResponse
