@@ -1,5 +1,10 @@
 import SwiftUI
 
+func formatSessionSwitcherProjectLabel(project: String, title: String?) -> String {
+    guard let title, !title.isEmpty else { return project }
+    return "\(project) · \(title)"
+}
+
 private let subagentIndicatorWidth: CGFloat = 10
 private let subagentIndicatorSpacing: CGFloat = 4
 private let subagentIndicatorRightInset: CGFloat = 6
@@ -153,11 +158,10 @@ private struct SessionSwitcherRow: View {
     }
 
     private var projectLabel: String {
-        if let name = session.projectName { return name }
-        if let dir = session.projectDir {
-            return URL(fileURLWithPath: dir).lastPathComponent
-        }
-        return "Session"
+        formatSessionSwitcherProjectLabel(
+            project: session.displayProjectName,
+            title: session.displaySessionTitle
+        )
     }
 
     private var phaseColor: Color {
