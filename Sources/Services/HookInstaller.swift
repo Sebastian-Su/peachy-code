@@ -11,13 +11,13 @@ enum HookInstaller {
 
     /// All Claude Code event types we want to subscribe to.
     /// Deliberately omitted vs a naive "subscribe to all":
-    ///   PostToolUse — phase transition identical to PreToolUse (.running); pure noise
     ///   PostCompact — phase transition to .running already covered by subsequent PreToolUse/UserPromptSubmit
     ///   StopFailure — treated identically to Stop in SessionStore; rare enough not to warrant a separate hook
     ///   ConfigChange / TeammateIdle / WorktreeCreate / WorktreeRemove — no downstream handler, zero UI effect
     /// SubagentStart and SubagentStop must remain paired so active subagents can be tracked by agentId.
     static let hookEvents = [
         "PreToolUse",
+        "PostToolUse",
         "PostToolUseFailure",
         "Stop",
         "Notification",

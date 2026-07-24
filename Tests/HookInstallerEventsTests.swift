@@ -2,6 +2,11 @@ import XCTest
 @testable import PeachyPet
 
 final class HookInstallerEventsTests: XCTestCase {
+    func testToolLifecycleHooksAreRegisteredAsPair() {
+        XCTAssertTrue(HookInstaller.hookEvents.contains("PreToolUse"))
+        XCTAssertTrue(HookInstaller.hookEvents.contains("PostToolUse"))
+    }
+
     func testSubagentLifecycleHooksAreRegisteredAsPair() {
         XCTAssertTrue(HookInstaller.hookEvents.contains("SubagentStart"))
         XCTAssertTrue(HookInstaller.hookEvents.contains("SubagentStop"))
