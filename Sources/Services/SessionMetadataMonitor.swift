@@ -39,21 +39,33 @@ enum ClaudeTranscriptParser {
     }
 
     /// Returns the first non-empty user message text across all lines (no sessionId filter needed —
-    /// Claude transcripts are per-session files).
+    /// transcripts are per-session files). Handles both Claude format
+    /// (`{"type":"user","message":{"role":"user","content":[...]}}`) and Codex JSONL format
+    /// (`{"type":"event_msg","payload":{"type":"user_message","message":"..."}}`).
     static func parseFirstPrompt(lines: [String]) -> String? {
         for line in lines {
-            guard let obj = jsonObject(line),
-                  (obj["type"] as? String) == "user",
-                  let message = obj["message"] as? [String: Any],
-                  (message["role"] as? String) == "user",
-                  let content = message["content"] as? [[String: Any]]
-            else { continue }
-            for part in content {
-                guard (part["type"] as? String) == "text",
-                      let text = part["text"] as? String,
-                      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                else { continue }
-                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let obj = jsonObject(line) else { continue }
+            // Claude format
+            if (obj["type"] as? String) == "user",
+               let message = obj["message"] as? [String: Any],
+               (message["role"] as? String) == "user",
+               let content = message["content"] as? [[String: Any]] {
+                for part in content {
+                    guard (part["type"] as? String) == "text",
+                          let text = part["text"] as? String,
+                          !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    else { continue }
+                    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                continue
+            }
+            // Codex JSONL format: {"type":"event_msg","payload":{"type":"user_message","message":"..."}}
+            if (obj["type"] as? String) == "event_msg",
+               let payload = obj["payload"] as? [String: Any],
+               (payload["type"] as? String) == "user_message",
+               let message = payload["message"] as? String,
+               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return message.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
         return nil

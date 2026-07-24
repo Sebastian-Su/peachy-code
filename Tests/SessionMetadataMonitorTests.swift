@@ -43,6 +43,15 @@ final class SessionMetadataMonitorParserTests: XCTestCase {
         XCTAssertEqual(result, "实际内容")
     }
 
+    func testCodexUserMessageIsUsedAsFirstPrompt() {
+        let lines = [
+            #"{"type":"event_msg","payload":{"type":"user_message","message":"  第一个 Codex 请求  "}}"#,
+            #"{"type":"event_msg","payload":{"type":"user_message","message":"第二个请求"}}"#,
+        ]
+        let result = ClaudeTranscriptParser.parseFirstPrompt(lines: lines)
+        XCTAssertEqual(result, "第一个 Codex 请求")
+    }
+
     func testClaudeMalformedLineIsSkipped() {
         let lines = [
             "not-json",
