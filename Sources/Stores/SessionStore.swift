@@ -28,13 +28,26 @@ struct AgentSession: Identifiable, Codable {
     var isCompacting: Bool { phase == .compacting }
 
     var displayProjectName: String {
-        projectDisplayName ?? projectName ?? projectDir.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Session"
+        func nonEmpty(_ s: String?) -> String? {
+            guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+            return t
+        }
+        let directoryName = projectDir.flatMap { path -> String? in
+            let name = URL(fileURLWithPath: path).lastPathComponent
+            return name == "/" ? nil : name
+        }
+        return nonEmpty(projectDisplayName)
+            ?? nonEmpty(projectName)
+            ?? nonEmpty(directoryName)
+            ?? "Session"
     }
 
     var displaySessionTitle: String? {
-        let value = sessionTitle ?? firstUserPrompt
-        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed?.isEmpty == false ? trimmed : nil
+        func nonEmpty(_ s: String?) -> String? {
+            guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+            return t
+        }
+        return nonEmpty(sessionTitle) ?? nonEmpty(firstUserPrompt)
     }
 
     /// Codex Desktop (ChatGPT.app) is a GUI app with no terminal — focus should

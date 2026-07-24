@@ -30,7 +30,38 @@ final class SessionStoreMetadataTests: XCTestCase {
         XCTAssertNil(session.displaySessionTitle)
     }
 
+    // MARK: - Bug 1: whitespace sessionTitle must not suppress a valid firstUserPrompt
+
+    func testWhitespaceTitleFallsBackToFirstPrompt() {
+        let session = makeSession(sessionTitle: "  \n  ", firstUserPrompt: "解决 release 分支冲突")
+
+        XCTAssertEqual(session.displaySessionTitle, "解决 release 分支冲突")
+    }
+
+    // MARK: - Bug 2: empty/whitespace project name strings must fall through to "Session"
+
+    func testEmptyProjectNameFallsThrough() {
+        let session = makeSession(projectDir: nil, projectName: "")
+
+        XCTAssertEqual(session.displayProjectName, "Session")
+    }
+
+    func testRootProjectDirFallsThrough() {
+        let session = AgentSession(
+            id: "session-root",
+            projectDir: "/",
+            projectName: nil,
+            status: .active,
+            eventCount: 1,
+            startedAt: Date(),
+            lastEventAt: Date()
+        )
+
+        XCTAssertEqual(session.displayProjectName, "Session")
+    }
+
     private func makeSession(
+        projectDir: String? = "/tmp/masko-code",
         projectName: String? = "masko-code",
         sessionTitle: String? = nil,
         projectDisplayName: String? = nil,
@@ -38,7 +69,7 @@ final class SessionStoreMetadataTests: XCTestCase {
     ) -> AgentSession {
         AgentSession(
             id: "session-1",
-            projectDir: "/tmp/masko-code",
+            projectDir: projectDir,
             projectName: projectName,
             status: .active,
             eventCount: 1,
