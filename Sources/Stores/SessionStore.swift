@@ -471,24 +471,35 @@ final class SessionStore {
         let now = Date()
         var changed = false
         for i in sessions.indices {
-            guard sessions[i].status == .active,
-                  sessions[i].phase == .idle else { continue }
-            if let idleUntil = sessions[i].idleUntil {
-                if idleUntil <= now {
-                    sessions[i].status = .ended
-                    sessions[i].idleUntil = nil
-                    clearSubagents(at: i)
-                    PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
-                    changed = true
+            guard sessions[i].status == .active else { continue }
+            if sessions[i].phase == .idle {
+                if let idleUntil = sessions[i].idleUntil {
+                    if idleUntil <= now {
+                        sessions[i].status = .ended
+                        sessions[i].idleUntil = nil
+                        clearSubagents(at: i)
+                        PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
+                        changed = true
+                    }
+                } else {
+                    let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
+                    if ref.addingTimeInterval(idleRetentionDuration) <= now {
+                        sessions[i].status = .ended
+                        clearSubagents(at: i)
+                        PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
+                        changed = true
+                    }
                 }
-            } else {
-                // No idleUntil: session went idle without a Stop event (e.g. Codex Desktop JSONL).
-                // Use lastEventAt + retention as implicit expiry.
+            } else if sessions[i].phase == .running,
+                      sessions[i].terminalPid == nil,
+                      sessions[i].agentSource == .codex,
+                      sessions[i].rawSource == "codex-cli" {
                 let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
                 if ref.addingTimeInterval(idleRetentionDuration) <= now {
                     sessions[i].status = .ended
+                    sessions[i].phase = .idle
                     clearSubagents(at: i)
-                    PeachyLog.session.info("Session expired (idle timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
+                    PeachyLog.session.info("Session expired (headless timeout): \(self.sessions[i].id) project=\(self.sessions[i].projectName ?? "/")")
                     changed = true
                 }
             }
@@ -508,7 +519,13 @@ final class SessionStore {
             return s.idleUntil
         }.min()
         let implicitExpiry = sessions.compactMap { s -> Date? in
-            guard s.status == .active, s.phase == .idle, s.idleUntil == nil else { return nil }
+            guard s.status == .active, s.idleUntil == nil else { return nil }
+            guard s.phase == .idle || (
+                s.phase == .running &&
+                s.terminalPid == nil &&
+                s.agentSource == .codex &&
+                s.rawSource == "codex-cli"
+            ) else { return nil }
             let ref = s.lastEventAt ?? s.startedAt
             return ref.addingTimeInterval(idleRetentionDuration)
         }.min()
@@ -863,6 +880,7 @@ final class SessionStore {
         }
         shouldNotifyObservers = shouldNotifyObservers || removedResidualChild
         persist()
+        scheduleIdleExpiryTimer()
         if shouldNotifyObservers {
             onPhasesChanged?()
         }

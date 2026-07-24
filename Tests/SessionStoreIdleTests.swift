@@ -40,6 +40,114 @@ final class SessionStoreIdleTests: XCTestCase {
         XCTAssertGreaterThan(session!.idleUntil!, Date(), "idleUntil must be in the future")
     }
 
+    func testHeadlessRunningCodexSessionExpiresWithoutStop() {
+        let store = makeStore(idleRetention: 0)
+        defer { store.stopTimers() }
+        let sid = "headless-running-\(UUID().uuidString)"
+        var session = AgentSession(
+            id: sid,
+            projectDir: "/tmp",
+            projectName: "test",
+            agentSource: .codex,
+            status: .active,
+            phase: .running,
+            eventCount: 3,
+            startedAt: Date(timeIntervalSinceNow: -10),
+            lastEventAt: Date(timeIntervalSinceNow: -10)
+        )
+        session.rawSource = "codex-cli"
+        store.injectSessionForTesting(session)
+
+        store.expireIdleSessions()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .ended)
+    }
+
+    func testNonCodexHeadlessRunningSessionDoesNotImplicitlyExpire() {
+        let store = makeStore(idleRetention: 0)
+        defer { store.stopTimers() }
+        let sid = "headless-claude-\(UUID().uuidString)"
+        let session = AgentSession(
+            id: sid,
+            projectDir: "/tmp",
+            projectName: "test",
+            agentSource: .claudeCode,
+            status: .active,
+            phase: .running,
+            eventCount: 3,
+            startedAt: Date(timeIntervalSinceNow: -10),
+            lastEventAt: Date(timeIntervalSinceNow: -10)
+        )
+        store.injectSessionForTesting(session)
+
+        store.expireIdleSessions()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .active)
+    }
+
+    func testHeadlessCompactingCodexSessionDoesNotImplicitlyExpire() {
+        let store = makeStore(idleRetention: 0)
+        defer { store.stopTimers() }
+        let sid = "headless-compacting-\(UUID().uuidString)"
+        var session = AgentSession(
+            id: sid,
+            projectDir: "/tmp",
+            projectName: "test",
+            agentSource: .codex,
+            status: .active,
+            phase: .compacting,
+            eventCount: 3,
+            startedAt: Date(timeIntervalSinceNow: -10),
+            lastEventAt: Date(timeIntervalSinceNow: -10)
+        )
+        session.rawSource = "codex-cli"
+        store.injectSessionForTesting(session)
+
+        store.expireIdleSessions()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .active)
+    }
+
+    func testHeadlessRunningCodexSessionExpiresFromTimerAndNotifiesObservers() {
+        let store = makeStore(idleRetention: 0.05)
+        defer { store.stopTimers() }
+        let sid = "headless-timer-\(UUID().uuidString)"
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid, source: "codex-cli"))
+        let expired = expectation(description: "headless Codex session expired")
+        store.onPhasesChanged = {
+            if store.sessions.first(where: { $0.id == sid })?.status == .ended {
+                expired.fulfill()
+            }
+        }
+
+        wait(for: [expired], timeout: 1)
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .ended)
+    }
+
+    func testRunningSessionWithTerminalDoesNotImplicitlyExpire() {
+        let store = makeStore(idleRetention: 0)
+        defer { store.stopTimers() }
+        let sid = "terminal-running-\(UUID().uuidString)"
+        let session = AgentSession(
+            id: sid,
+            projectDir: "/tmp",
+            projectName: "test",
+            agentSource: .codex,
+            status: .active,
+            phase: .running,
+            eventCount: 3,
+            startedAt: Date(timeIntervalSinceNow: -10),
+            lastEventAt: Date(timeIntervalSinceNow: -10),
+            terminalPid: 123
+        )
+        store.injectSessionForTesting(session)
+
+        store.expireIdleSessions()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .active)
+    }
+
     func testIdleSessionExpires() {
         let store = makeStore(idleRetention: 0) // zero retention = immediate expiry
         defer { store.stopTimers() }
