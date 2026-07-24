@@ -3,6 +3,81 @@ import XCTest
 @testable import PeachyPet
 
 final class PendingPermissionStoreTests: XCTestCase {
+    func testTopVisiblePermissionUsesNewestNonCollapsedPermission() throws {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+
+        store.add(event: makeCodexPermissionEvent(toolUseId: "older", cmd: "git status"), transport: MockTransport())
+        let fallback = MockTransport()
+        fallback.capabilities = [.openTerminal]
+        store.add(event: makeCodexPermissionEvent(toolUseId: "newer", cmd: "git push"), transport: fallback)
+
+        let top = try XCTUnwrap(store.topVisiblePermission)
+        XCTAssertEqual(top.event.toolUseId, "newer")
+        XCTAssertTrue(top.isTerminalFallback)
+    }
+
+    func testCollapseRefreshesTopVisiblePermissionState() throws {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+        var changeCount = 0
+        store.onPendingCountChange = { changeCount += 1 }
+
+        store.add(event: makeCodexPermissionEvent(toolUseId: "older", cmd: "git status"), transport: MockTransport())
+        let fallback = MockTransport()
+        fallback.capabilities = [.openTerminal]
+        store.add(event: makeCodexPermissionEvent(toolUseId: "newer", cmd: "git push"), transport: fallback)
+        let fallbackId = try XCTUnwrap(store.topVisiblePermission?.id)
+        let countBeforeCollapse = changeCount
+
+        store.collapse(id: fallbackId)
+
+        XCTAssertGreaterThan(changeCount, countBeforeCollapse)
+        XCTAssertEqual(store.topVisiblePermission?.event.toolUseId, "older")
+        XCTAssertFalse(try XCTUnwrap(store.topVisiblePermission).isTerminalFallback)
+    }
+
+    func testStaleEscapeRevisionDoesNotDismissNewFallback() throws {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+        let first = MockTransport()
+        first.capabilities = [.openTerminal]
+        store.add(
+            event: makeCodexPermissionEvent(toolUseId: "first", cmd: "git status"),
+            transport: first
+        )
+        let staleRevision = store.visibilityRevision
+        let firstId = try XCTUnwrap(store.topVisiblePermission?.id)
+        store.dismissLocally(id: firstId)
+
+        let second = MockTransport()
+        second.capabilities = [.openTerminal]
+        store.add(
+            event: makeCodexPermissionEvent(toolUseId: "second", cmd: "git log"),
+            transport: second
+        )
+
+        store.dismissTopTerminalFallback(expectedRevision: staleRevision)
+
+        XCTAssertEqual(store.pending.count, 1)
+        XCTAssertEqual(store.topVisiblePermission?.event.toolUseId, "second")
+    }
+
+    func testDismissTopTerminalFallbackDoesNotDenyActionablePermission() {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+        let actionable = MockTransport()
+        store.add(
+            event: makeCodexPermissionEvent(toolUseId: "actionable", cmd: "git push"),
+            transport: actionable
+        )
+
+        store.dismissTopTerminalFallback(expectedRevision: store.visibilityRevision)
+
+        XCTAssertEqual(store.pending.count, 1)
+        XCTAssertTrue(actionable.decisions.isEmpty)
+    }
+
     func testDismissFallbackOrDenyRemovesFallbackWithoutSendingDecision() throws {
         let store = PendingPermissionStore()
         defer { store.stopTimers() }

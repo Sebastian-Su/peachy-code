@@ -931,11 +931,7 @@ final class OverlayManager {
             return
         }
 
-        // Find the topmost non-collapsed permission
-        let nonCollapsed = pendingPermissionStore.pending.filter {
-            !pendingPermissionStore.collapsed.contains($0.id)
-        }
-        guard let permission = nonCollapsed.first else { return }
+        guard let permission = pendingPermissionStore.topVisiblePermission else { return }
 
         let screen = NSScreen.main?.visibleFrame ?? .zero
         let width = min(screen.width * 0.7, 800)

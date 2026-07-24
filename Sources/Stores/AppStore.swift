@@ -330,14 +330,17 @@ final class AppStore {
             case .expandedPermission:
                 self.onExpandPermission?() // Toggle close
             case .permission:
-                let reversed = Array(self.pendingPermissionStore.pending.reversed())
-                guard let topPerm = reversed.first(where: { !self.pendingPermissionStore.collapsed.contains($0.id) }) else { return }
+                guard let topPerm = self.pendingPermissionStore.topVisiblePermission else { return }
                 self.pendingPermissionStore.dismissFallbackOrDeny(id: topPerm.id)
             case .toast:
                 self.sessionFinishedStore.dismiss()
             case .none:
                 break
             }
+        }
+
+        hotkeyManager.onDismissTerminalFallback = { [weak self] revision in
+            self?.pendingPermissionStore.dismissTopTerminalFallback(expectedRevision: revision)
         }
 
         // Wire hotkey manager — ⌘L toggles collapse: collapse topmost, or expand if all collapsed
@@ -347,10 +350,9 @@ final class AppStore {
             if self.hotkeyManager.isExpandedPermissionActive {
                 self.onExpandPermission?() // Close expanded panel
             }
-            let reversed = Array(self.pendingPermissionStore.pending.reversed())
-            if let topNonCollapsed = reversed.first(where: { !self.pendingPermissionStore.collapsed.contains($0.id) }) {
+            if let topNonCollapsed = self.pendingPermissionStore.topVisiblePermission {
                 self.pendingPermissionStore.collapse(id: topNonCollapsed.id)
-            } else if let topCollapsed = reversed.first {
+            } else if let topCollapsed = self.pendingPermissionStore.pending.last {
                 self.pendingPermissionStore.expand(id: topCollapsed.id)
             }
         }
@@ -409,6 +411,10 @@ final class AppStore {
     /// Recompute which overlay card has priority and sync to the hotkey shared state.
     /// Call whenever any card's visibility changes.
     func syncActiveCard() {
+        let topPermission = pendingPermissionStore.topVisiblePermission
+        hotkeyManager.permissionIsTerminalFallback = topPermission?.isTerminalFallback ?? false
+        hotkeyManager.permissionVisibilityRevision = pendingPermissionStore.visibilityRevision
+
         // Don't overwrite expanded permission state - only dismiss controls it
         if hotkeyManager.activeCard == .expandedPermission { return }
         if sessionSwitcherStore.isActive {

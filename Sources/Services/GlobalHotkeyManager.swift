@@ -14,6 +14,12 @@ enum ActiveCard: Int32 {
     case sessionSwitcher = 4
 }
 
+enum PlainEscapeAction: Equatable {
+    case passThrough
+    case dismissCard
+    case dismissTerminalFallback
+}
+
 // MARK: - Thread-safe state shared between main actor and CGEvent callback
 
 /// Holds values read/written from the CGEvent callback thread.
@@ -21,6 +27,12 @@ enum ActiveCard: Int32 {
 final class HotkeySharedState: @unchecked Sendable {
     /// The highest-priority visible overlay card — controls which card owns shortcuts.
     var activeCard: ActiveCard = .none
+
+    /// Whether the top permission can only redirect the user to a terminal.
+    var permissionIsTerminalFallback = false
+
+    /// Revision of the visible permission stack used to reject stale Escape callbacks.
+    var permissionVisibilityRevision: UInt64 = 0
 
     /// Number of active sessions.
     var activeSessionCount: Int32 = 0
@@ -78,6 +90,9 @@ final class GlobalHotkeyManager {
     /// Called when ⌘Esc or Esc dismisses the topmost card (switcher cancel / permission deny / toast dismiss).
     var onDismiss: (() -> Void)?
 
+    /// Called when plain Escape dismisses a terminal-only permission locally.
+    var onDismissTerminalFallback: ((UInt64) -> Void)?
+
     /// Called when ⌘N selects the Nth item within the topmost card (0-indexed).
     var onSelect: ((Int) -> Void)?
 
@@ -110,6 +125,34 @@ final class GlobalHotkeyManager {
     var activeSessionCount: Int {
         get { Int(shared.activeSessionCount) }
         set { shared.activeSessionCount = Int32(newValue) }
+    }
+
+    var permissionIsTerminalFallback: Bool {
+        get { shared.permissionIsTerminalFallback }
+        set { shared.permissionIsTerminalFallback = newValue }
+    }
+
+    var permissionVisibilityRevision: UInt64 {
+        get { shared.permissionVisibilityRevision }
+        set { shared.permissionVisibilityRevision = newValue }
+    }
+
+    static func plainEscapeAction(
+        card: ActiveCard,
+        flags: CGEventFlags,
+        permissionIsTerminalFallback: Bool
+    ) -> PlainEscapeAction {
+        let relevantFlags: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate]
+        guard flags.intersection(relevantFlags).isEmpty else { return .passThrough }
+
+        switch card {
+        case .none, .expandedPermission:
+            return .passThrough
+        case .permission:
+            return permissionIsTerminalFallback ? .dismissTerminalFallback : .passThrough
+        case .toast, .sessionSwitcher:
+            return .dismissCard
+        }
     }
 
     /// Whether the session switcher overlay is currently showing.
@@ -467,14 +510,22 @@ private func globalHotkeyCallback(
     }
 
     // Esc (no modifiers): dismiss the topmost card
-    if keyCode == 53 && !flags.contains(.maskCommand) && card != .none {
-        // Skip plain ESC for permission cards to prevent accidental deny
-        // (CJK input methods use ESC to clear input). Use Cmd+ESC instead.
-        if card == .permission || card == .expandedPermission {
-            return Unmanaged.passUnretained(event) // pass through
+    if keyCode == 53 && card != .none {
+        switch GlobalHotkeyManager.plainEscapeAction(
+            card: card,
+            flags: flags,
+            permissionIsTerminalFallback: state.permissionIsTerminalFallback
+        ) {
+        case .passThrough:
+            break
+        case .dismissCard:
+            DispatchQueue.main.async { manager.onDismiss?() }
+            return nil
+        case .dismissTerminalFallback:
+            let revision = state.permissionVisibilityRevision
+            DispatchQueue.main.async { manager.onDismissTerminalFallback?(revision) }
+            return nil
         }
-        DispatchQueue.main.async { manager.onDismiss?() }
-        return nil
     }
 
     // Cmd-only shortcuts (no Shift/Ctrl/Option)

@@ -76,6 +76,14 @@ struct PendingPermission: Identifiable {
 
     var toolName: String { event.toolName ?? "Unknown" }
 
+    var isTerminalFallback: Bool {
+        let capabilities = transport.capabilities
+        return capabilities.contains(.openTerminal)
+            && !capabilities.contains(.permissionResponse)
+            && !capabilities.contains(.updatedInput)
+            && !capabilities.contains(.updatedPermissions)
+    }
+
     /// Parse permission suggestions from Claude Code protocol
     var permissionSuggestions: [PermissionSuggestion] {
         guard let raw = event.permissionSuggestions else { return [] }
@@ -375,6 +383,11 @@ final class PendingPermissionStore {
     }
 
     var count: Int { pending.count }
+    private(set) var visibilityRevision: UInt64 = 0
+
+    var topVisiblePermission: PendingPermission? {
+        pending.reversed().first { !collapsed.contains($0.id) }
+    }
 
     /// Cache a PreToolUse event's toolUseId so the next PermissionRequest can be correlated.
     func cachePreToolUse(sessionId: String, agentId: String?, toolName: String, toolUseId: String) {
@@ -402,8 +415,7 @@ final class PendingPermissionStore {
             resolvedToolUseId: resolvedToolUseId
         )
         pending.append(permission)
-        onPendingChange?()
-        onPendingCountChange?()
+        notifyVisibilityChanged()
 
         // Monitor transport - if the agent answers from terminal,
         // the transport closes and we auto-dismiss without sending a response.
@@ -453,10 +465,18 @@ final class PendingPermissionStore {
 
     func collapse(id: UUID) {
         collapsed.insert(id)
+        notifyVisibilityChanged()
     }
 
     func expand(id: UUID) {
         collapsed.remove(id)
+        notifyVisibilityChanged()
+    }
+
+    private func notifyVisibilityChanged() {
+        visibilityRevision &+= 1
+        onPendingChange?()
+        onPendingCountChange?()
     }
 
     /// Periodically check for stale permissions whose transports died silently
@@ -531,15 +551,21 @@ final class PendingPermissionStore {
         collapsed.remove(id)
         interactionStates.removeValue(forKey: pending[index].id)
         pending.remove(at: index)
-        onPendingChange?()
-        onPendingCountChange?()
+        notifyVisibilityChanged()
         onResolved?(permission.event, .unknown)
         print("[PeachyPet] Permission auto-dismissed (answered from terminal): \(permission.toolName) (remaining: \(pending.count))")
     }
 
+    func dismissTopTerminalFallback(expectedRevision: UInt64) {
+        guard visibilityRevision == expectedRevision,
+              let permission = topVisiblePermission,
+              permission.isTerminalFallback else { return }
+        dismissLocally(id: permission.id)
+    }
+
     func dismissFallbackOrDeny(id: UUID) {
         guard let permission = pending.first(where: { $0.id == id }) else { return }
-        if permission.transport.capabilities == [.openTerminal] {
+        if permission.isTerminalFallback {
             dismissLocally(id: id)
         } else {
             resolve(id: id, decision: .deny)
@@ -563,8 +589,7 @@ final class PendingPermissionStore {
 
         interactionStates.removeValue(forKey: pending[index].id)
         pending.remove(at: index)
-        onPendingChange?()
-        onPendingCountChange?()
+        notifyVisibilityChanged()
         let outcome: ResolutionOutcome = isExpired ? .expired : (decision == .allow ? .allowed : .denied)
         onResolved?(permission.event, outcome)
         print("[PeachyPet] Permission resolved: \(decision) for \(permission.toolName) (remaining: \(pending.count))")
@@ -590,8 +615,7 @@ final class PendingPermissionStore {
 
         interactionStates.removeValue(forKey: pending[index].id)
         pending.remove(at: index)
-        onPendingChange?()
-        onPendingCountChange?()
+        notifyVisibilityChanged()
         onResolved?(permission.event, .allowed)
         print("[PeachyPet] Permission resolved with answers for \(permission.toolName) (remaining: \(pending.count))")
     }
@@ -615,8 +639,7 @@ final class PendingPermissionStore {
 
         interactionStates.removeValue(forKey: pending[index].id)
         pending.remove(at: index)
-        onPendingChange?()
-        onPendingCountChange?()
+        notifyVisibilityChanged()
         onResolved?(permission.event, .allowed)
         print("[PeachyPet] Permission resolved with feedback for \(permission.toolName) (remaining: \(pending.count))")
     }
@@ -633,8 +656,7 @@ final class PendingPermissionStore {
 
         interactionStates.removeValue(forKey: pending[index].id)
         pending.remove(at: index)
-        onPendingChange?()
-        onPendingCountChange?()
+        notifyVisibilityChanged()
         onResolved?(permission.event, .allowed)
         print("[PeachyPet] Permission resolved with \(suggestions.count) always-allow rules for \(permission.toolName) (remaining: \(pending.count))")
     }
