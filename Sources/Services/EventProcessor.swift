@@ -160,13 +160,7 @@ final class EventProcessor {
             )
 
         case .postToolUseFailure:
-            return AppNotification(
-                title: "Tool Failed",
-                body: "\(event.toolName ?? "A tool") failed in \(event.projectName ?? "a project")",
-                category: .toolFailed,
-                priority: .normal,
-                sessionId: event.sessionId
-            )
+            return nil
 
         case .taskCompleted:
             // recordOnly — Stop already fires the completion notification

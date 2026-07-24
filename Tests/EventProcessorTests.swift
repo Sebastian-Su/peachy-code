@@ -3,6 +3,34 @@ import XCTest
 
 @MainActor
 final class EventProcessorTests: XCTestCase {
+    func testPostToolUseFailureIsRecordedWithoutNotification() async throws {
+        let eventStore = EventStore()
+        eventStore.clear()
+        let sessionStore = SessionStore()
+        defer { sessionStore.stopTimers() }
+        let notificationStore = NotificationStore()
+        let processor = EventProcessor(
+            eventStore: eventStore,
+            sessionStore: sessionStore,
+            notificationStore: notificationStore,
+            notificationService: .shared
+        )
+
+        let sessionId = "event-processor-tool-failure-\(UUID().uuidString)"
+        let event = AgentEvent(
+            hookEventName: HookEventType.postToolUseFailure.rawValue,
+            sessionId: sessionId,
+            cwd: "/Users/test/openclaw360",
+            toolName: "Bash",
+            source: "claude"
+        )
+
+        await processor.process(event)
+
+        XCTAssertTrue(eventStore.events.contains(where: { $0.sessionId == sessionId }))
+        XCTAssertNil(notificationStore.notifications.first(where: { $0.sessionId == sessionId }))
+    }
+
     func testCodexPermissionNotificationNotAddedToStore() async throws {
         let eventStore = EventStore()
         eventStore.clear()
