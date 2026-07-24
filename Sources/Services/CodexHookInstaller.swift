@@ -62,7 +62,8 @@ enum CodexHookInstaller {
         }
 
         var hooks = root["hooks"] as? [String: Any] ?? [:]
-        removeOurHooks(from: &hooks, for: deprecatedHookEvents)
+        removeLegacyAgentPetHooks(from: &hooks)
+        removeOurHooks(from: &hooks, for: Array(hooks.keys))
         let entry: [String: Any] = [
             "matcher": "",
             "hooks": [[
@@ -103,19 +104,48 @@ enum CodexHookInstaller {
 
     // MARK: - Private
 
+    private static func removeLegacyAgentPetHooks(from hooks: inout [String: Any]) {
+        for event in Array(hooks.keys) {
+            guard let entries = hooks[event] as? [[String: Any]] else { continue }
+            let filteredEntries = entries.compactMap { entry -> [String: Any]? in
+                guard var inner = entry["hooks"] as? [[String: Any]] else { return entry }
+                inner.removeAll { hook in
+                    guard let command = hook["command"] as? String else { return false }
+                    return command.contains("/Applications/AgentPet.app/")
+                }
+                guard !inner.isEmpty else { return nil }
+                var updatedEntry = entry
+                updatedEntry["hooks"] = inner
+                return updatedEntry
+            }
+            if filteredEntries.isEmpty {
+                hooks.removeValue(forKey: event)
+            } else {
+                hooks[event] = filteredEntries
+            }
+        }
+    }
+
     private static func entryHasOurHook(_ entry: [String: Any]) -> Bool {
         guard let inner = entry["hooks"] as? [[String: Any]] else { return false }
-        return inner.contains { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
+        return inner.contains { ($0["command"] as? String) == hookCommand }
     }
 
     private static func removeOurHooks(from hooks: inout [String: Any], for events: [String]) {
         for event in events {
-            guard var entries = hooks[event] as? [[String: Any]] else { continue }
-            entries.removeAll { entryHasOurHook($0) }
-            if entries.isEmpty {
+            guard let entries = hooks[event] as? [[String: Any]] else { continue }
+            let filteredEntries = entries.compactMap { entry -> [String: Any]? in
+                guard var inner = entry["hooks"] as? [[String: Any]] else { return entry }
+                inner.removeAll { ($0["command"] as? String) == hookCommand }
+                guard !inner.isEmpty else { return nil }
+                var updatedEntry = entry
+                updatedEntry["hooks"] = inner
+                return updatedEntry
+            }
+            if filteredEntries.isEmpty {
                 hooks.removeValue(forKey: event)
             } else {
-                hooks[event] = entries
+                hooks[event] = filteredEntries
             }
         }
     }

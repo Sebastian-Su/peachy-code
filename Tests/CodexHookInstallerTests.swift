@@ -55,7 +55,7 @@ final class CodexHookInstallerTests: XCTestCase {
         let existing: [String: Any] = [
             "hooks": [
                 "PermissionRequest": [
-                    ["hooks": [["type": "command", "command": "/Applications/AgentPet.app/hook"]]],
+                    ["hooks": [["type": "command", "command": "/Applications/OtherPet.app/hook"]]],
                     ["hooks": [["type": "command", "command": "~/.peachypet/hooks/hook-sender.sh"]]],
                 ]
             ]
@@ -72,7 +72,7 @@ final class CodexHookInstallerTests: XCTestCase {
             (entry["hooks"] as? [[String: Any]])?.compactMap { $0["command"] as? String } ?? []
         }
 
-        XCTAssertEqual(commands, ["/Applications/AgentPet.app/hook"])
+        XCTAssertEqual(commands, ["/Applications/OtherPet.app/hook"])
     }
 
     func testInstallIsIdempotent() throws {
@@ -93,11 +93,19 @@ final class CodexHookInstallerTests: XCTestCase {
         }
     }
 
-    func testInstallPreservesForeignHooks() throws {
+    func testInstallRemovesLegacyAgentPetHooksAndPreservesForeignHooks() throws {
         let foreign: [String: Any] = [
             "hooks": [
                 "PreToolUse": [
-                    ["hooks": [["type": "command", "command": "/Applications/AgentPet.app/foo"]]]
+                    ["hooks": [
+                        ["type": "command", "command": "\"/Applications/AgentPet.app/Contents/MacOS/agentpet\" hook --agent codex"],
+                        ["type": "command", "command": "/Applications/OtherPet.app/foo"],
+                    ]],
+                    ["hooks": [["type": "command", "command": "/tmp/unrelated/hook-sender.sh"]]],
+                    ["hooks": [
+                        ["type": "command", "command": "~/.peachypet/hooks/hook-sender.sh"],
+                        ["type": "command", "command": "/Applications/MixedPet.app/foo"],
+                    ]],
                 ]
             ]
         ]
@@ -110,16 +118,20 @@ final class CodexHookInstallerTests: XCTestCase {
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: outData) as? [String: Any])
         let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
         let pre = try XCTUnwrap(hooks["PreToolUse"] as? [[String: Any]])
-        let hasForeign = pre.contains { entry in
-            guard let inner = entry["hooks"] as? [[String: Any]] else { return false }
-            return inner.contains { ($0["command"] as? String)?.contains("AgentPet") == true }
+        let commands = pre.flatMap { entry in
+            (entry["hooks"] as? [[String: Any]])?.compactMap { $0["command"] as? String } ?? []
         }
-        XCTAssertTrue(hasForeign, "foreign AgentPet hook was removed")
+
+        XCTAssertFalse(commands.contains { $0.contains("AgentPet.app") })
+        XCTAssertTrue(commands.contains("/Applications/OtherPet.app/foo"))
+        XCTAssertTrue(commands.contains("/tmp/unrelated/hook-sender.sh"))
+        XCTAssertTrue(commands.contains("/Applications/MixedPet.app/foo"))
+        XCTAssertTrue(commands.contains { $0.contains(".peachypet/hooks/hook-sender.sh") })
     }
 
     func testUninstallRemovesOnlyOurs() throws {
         let foreign: [String: Any] = [
-            "hooks": ["PreToolUse": [["hooks": [["type": "command", "command": "/Applications/AgentPet.app/foo"]]]]]
+            "hooks": ["PreToolUse": [["hooks": [["type": "command", "command": "/Applications/OtherPet.app/foo"]]]]]
         ]
         try JSONSerialization.data(withJSONObject: foreign).write(to: URL(fileURLWithPath: hooksPath))
         try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
@@ -139,10 +151,10 @@ final class CodexHookInstallerTests: XCTestCase {
                 XCTAssertFalse(hasOurs, "our hook survived uninstall in \(event)")
             }
         }
-        // AgentPet 还在
+        // OtherPet 还在
         let pre = try XCTUnwrap(hooks["PreToolUse"] as? [[String: Any]])
         XCTAssertTrue(pre.contains { entry in
-            (entry["hooks"] as? [[String: Any]])?.contains { ($0["command"] as? String)?.contains("AgentPet") == true } == true
+            (entry["hooks"] as? [[String: Any]])?.contains { ($0["command"] as? String)?.contains("OtherPet") == true } == true
         })
     }
 

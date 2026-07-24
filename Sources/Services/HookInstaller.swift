@@ -54,19 +54,22 @@ enum HookInstaller {
     }
 
     /// Register hooks globally in ~/.claude/settings.json
-    static func install() throws {
-        // Ensure hook script exists
-        try ensureScriptExists()
+    static func install(
+        settingsPath: String = claudeSettingsPath,
+        ensureScript: Bool = true
+    ) throws {
+        if ensureScript {
+            try ensureScriptExists()
+        }
 
-        // Read existing settings (or start fresh)
         var settings: [String: Any] = [:]
-        if let data = try? Data(contentsOf: URL(fileURLWithPath: claudeSettingsPath)),
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             settings = json
         }
 
-        // Build hooks config
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
+        removeOwnedAndLegacyHooks(from: &hooks)
         let hookEntry: [String: Any] = [
             "matcher": "",
             "hooks": [["type": "command", "command": hookCommand]],
@@ -86,9 +89,7 @@ enum HookInstaller {
         }
 
         settings["hooks"] = hooks
-
-        // Write back
-        try writeSettings(settings)
+        try writeSettings(settings, to: settingsPath)
     }
 
     /// Remove hooks from ~/.claude/settings.json
@@ -240,9 +241,33 @@ enum HookInstaller {
 
     // MARK: - Private
 
-    private static func writeSettings(_ settings: [String: Any]) throws {
-        // Ensure ~/.claude/ directory exists
-        let claudeDir = (claudeSettingsPath as NSString).deletingLastPathComponent
+    private static func removeOwnedAndLegacyHooks(from hooks: inout [String: Any]) {
+        for event in Array(hooks.keys) {
+            guard let entries = hooks[event] as? [[String: Any]] else { continue }
+            let filteredEntries = entries.compactMap { entry -> [String: Any]? in
+                guard var innerHooks = entry["hooks"] as? [[String: Any]] else { return entry }
+                innerHooks.removeAll { hook in
+                    guard let command = hook["command"] as? String else { return false }
+                    return command == hookCommand
+                        || command.contains("/.masko-desktop/hooks/")
+                        || command.contains("/.masko-code/hooks/")
+                        || command.contains("/Applications/AgentPet.app/")
+                }
+                guard !innerHooks.isEmpty else { return nil }
+                var updatedEntry = entry
+                updatedEntry["hooks"] = innerHooks
+                return updatedEntry
+            }
+            if filteredEntries.isEmpty {
+                hooks.removeValue(forKey: event)
+            } else {
+                hooks[event] = filteredEntries
+            }
+        }
+    }
+
+    private static func writeSettings(_ settings: [String: Any], to path: String = claudeSettingsPath) throws {
+        let claudeDir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(
             atPath: claudeDir,
             withIntermediateDirectories: true
@@ -252,6 +277,6 @@ enum HookInstaller {
             withJSONObject: settings,
             options: [.prettyPrinted, .sortedKeys]
         )
-        try data.write(to: URL(fileURLWithPath: claudeSettingsPath))
+        try data.write(to: URL(fileURLWithPath: path))
     }
 }
