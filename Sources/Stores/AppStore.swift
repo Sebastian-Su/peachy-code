@@ -27,6 +27,8 @@ final class AppStore {
     private(set) var isReady = false
     private(set) var isRunning = false
     private var lastReconcileDate: Date = .distantPast
+    @ObservationIgnored
+    private var sessionMetadataMonitor: SessionMetadataMonitor!
 
     /// Cached IDE detection results — survives across SettingsView recreations.
     /// Updated by SettingsView.task and install/uninstall actions.
@@ -99,6 +101,9 @@ final class AppStore {
             notificationStore: notificationStore,
             notificationService: notificationService
         )
+        self.sessionMetadataMonitor = SessionMetadataMonitor { [weak self] update in
+            self?.sessionStore.updateMetadata(update)
+        }
 
         // Register adapters with the event bus
         eventBus.register(claudeCodeAdapter)
@@ -110,6 +115,7 @@ final class AppStore {
             guard let self else { return }
             Task { @MainActor in
                 await self.eventProcessor.process(event)
+                self.sessionMetadataMonitor.update(activeSessions: self.sessionStore.activeSessions)
 
                 // If a subsequent event arrives for a session with pending permissions,
                 // the user may have resolved a permission from the terminal - dismiss it.
@@ -200,7 +206,9 @@ final class AppStore {
         sessionStore.onPhasesChanged = { [weak self] in
             guard let self else { return }
             self.onRefreshOverlay?()
-            let activeCount = self.sessionStore.activeSessions.count
+            let activeSessions = self.sessionStore.activeSessions
+            self.sessionMetadataMonitor.update(activeSessions: activeSessions)
+            let activeCount = activeSessions.count
             self.hotkeyManager.activeSessionCount = activeCount
 
             // Auto-dismiss or refresh session switcher when sessions change
@@ -450,6 +458,7 @@ final class AppStore {
         }
 
         eventBus.startAll()
+        sessionMetadataMonitor.start(activeSessions: sessionStore.activeSessions)
 
         // Reconcile sessions when app comes to foreground (crash recovery).
         // Throttled to at most once per 30 seconds — this notification fires on every
@@ -490,6 +499,7 @@ final class AppStore {
     /// Tear down adapters and timers to prevent zombie processes
     func stop() {
         eventBus.stopAll()
+        sessionMetadataMonitor.stop()
         sessionStore.stopTimers()
         pendingPermissionStore.stopTimers()
         hotkeyManager.stop()

@@ -204,6 +204,7 @@ final class SessionStore {
         status: AgentSession.Status,
         phase: AgentSession.Phase,
         idleUntil: Date?,
+        firstUserPrompt: String?,
         activeSubagentIds: Set<String>,
         anonymousSubagentCount: Int,
         reconciledSubagentStopIds: Set<String>
@@ -585,6 +586,7 @@ final class SessionStore {
                 status: session.status,
                 phase: session.phase,
                 idleUntil: session.idleUntil,
+                firstUserPrompt: session.firstUserPrompt,
                 activeSubagentIds: activeSubagentIds[sessionId] ?? [],
                 anonymousSubagentCount: anonymousSubagentCounts[sessionId] ?? 0,
                 reconciledSubagentStopIds: reconciledSubagentStopIds[sessionId] ?? []
@@ -595,6 +597,7 @@ final class SessionStore {
                 status: .ended,
                 phase: .idle,
                 idleUntil: nil,
+                firstUserPrompt: nil,
                 activeSubagentIds: [],
                 anonymousSubagentCount: 0,
                 reconciledSubagentStopIds: []
@@ -636,6 +639,7 @@ final class SessionStore {
         sessions[index].status = snapshot.status
         sessions[index].phase = snapshot.phase
         sessions[index].idleUntil = snapshot.idleUntil
+        sessions[index].firstUserPrompt = snapshot.firstUserPrompt
         if snapshot.status == .ended || snapshot.phase == .idle {
             clearSubagents(at: index)
         } else {
@@ -706,6 +710,36 @@ final class SessionStore {
         }
         if changed { persist() }
         scheduleIdleExpiryTimer()
+    }
+
+    // MARK: - Metadata Updates
+
+    func updateMetadata(_ update: SessionMetadataUpdate) {
+        guard let index = sessions.firstIndex(where: { $0.id == update.sessionId }) else { return }
+        var changed = false
+
+        if let title = update.sessionTitle,
+           !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           sessions[index].sessionTitle != title {
+            sessions[index].sessionTitle = title
+            changed = true
+        }
+        if sessions[index].firstUserPrompt == nil,
+           let prompt = update.firstUserPrompt,
+           !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            sessions[index].firstUserPrompt = prompt
+            changed = true
+        }
+        if let projectName = update.projectDisplayName,
+           !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           sessions[index].projectDisplayName != projectName {
+            sessions[index].projectDisplayName = projectName
+            changed = true
+        }
+
+        guard changed else { return }
+        persist()
+        onPhasesChanged?()
     }
 
     // MARK: - Test Support
@@ -812,6 +846,12 @@ final class SessionStore {
 
             case .userPromptSubmit:
                 sessions[index].phase = .running
+                if sessions[index].firstUserPrompt == nil,
+                   let prompt = event.prompt,
+                   !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    sessions[index].firstUserPrompt = prompt
+                    shouldNotifyObservers = true
+                }
                 clearIdleUntil(for: sessionId)
 
             case .preToolUse, .postToolUse, .postToolUseFailure, .permissionRequest:
@@ -903,6 +943,12 @@ final class SessionStore {
             }
             session.shellPid = event.shellPid
             session.transcriptPath = event.transcriptPath
+            if event.eventType == .userPromptSubmit,
+               let prompt = event.prompt,
+               !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                session.firstUserPrompt = prompt
+                shouldNotifyObservers = true
+            }
             if event.eventType == .subagentStart {
                 if let agentId = event.agentId {
                     reconciledSubagentStopIds[sessionId]?.remove(agentId)
