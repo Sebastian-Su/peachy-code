@@ -25,6 +25,7 @@
 "settings.hide_delay" = "隐藏延迟（秒）";
 "settings.toast_enabled" = "任务完成提示";
 "settings.toast_duration" = "提示持续（秒）";
+"settings.auto_hide_sessions" = "自动隐藏非活跃会话";
 "settings.enable_terminal_switching" = "启用终端切换";
 
 /* Settings – Shortcuts */

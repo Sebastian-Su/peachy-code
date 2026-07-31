@@ -198,6 +198,23 @@ final class SessionStore {
     private var interruptWatcherTimer: Timer?
     private var idleExpiryTimer: Timer?
     private let idleRetentionDuration: TimeInterval
+
+    private static let autoHideKey = "auto_hide_inactive_sessions"
+
+    /// When off (default), idle sessions stay visible until a real SessionEnd or crash
+    /// recovery removes them. When on, idle sessions auto-expire after idleRetentionDuration.
+    var autoHideInactiveSessions: Bool = UserDefaults.standard.bool(forKey: SessionStore.autoHideKey) {
+        didSet {
+            guard autoHideInactiveSessions != oldValue else { return }
+            UserDefaults.standard.set(autoHideInactiveSessions, forKey: Self.autoHideKey)
+            if autoHideInactiveSessions {
+                expireIdleSessions()
+            } else {
+                idleExpiryTimer?.invalidate()
+                idleExpiryTimer = nil
+            }
+        }
+    }
     /// Snapshots for in-progress potentially-internal turns.
     private var internalTurnSnapshots: [String: (
         existed: Bool,
@@ -507,6 +524,7 @@ final class SessionStore {
     /// Also expires active+idle sessions that have no idleUntil but whose lastEventAt
     /// is older than idleRetentionDuration (handles sessions that never received a Stop).
     func expireIdleSessions() {
+        guard autoHideInactiveSessions else { return }
         let now = Date()
         var changed = false
         for i in sessions.indices {
@@ -552,6 +570,7 @@ final class SessionStore {
 
     private func scheduleIdleExpiryTimer() {
         idleExpiryTimer?.invalidate()
+        guard autoHideInactiveSessions else { return }
         // Compute the nearest expiry: from explicit idleUntil, or implicit lastEventAt + retention
         let explicitExpiry = sessions.compactMap { s -> Date? in
             guard s.status == .active else { return nil }
@@ -671,6 +690,7 @@ final class SessionStore {
             clearSubagents(at: i)
             if hadPersistedSubagents { changed = true }
             guard sessions[i].status == .active else { continue }
+            guard autoHideInactiveSessions else { continue }
             switch sessions[i].phase {
             case .idle:
                 if let idleUntil = sessions[i].idleUntil {

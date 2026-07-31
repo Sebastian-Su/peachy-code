@@ -107,6 +107,18 @@ struct SettingsView: View {
                     ))
                     .labelsHidden()
                 }
+
+                // Auto-hide inactive sessions from the switcher
+                HStack {
+                    Text(t("settings.auto_hide_sessions"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { appStore.sessionStore.autoHideInactiveSessions },
+                        set: { appStore.sessionStore.autoHideInactiveSessions = $0 }
+                    ))
+                    .labelsHidden()
+                }
             } header: {
                 Text(t("settings.overlay")).font(Constants.heading(size: 13, weight: .semibold))
             }

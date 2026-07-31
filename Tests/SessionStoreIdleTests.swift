@@ -7,7 +7,9 @@ final class SessionStoreIdleTests: XCTestCase {
     // MARK: - Helpers
 
     private func makeStore(idleRetention: TimeInterval = 300) -> SessionStore {
-        SessionStore(idleRetentionDuration: idleRetention)
+        let store = SessionStore(idleRetentionDuration: idleRetention)
+        store.autoHideInactiveSessions = true
+        return store
     }
 
     private func event(

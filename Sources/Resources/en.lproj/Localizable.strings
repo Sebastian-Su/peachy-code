@@ -25,6 +25,7 @@
 "settings.hide_delay" = "Hide delay (seconds)";
 "settings.toast_enabled" = "Task completed toast";
 "settings.toast_duration" = "Toast duration (seconds)";
+"settings.auto_hide_sessions" = "Auto-hide inactive sessions";
 "settings.enable_terminal_switching" = "Enable terminal switching";
 
 /* Settings – Shortcuts */
