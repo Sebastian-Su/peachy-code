@@ -2,6 +2,10 @@
 "settings.appearance" = "Appearance";
 "settings.language" = "Language";
 
+/* Settings – General */
+"settings.general" = "General";
+"settings.launch_at_login" = "Launch at Login";
+
 /* Settings – Connection */
 "settings.connection" = "Connection";
 "settings.assistant_events" = "Assistant Events";

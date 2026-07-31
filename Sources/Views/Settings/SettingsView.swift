@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @Environment(AppStore.self) var appStore
@@ -18,6 +19,8 @@ struct SettingsView: View {
     @State private var toastDurationText: String = "8"
     @State private var showConnectionDoctor = false
     @State private var selectedLanguage: AppLanguage = LanguageManager.shared.language
+    @State private var launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+    @State private var launchAtLoginError: String?
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
@@ -48,6 +51,25 @@ struct SettingsView: View {
                 }
             } header: {
                 Text(t("settings.appearance")).font(Constants.heading(size: 13, weight: .semibold))
+            }
+
+            // MARK: – General
+            Section {
+                HStack {
+                    Text(t("settings.launch_at_login"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { launchAtLoginEnabled },
+                        set: { setLaunchAtLoginEnabled($0) }
+                    ))
+                    .labelsHidden()
+                }
+                if let error = launchAtLoginError {
+                    Text(error).font(.system(size: 11)).foregroundColor(.red)
+                }
+            } header: {
+                Text(t("settings.general")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
             // MARK: – Overlay
@@ -384,6 +406,7 @@ struct SettingsView: View {
             autoHideDelayText = String(Int(overlayManager.autoHideDelay))
             toastDurationText = String(Int(appStore.sessionFinishedStore.toastDuration))
             selectedLanguage = LanguageManager.shared.language
+            launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
             portText = String(appStore.localServer.port)
 
             // Show cached IDE statuses immediately (no flash on repeat visits)
@@ -414,6 +437,20 @@ struct SettingsView: View {
         } message: {
             Text(t("settings.uninstall_confirm"))
         }
+    }
+
+    private func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        launchAtLoginError = nil
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            launchAtLoginError = error.localizedDescription
+        }
+        launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
     }
 
     private func applyPort() {
