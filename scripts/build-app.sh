@@ -72,6 +72,20 @@ echo "── Verify signature ────────────────�
 codesign --verify --deep --verbose=1 "$APP" 2>&1 | tail -2 || true
 codesign -dv "$APP" 2>&1 | grep -iE "Identifier|Authority|TeamIdentifier" | head -3
 
+# Hard gate: a real signing identity is REQUIRED. Ad-hoc / missing-team builds
+# change their cdhash and silently revoke TCC (Accessibility) grants, breaking
+# the global hotkey. Fail loudly instead of shipping a broken bundle.
+SIG_INFO="$(codesign -dvv "$APP" 2>&1)"
+if echo "$SIG_INFO" | grep -q "Signature=adhoc"; then
+  echo "ERROR: bundle is ad-hoc signed. Set SIGN_IDENTITY to a real Apple Development identity." >&2
+  echo "  Available identities: security find-identity -v -p codesigning" >&2
+  exit 1
+fi
+if ! echo "$SIG_INFO" | grep -q "TeamIdentifier=[A-Z0-9]"; then
+  echo "ERROR: bundle has no TeamIdentifier. Signing did not use a valid certificate." >&2
+  exit 1
+fi
+
 echo "── Done ───────────────────────────────────────"
 echo "App: $APP"
 echo "Executable arch: $(lipo -archs "$APP/Contents/MacOS/$EXEC_NAME" 2>/dev/null || echo unknown)"

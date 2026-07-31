@@ -25,6 +25,10 @@ rm -rf /Applications/PeachyPet.app
 cp -R dist/PeachyPet.app /Applications/PeachyPet.app
 ```
 
+> ⚠️ **签名铁律**：安装/替换 `/Applications/PeachyPet.app` **必须**经由 `scripts/build-app.sh`（正式 Apple Development 签名）。
+> **绝不**用 `codesign --sign -`（ad-hoc）或 `swift build` 的裸二进制覆盖已安装应用——ad-hoc 每次重签 cdhash 都会变，macOS 视其为新应用，导致此前授予的辅助功能（全局快捷键）和通知授权全部失效，只能手动重新授权。
+> 脚本已内置硬校验：产物若为 ad-hoc 或缺少 TeamIdentifier 会非零退出。验证签名：`codesign -dvv /Applications/PeachyPet.app`（应显示 `TeamIdentifier=6H93K2UP6T`，而非 `Signature=adhoc`）。
+
 ## 调试：日志与崩溃堆栈
 
 ### OSLog 日志（PeachyLog）
