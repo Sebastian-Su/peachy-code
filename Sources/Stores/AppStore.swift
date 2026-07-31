@@ -261,8 +261,13 @@ final class AppStore {
             if self.hotkeyManager.isExpandedPermissionActive { return }
             let active = self.sessionStore.activeSessions
             self.sessionSwitcherStore.open(sessions: active)
+            self.sessionSwitcherStore.setAutoDismissPaused(self.hotkeyManager.isCmdHeld)
             self.syncActiveCard()
             self.onSessionSwitcherShow?()
+        }
+
+        hotkeyManager.onCmdHeldChanged = { [weak self] held in
+            self?.sessionSwitcherStore.setAutoDismissPaused(held)
         }
 
         hotkeyManager.onSessionSwitcherNext = { [weak self] in

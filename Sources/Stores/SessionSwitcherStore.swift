@@ -5,7 +5,13 @@ final class SessionSwitcherStore {
     private(set) var isActive = false
     private(set) var selectedIndex: Int = 0
     private(set) var sessions: [AgentSession] = []
+    private(set) var isAutoDismissPaused = false
     private var autoDismissTimer: Timer?
+    private let autoDismissInterval: TimeInterval
+
+    init(autoDismissInterval: TimeInterval = 5.0) {
+        self.autoDismissInterval = autoDismissInterval
+    }
 
     /// Called when user taps a row — AppStore wires this to focus terminal + dismiss.
     var onTapConfirm: ((AgentSession) -> Void)?
@@ -21,6 +27,7 @@ final class SessionSwitcherStore {
         }
         self.selectedIndex = 0 // Start on the most recent session
         self.isActive = true
+        self.isAutoDismissPaused = false
         resetAutoDismissTimer()
     }
 
@@ -78,18 +85,32 @@ final class SessionSwitcherStore {
         }
     }
 
+    func setAutoDismissPaused(_ paused: Bool) {
+        guard isActive, paused != isAutoDismissPaused else { return }
+        isAutoDismissPaused = paused
+        if paused {
+            autoDismissTimer?.invalidate()
+            autoDismissTimer = nil
+        } else {
+            resetAutoDismissTimer()
+        }
+    }
+
     func close() {
         autoDismissTimer?.invalidate()
         autoDismissTimer = nil
+        isAutoDismissPaused = false
         isActive = false
         sessions = []
         selectedIndex = 0
     }
 
-    /// Auto-dismiss after 5 seconds of no interaction to prevent stuck keyboard capture.
+    /// Auto-dismiss after inactivity to prevent stuck keyboard capture.
     private func resetAutoDismissTimer() {
         autoDismissTimer?.invalidate()
-        autoDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+        autoDismissTimer = nil
+        guard !isAutoDismissPaused else { return }
+        autoDismissTimer = Timer.scheduledTimer(withTimeInterval: autoDismissInterval, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self, self.isActive else { return }
                 self.close()

@@ -105,6 +105,9 @@ final class GlobalHotkeyManager {
     /// Called when double-tap Cmd opens the session switcher.
     var onSessionSwitcherOpen: (() -> Void)?
 
+    /// Called when the physical Cmd hold state changes.
+    var onCmdHeldChanged: ((Bool) -> Void)?
+
     /// Called when arrow key cycles to next/previous session (while switcher active).
     var onSessionSwitcherNext: (() -> Void)?
     var onSessionSwitcherPrev: (() -> Void)?
@@ -453,8 +456,10 @@ private func globalHotkeyCallback(
             }
         }
 
+        // Keep this after open/confirm callbacks so Cmd release resets only the active switcher's timer.
         DispatchQueue.main.async {
             manager.isCmdHeld = cmdDown
+            manager.onCmdHeldChanged?(cmdDown)
             if !cmdDown { manager.selectedButtonIndex = nil }
         }
         return Unmanaged.passUnretained(event)
@@ -574,19 +579,39 @@ private func globalHotkeyCallback(
 
 // MARK: - Key code → string helper
 
-private func keyCodeToString(_ keyCode: Int64) -> String {
-    // Special keys (not affected by keyboard layout)
-    let specialKeys: [Int64: String] = [
-        49: "Space", 50: "`", 51: "Delete", 53: "Esc", 36: "Return", 48: "Tab",
-        122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6",
-        98: "F7", 100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12",
-        123: "←", 124: "→", 125: "↓", 126: "↑",
+func fallbackKeyCodeToString(_ keyCode: Int64) -> String {
+    let keys: [Int64: String] = [
+        0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X",
+        8: "C", 9: "V", 11: "B", 12: "Q", 13: "W", 14: "E", 15: "R",
+        16: "Y", 17: "T", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
+        23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0",
+        30: "]", 31: "O", 32: "U", 33: "[", 34: "I", 35: "P", 37: "L",
+        38: "J", 39: "'", 40: "K", 41: ";", 42: "\\", 43: ",", 44: "/",
+        45: "N", 46: "M", 47: ".", 49: "Space", 50: "`", 51: "Delete",
+        53: "Esc", 36: "Return", 48: "Tab", 122: "F1", 120: "F2", 99: "F3",
+        118: "F4", 96: "F5", 97: "F6", 98: "F7", 100: "F8", 101: "F9",
+        109: "F10", 103: "F11", 111: "F12", 123: "←", 124: "→", 125: "↓", 126: "↑",
     ]
-    if let special = specialKeys[keyCode] { return special }
+    return keys[keyCode] ?? "?"
+}
 
-    // Use current keyboard layout to resolve the character
-    if let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
-       let layoutDataRef = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) {
+private func keyCodeToString(_ keyCode: Int64) -> String {
+    let layoutIndependentKeys: Set<Int64> = [
+        36, 48, 49, 51, 53, 96, 97, 98, 99, 100, 101, 103, 109, 111, 118, 120, 122,
+        123, 124, 125, 126,
+    ]
+    if layoutIndependentKeys.contains(keyCode) {
+        return fallbackKeyCodeToString(keyCode)
+    }
+
+    let sources = [
+        TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+        TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+    ]
+    for source in sources.compactMap({ $0 }) {
+        guard let layoutDataRef = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            continue
+        }
         let layoutData = unsafeBitCast(layoutDataRef, to: CFData.self) as Data
         let layoutPtr = layoutData.withUnsafeBytes { $0.bindMemory(to: UCKeyboardLayout.self).baseAddress! }
         var deadKeyState: UInt32 = 0
@@ -601,5 +626,5 @@ private func keyCodeToString(_ keyCode: Int64) -> String {
             return String(utf16CodeUnits: chars, count: length).uppercased()
         }
     }
-    return "Key\(keyCode)"
+    return fallbackKeyCodeToString(keyCode)
 }

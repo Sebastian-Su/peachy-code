@@ -59,4 +59,14 @@ final class GlobalHotkeyManagerTests: XCTestCase {
             )
         }
     }
+
+    func testFallbackKeyLabelsUseReadableNames() {
+        XCTAssertEqual(fallbackKeyCodeToString(46), "M")
+        XCTAssertEqual(fallbackKeyCodeToString(26), "7")
+        XCTAssertEqual(fallbackKeyCodeToString(53), "Esc")
+    }
+
+    func testUnknownKeyLabelDoesNotExposeRawKeyCode() {
+        XCTAssertEqual(fallbackKeyCodeToString(255), "?")
+    }
 }
