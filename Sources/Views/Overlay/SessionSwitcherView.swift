@@ -5,6 +5,15 @@ func formatSessionSwitcherProjectLabel(project: String, title: String?) -> Strin
     return "\(project) · \(title)"
 }
 
+func sessionPhaseLabel(_ phase: AgentSession.Phase) -> String {
+    switch phase {
+    case .running: return "Running"
+    case .waitingInput: return t("switcher.waiting_for_input")
+    case .idle: return "Idle"
+    case .compacting: return "Compacting"
+    }
+}
+
 private let subagentIndicatorWidth: CGFloat = 10
 private let subagentIndicatorSpacing: CGFloat = 4
 private let subagentIndicatorRightInset: CGFloat = 6
@@ -167,17 +176,14 @@ private struct SessionSwitcherRow: View {
     private var phaseColor: Color {
         switch session.phase {
         case .running: return .green
+        case .waitingInput: return Constants.orangePrimary
         case .idle: return Color(red: 160/255, green: 160/255, blue: 170/255)
         case .compacting: return .purple
         }
     }
 
     private var phaseLabel: String {
-        switch session.phase {
-        case .running: return "Running"
-        case .idle: return "Idle"
-        case .compacting: return "Compacting"
-        }
+        sessionPhaseLabel(session.phase)
     }
 
     private var relativeTime: String? {

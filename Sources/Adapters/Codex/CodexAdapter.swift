@@ -57,12 +57,11 @@ final class CodexAdapter: AgentAdapter {
         monitor.stop()
     }
 
-    private func route(_ event: AgentEvent) {
+    func route(_ event: AgentEvent) {
         guard !shouldSuppress(event) else { return }
 
         if event.eventType == .permissionRequest {
             onPermissionRequest?(event, TerminalFallbackTransport(event: event))
-            return
         }
 
         onEvent?(event)

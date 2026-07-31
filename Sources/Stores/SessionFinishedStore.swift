@@ -10,7 +10,14 @@ final class SessionFinishedStore {
     static let durationKey = "taskCompletedToastDuration"
     static let defaultDuration: TimeInterval = 8
 
+    enum Kind: Equatable {
+        case completed
+        case waitingInput
+    }
+
     struct Toast {
+        let id = UUID()
+        let kind: Kind
         let sessionId: String
         let projectName: String
         let duration: TimeInterval
@@ -29,14 +36,35 @@ final class SessionFinishedStore {
         set { UserDefaults.standard.set(newValue, forKey: Self.durationKey) }
     }
 
-    func show(sessionId: String, projectName: String) {
+    func show(kind: Kind, sessionId: String, projectName: String) {
         guard isEnabled else { return }
+        // Repeated events for the same session/kind keep the existing card and timer
+        // rather than resetting the countdown (e.g. duplicate idle_prompt notifications).
+        if let current, current.kind == kind, current.sessionId == sessionId {
+            return
+        }
         let duration = toastDuration
-        current = Toast(sessionId: sessionId, projectName: projectName, duration: duration)
+        let toast = Toast(
+            kind: kind,
+            sessionId: sessionId,
+            projectName: projectName,
+            duration: duration
+        )
+        current = toast
         dismissTimer?.invalidate()
         dismissTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
-            DispatchQueue.main.async { self?.dismiss() }
+            DispatchQueue.main.async { self?.dismiss(toastId: toast.id) }
         }
+    }
+
+    func dismiss(toastId: UUID) {
+        guard current?.id == toastId else { return }
+        dismiss()
+    }
+
+    func dismiss(sessionId: String) {
+        guard current?.sessionId == sessionId else { return }
+        dismiss()
     }
 
     func dismiss() {

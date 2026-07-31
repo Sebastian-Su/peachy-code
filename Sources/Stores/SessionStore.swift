@@ -119,9 +119,14 @@ struct AgentSession: Identifiable, Codable {
     }
 
     enum Phase: String, Codable {
-        case idle       // After Stop or SessionStart — waiting for user input
-        case running    // After UserPromptSubmit or tool use — agent is working
-        case compacting // After PreCompact — context compaction in progress
+        case idle
+        case waitingInput
+        case running
+        case compacting
+
+        var isIdleLike: Bool {
+            self == .idle || self == .waitingInput
+        }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -529,7 +534,7 @@ final class SessionStore {
         var changed = false
         for i in sessions.indices {
             guard sessions[i].status == .active else { continue }
-            if sessions[i].phase == .idle {
+            if sessions[i].phase.isIdleLike {
                 if let idleUntil = sessions[i].idleUntil {
                     if idleUntil <= now {
                         sessions[i].status = .ended
@@ -573,12 +578,12 @@ final class SessionStore {
         guard autoHideInactiveSessions else { return }
         // Compute the nearest expiry: from explicit idleUntil, or implicit lastEventAt + retention
         let explicitExpiry = sessions.compactMap { s -> Date? in
-            guard s.status == .active else { return nil }
+            guard s.status == .active, s.phase.isIdleLike else { return nil }
             return s.idleUntil
         }.min()
         let implicitExpiry = sessions.compactMap { s -> Date? in
             guard s.status == .active, s.idleUntil == nil else { return nil }
-            guard s.phase == .idle || (
+            guard s.phase.isIdleLike || (
                 s.phase == .running &&
                 s.terminalPid == nil &&
                 s.agentSource == .codex &&
@@ -692,7 +697,7 @@ final class SessionStore {
             guard sessions[i].status == .active else { continue }
             guard autoHideInactiveSessions else { continue }
             switch sessions[i].phase {
-            case .idle:
+            case .idle, .waitingInput:
                 if let idleUntil = sessions[i].idleUntil {
                     if idleUntil <= now {
                         sessions[i].status = .ended
@@ -780,7 +785,7 @@ final class SessionStore {
     }
 
     var idleSessions: [AgentSession] {
-        activeSessions.filter { $0.phase == .idle }
+        activeSessions.filter { $0.phase.isIdleLike }
     }
 
     var totalActiveSubagents: Int {
@@ -864,7 +869,16 @@ final class SessionStore {
                     sessions[index].shellPid = pid
                 }
 
+            case .notification where event.notificationType == "idle_prompt":
+                guard sessions[index].phase == .idle else { break }
+                sessions[index].phase = .waitingInput
+                if sessions[index].idleUntil == nil {
+                    setIdleUntil(for: sessionId)
+                }
+                shouldNotifyObservers = true
+
             case .userPromptSubmit:
+                let phaseChanged = sessions[index].phase != .running
                 sessions[index].phase = .running
                 if sessions[index].firstUserPrompt == nil,
                    let prompt = event.prompt,
@@ -873,16 +887,26 @@ final class SessionStore {
                     shouldNotifyObservers = true
                 }
                 clearIdleUntil(for: sessionId)
+                shouldNotifyObservers = shouldNotifyObservers || phaseChanged
 
             case .preToolUse, .postToolUse, .postToolUseFailure, .permissionRequest:
                 // Tool activity confirms agent is working
+                let phaseChanged = sessions[index].phase != .running
                 sessions[index].phase = .running
+                clearIdleUntil(for: sessionId)
+                shouldNotifyObservers = shouldNotifyObservers || phaseChanged
 
             case .preCompact:
+                let phaseChanged = sessions[index].phase != .compacting
                 sessions[index].phase = .compacting
+                clearIdleUntil(for: sessionId)
+                shouldNotifyObservers = shouldNotifyObservers || phaseChanged
 
             case .postCompact:
+                let phaseChanged = sessions[index].phase != .running
                 sessions[index].phase = .running
+                clearIdleUntil(for: sessionId)
+                shouldNotifyObservers = shouldNotifyObservers || phaseChanged
 
             case .stop, .stopFailure:
                 sessions[index].phase = .idle
@@ -942,9 +966,17 @@ final class SessionStore {
                 shouldNotifyObservers = true
             }
         } else {
+            // A waiting notification alone is not enough evidence to create a session.
+            if event.eventType == .notification && event.notificationType == "idle_prompt" {
+                return
+            }
             // New session
-            let startsRunning = event.eventType == .userPromptSubmit || event.eventType == .subagentStart
-            let phase: AgentSession.Phase = startsRunning ? .running : .idle
+            let phase: AgentSession.Phase
+            if event.eventType == .userPromptSubmit || event.eventType == .subagentStart {
+                phase = .running
+            } else {
+                phase = .idle
+            }
             var session = AgentSession(
                 id: sessionId,
                 projectDir: event.cwd,

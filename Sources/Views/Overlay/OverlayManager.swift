@@ -339,7 +339,7 @@ final class OverlayManager {
         guard let sm = currentStateMachine else { return }
 
         let isWorking = active.contains { $0.phase == .running }
-        let isIdle = active.allSatisfy { $0.phase == .idle } || active.isEmpty
+        let isIdle = active.allSatisfy { $0.phase.isIdleLike } || active.isEmpty
         // Only alert if a pending permission belongs to a session that's still active
         // (collapsed/ended sessions lose priority to working sessions)
         let activeSessionIds = Set(active.map(\.id))

@@ -6,6 +6,10 @@ final class EventProcessor {
     private let sessionStore: SessionStore
     private let notificationStore: NotificationStore
     private let notificationService: NotificationService
+    /// Session IDs identified as Codex background startup tasks, retained long
+    /// enough to absorb their trailing lifecycle events without growing forever.
+    private var suppressedSessions: [String: Date] = [:]
+    private let suppressionRetentionDuration: TimeInterval = 300
 
     init(
         eventStore: EventStore,
@@ -33,10 +37,34 @@ final class EventProcessor {
         }
     }
 
-    @MainActor func process(_ event: AgentEvent) async {
+    @MainActor @discardableResult func process(_ event: AgentEvent) async -> Bool {
         eventStore.append(event)
         PeachyLog.event.debug("Processing \(event.hookEventName) sid=\(event.sessionId ?? "-") src=\(event.source ?? "-")")
 
+        let now = Date()
+        pruneSuppressedSessions(before: now)
+
+        if let sessionId = event.sessionId, suppressedSessions[sessionId] != nil {
+            // Codex never emits SessionEnd, so keep swallowing this session's
+            // trailing events (Stop, late prompts) and refresh its retention.
+            suppressedSessions[sessionId] = now
+            PeachyLog.event.debug("Ignoring Codex background session sid=\(sessionId)")
+            return false
+        }
+
+        if isCodexBackgroundStartup(event) {
+            if let sessionId = event.sessionId {
+                suppressedSessions[sessionId] = now
+            }
+            PeachyLog.event.debug("Ignoring Codex background startup sid=\(event.sessionId ?? "-")")
+            return false
+        }
+
+        await processVisibleEvent(event)
+        return true
+    }
+
+    @MainActor private func processVisibleEvent(_ event: AgentEvent) async {
         let disp = disposition(for: event)
         let sessionId = event.sessionId ?? ""
 
@@ -90,6 +118,26 @@ final class EventProcessor {
                 await notificationService.show(notification)
             }
         }
+    }
+
+    private func pruneSuppressedSessions(before now: Date) {
+        suppressedSessions = suppressedSessions.filter {
+            now.timeIntervalSince($0.value) < suppressionRetentionDuration
+        }
+    }
+
+    private func isCodexBackgroundStartup(_ event: AgentEvent) -> Bool {
+        guard event.eventType == .sessionStart,
+              event.source?.lowercased() == "startup",
+              event.permissionMode == "bypassPermissions",
+              event.terminalPid == nil,
+              event.shellPid == nil,
+              event.transcriptPath == nil,
+              let sessionId = event.sessionId,
+              let uuid = UUID(uuidString: sessionId) else {
+            return false
+        }
+        return (uuid.uuid.6 >> 4) == 7
     }
 
     private func createNotification(from event: AgentEvent) -> AppNotification? {

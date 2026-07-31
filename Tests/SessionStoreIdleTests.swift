@@ -16,12 +16,14 @@ final class SessionStoreIdleTests: XCTestCase {
         type: HookEventType,
         sessionId: String,
         taskId: String? = nil,
-        source: String = "codex-cli"
+        source: String = "codex-cli",
+        notificationType: String? = nil
     ) -> AgentEvent {
         AgentEvent(
             hookEventName: type.rawValue,
             sessionId: sessionId,
             cwd: "/tmp",
+            notificationType: notificationType,
             source: source,
             taskId: taskId
         )
@@ -177,6 +179,150 @@ final class SessionStoreIdleTests: XCTestCase {
         let session = store.sessions.first(where: { $0.id == sid })
         XCTAssertEqual(session?.phase, .running, "new userPromptSubmit must resume running")
         XCTAssertNil(session?.idleUntil, "idleUntil must be cleared on reactivation")
+    }
+
+    func testIdlePromptTransitionsStoppedSessionToWaitingInput() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid))
+        store.recordEvent(event(type: .stop, sessionId: sid))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.phase, .idle)
+
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.phase, .waitingInput)
+        XCTAssertNotNil(session?.idleUntil)
+    }
+
+    func testUserPromptResumesWaitingInputSession() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-resume-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .stop, sessionId: sid))
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.phase, .running)
+        XCTAssertNil(session?.idleUntil)
+    }
+
+    func testWaitingInputSessionExpiresWithIdleRetention() {
+        let store = makeStore(idleRetention: 0)
+        defer { store.stopTimers() }
+        let sid = "waiting-expire-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .stop, sessionId: sid))
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+        store.expireIdleSessions()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .ended)
+    }
+
+    func testLateIdlePromptDoesNotRegressRunningSession() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-late-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .stop, sessionId: sid))
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid))
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.phase, .running)
+        XCTAssertNil(session?.idleUntil)
+    }
+
+    func testWaitingInputResumeNotifiesPhaseObservers() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-observer-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .stop, sessionId: sid))
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+        var notificationCount = 0
+        store.onPhasesChanged = { notificationCount += 1 }
+
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid))
+
+        XCTAssertEqual(notificationCount, 1)
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.phase, .running)
+    }
+
+    func testToolActivityClearsWaitingInputDeadline() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-tool-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .stop, sessionId: sid))
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+        XCTAssertNotNil(store.sessions.first(where: { $0.id == sid })?.idleUntil)
+
+        store.recordEvent(event(type: .preToolUse, sessionId: sid))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.phase, .running)
+        XCTAssertNil(session?.idleUntil)
+    }
+
+    func testIdlePromptDoesNotCreateUnknownSession() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-unknown-\(UUID().uuidString)"
+
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+
+        XCTAssertNil(store.sessions.first(where: { $0.id == sid }))
+    }
+
+    func testIdlePromptDoesNotReactivateEndedSession() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "waiting-ended-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid))
+        store.recordEvent(event(type: .sessionEnd, sessionId: sid))
+        store.recordEvent(event(
+            type: .notification,
+            sessionId: sid,
+            notificationType: "idle_prompt"
+        ))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.status, .ended)
+        XCTAssertEqual(session?.phase, .idle)
     }
 
     // MARK: - Internal turn snapshot & rollback

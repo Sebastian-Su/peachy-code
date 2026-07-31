@@ -115,6 +115,7 @@
 
 /* Session Switcher */
 "switcher.no_sessions" = "无活跃会话";
+"switcher.waiting_for_input" = "等待输入";
 
 /* Session List */
 "sessions.no_sessions" = "无会话";
@@ -124,6 +125,7 @@
 
 /* Session Finished Toast */
 "toast.task_completed" = "任务完成";
+"toast.waiting_for_input" = "等待你的回复";
 
 /* Approvals */
 "approvals.no_approvals" = "无审批请求";

@@ -115,6 +115,7 @@
 
 /* Session Switcher */
 "switcher.no_sessions" = "No active sessions";
+"switcher.waiting_for_input" = "Waiting for input";
 
 /* Session List */
 "sessions.no_sessions" = "No Sessions";
@@ -124,6 +125,7 @@
 
 /* Session Finished Toast */
 "toast.task_completed" = "Task completed";
+"toast.waiting_for_input" = "Waiting for your input";
 
 /* Approvals */
 "approvals.no_approvals" = "No Approvals";

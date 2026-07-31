@@ -25,4 +25,11 @@ final class SessionSwitcherTitleTests: XCTestCase {
         )
         XCTAssertEqual(result, "namiwork-core")
     }
+
+    func testWaitingInputPhaseLabelUsesLocalization() {
+        XCTAssertEqual(
+            sessionPhaseLabel(.waitingInput),
+            t("switcher.waiting_for_input")
+        )
+    }
 }

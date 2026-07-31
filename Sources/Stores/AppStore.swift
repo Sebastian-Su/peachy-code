@@ -114,7 +114,7 @@ final class AppStore {
         eventBus.onEvent = { [weak self] event in
             guard let self else { return }
             Task { @MainActor in
-                await self.eventProcessor.process(event)
+                guard await self.eventProcessor.process(event) else { return }
                 self.sessionMetadataMonitor.update(activeSessions: self.sessionStore.activeSessions)
 
                 // If a subsequent event arrives for a session with pending permissions,
@@ -155,22 +155,7 @@ final class AppStore {
                     }
                 }
 
-                // Show "task completed" toast when agent finishes (skip interrupts)
-                if event.eventType == .stop,
-                   event.reason != "interrupted",
-                   !self.pendingPermissionStore.pending.contains(where: { $0.event.sessionId == event.sessionId }) {
-                    self.sessionFinishedStore.show(
-                        sessionId: event.sessionId ?? "",
-                        projectName: event.projectName ?? "Project"
-                    )
-                    self.syncActiveCard()
-                    self.onToastChanged?()
-                }
-
-                // Dismiss toast when user starts typing (already back in the loop)
-                if event.eventType == .userPromptSubmit {
-                    self.sessionFinishedStore.dismiss()
-                }
+                self.updateSessionToast(for: event)
 
                 self.onEventForOverlay?(event)
             }
@@ -421,8 +406,66 @@ final class AppStore {
         }
     }
 
-    /// Recompute which overlay card has priority and sync to the hotkey shared state.
-    /// Call whenever any card's visibility changes.
+    func updateSessionToast(for event: AgentEvent) {
+        if event.eventType == .stop,
+           event.reason != "interrupted",
+           !pendingPermissionStore.pending.contains(where: { $0.event.sessionId == event.sessionId }) {
+            let projectName = event.sessionId
+                .flatMap { sid in sessionStore.activeSessions.first(where: { $0.id == sid }) }?
+                .displayProjectName ?? event.projectName ?? "Project"
+            presentToast(
+                kind: .completed,
+                sessionId: event.sessionId ?? "",
+                projectName: projectName
+            )
+            return
+        }
+
+        if event.eventType == .notification,
+           event.notificationType == "idle_prompt",
+           let sessionId = event.sessionId,
+           let session = sessionStore.activeSessions.first(where: { $0.id == sessionId }),
+           session.phase == .waitingInput,
+           !pendingPermissionStore.pending.contains(where: { $0.event.sessionId == sessionId }) {
+            presentToast(
+                kind: .waitingInput,
+                sessionId: sessionId,
+                projectName: session.displayProjectName
+            )
+            return
+        }
+
+        if event.eventType == .userPromptSubmit {
+            if sessionFinishedStore.current?.kind == .completed {
+                sessionFinishedStore.dismiss()
+            } else if let sessionId = event.sessionId {
+                sessionFinishedStore.dismiss(sessionId: sessionId)
+            }
+        }
+
+        // Dismiss a waiting-input card once its session leaves .waitingInput for any
+        // reason (tool activity, compaction, session end), not just UserPromptSubmit.
+        if let toast = sessionFinishedStore.current,
+           toast.kind == .waitingInput,
+           sessionStore.activeSessions.first(where: { $0.id == toast.sessionId })?.phase != .waitingInput {
+            sessionFinishedStore.dismiss(sessionId: toast.sessionId)
+        }
+    }
+
+    private func presentToast(
+        kind: SessionFinishedStore.Kind,
+        sessionId: String,
+        projectName: String
+    ) {
+        sessionFinishedStore.show(
+            kind: kind,
+            sessionId: sessionId,
+            projectName: projectName
+        )
+        syncActiveCard()
+        onToastChanged?()
+    }
+
     func syncActiveCard() {
         let topPermission = pendingPermissionStore.topVisiblePermission
         hotkeyManager.permissionIsTerminalFallback = topPermission?.isTerminalFallback ?? false

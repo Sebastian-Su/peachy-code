@@ -8,7 +8,7 @@ struct SessionFinishedToastView: View {
     var body: some View {
         if let toast = store.current {
             HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: iconName(for: toast.kind))
                     .font(.system(size: 16))
                     .foregroundStyle(Constants.orangePrimary)
 
@@ -18,7 +18,7 @@ struct SessionFinishedToastView: View {
                         .foregroundStyle(Constants.textPrimary)
                         .lineLimit(1)
 
-                    Text(t("toast.task_completed"))
+                    Text(t(messageKey(for: toast.kind)))
                         .font(Constants.body(size: 10, weight: .medium))
                         .foregroundStyle(Constants.textMuted)
                 }
@@ -47,21 +47,35 @@ struct SessionFinishedToastView: View {
             )
             .shadow(color: Constants.cardHoverShadowColor, radius: Constants.cardHoverShadowRadius, x: 0, y: Constants.cardHoverShadowY)
             .transition(.move(edge: .top).combined(with: .opacity))
-            .animation(.easeInOut(duration: 0.25), value: store.current != nil)
+            .animation(.easeInOut(duration: 0.25), value: store.current?.id)
             .onAppear {
                 progress = 1.0
                 withAnimation(.linear(duration: toast.duration)) {
                     progress = 0
                 }
             }
-            .onChange(of: store.current != nil) { _, visible in
-                if visible, let t = store.current {
+            .onChange(of: store.current?.id) { _, id in
+                if id != nil, let toast = store.current {
                     progress = 1.0
-                    withAnimation(.linear(duration: t.duration)) {
+                    withAnimation(.linear(duration: toast.duration)) {
                         progress = 0
                     }
                 }
             }
+        }
+    }
+
+    private func iconName(for kind: SessionFinishedStore.Kind) -> String {
+        switch kind {
+        case .completed: return "checkmark.circle.fill"
+        case .waitingInput: return "bubble.left.fill"
+        }
+    }
+
+    private func messageKey(for kind: SessionFinishedStore.Kind) -> String {
+        switch kind {
+        case .completed: return "toast.task_completed"
+        case .waitingInput: return "toast.waiting_for_input"
         }
     }
 }

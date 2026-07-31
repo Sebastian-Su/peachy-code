@@ -174,15 +174,17 @@ Sources/
 
 ### 事件处置分类（EventDisposition）
 
-`EventProcessor.disposition(for:)` 决定每个事件的下游行为：
+`EventProcessor.process(_:)` 先过滤已识别的 Codex Desktop 后台 startup session，再由 `disposition(for:)` 决定可见事件的下游行为：
+- 后台 startup session — 只保留 EventStore 记录，不创建可见 session 或通知，并按 sessionId 抑制后续 Stop/SessionEnd
 - `recordOnly` — 只写 EventStore（internalResult、taskCompleted）
 - `sessionActivity` — 更新 SessionStore + 可能产生通知
 - `userVisibleCompletion` — Stop：Session 进 idle 5 分钟保留期 + 产生完成通知
 
 ### Session 生命周期
 
-- **创建**：任何 sessionActivity 事件到达时若 sessionId 不存在则创建
+- **创建**：未被后台 startup 过滤的 sessionActivity 事件到达时若 sessionId 不存在则创建
 - **idle 保留期**：Stop 后设置 `idleUntil = now + 5min`，5 分钟后自动 ended
+- **等待输入**：Stop 先进入 idle；若 Claude Code 约 60 秒未收到回复并发送 `Notification(idle_prompt)`，session 转为 `waitingInput`，悬浮窗显示限时等待卡。下一次 `UserPromptSubmit` 恢复 running
 - **无 Stop 的 idle**：JSONL 轮询产生的 session 无法保证收到 Stop，`expireIdleSessions` 用 `lastEventAt + 5min` 作隐式过期
 - **内部 turn 回滚**：Codex 审批 turn（`internalResult`）通过 snapshot 机制回滚，不留幽灵 session
 

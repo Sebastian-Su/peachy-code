@@ -22,4 +22,23 @@ final class CodexAdapterInstallTests: XCTestCase {
         XCTAssertTrue(codex.assistantClientKind != .claude)
         XCTAssertTrue(claude.assistantClientKind == .claude)
     }
+
+    func testPermissionRequestRoutesToPermissionAndSessionPipelines() {
+        let adapter = CodexAdapter()
+        let event = AgentEvent(
+            hookEventName: HookEventType.permissionRequest.rawValue,
+            sessionId: "waiting-session",
+            cwd: "/tmp",
+            source: "codex-desktop"
+        )
+        var permissionEvent: AgentEvent?
+        var sessionEvent: AgentEvent?
+        adapter.onPermissionRequest = { received, _ in permissionEvent = received }
+        adapter.onEvent = { received in sessionEvent = received }
+
+        adapter.route(event)
+
+        XCTAssertEqual(permissionEvent?.id, event.id)
+        XCTAssertEqual(sessionEvent?.id, event.id)
+    }
 }
