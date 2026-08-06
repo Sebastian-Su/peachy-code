@@ -305,6 +305,95 @@ final class CodexSessionMonitorTests: XCTestCase {
         XCTAssertEqual(events.first?.source, "codex-cli")
     }
 
+    func testForkedFileSuppressesInheritedHistoryButEmitsNewActivity() throws {
+        let root = try makeTempSessionsRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let parentId = "019fd1de-4efd-7790-81b4-03b3fd232d01"
+        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
+        let fileURL = root
+            .appendingPathComponent("2026")
+            .appendingPathComponent("03")
+            .appendingPathComponent("14")
+            .appendingPathComponent("rollout-2026-03-14T01-24-49-\(sessionId).jsonl")
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        // Codex fork replays the whole parent transcript into the new file,
+        // rewriting every inherited record's timestamp to the fork instant.
+        try writeLines([
+            #"{"timestamp":"2026-03-14T01:24:49.844Z","type":"session_meta","payload":{"id":"\#(sessionId)","forked_from_id":"\#(parentId)","cwd":"/Users/test/project","source":"vscode","originator":"Codex Desktop"}}"#,
+            #"{"timestamp":"2026-03-14T01:24:49.844Z","type":"session_meta","payload":{"id":"\#(parentId)","cwd":"/Users/test/project","source":"vscode","originator":"Codex Desktop"}}"#,
+            #"{"timestamp":"2026-03-14T01:24:49.876Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"old_turn","last_agent_message":"Committed hours ago"}}"#,
+            #"{"timestamp":"2026-03-14T01:24:49.877Z","type":"event_msg","payload":{"type":"context_compacted"}}"#,
+            #"{"timestamp":"2026-03-14T01:24:50.194Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"old_turn_2","last_agent_message":"Another stale result"}}"#,
+        ], to: fileURL)
+
+        let monitor = CodexSessionMonitor(rootURL: root, pollInterval: 999)
+        var events: [AgentEvent] = []
+        monitor.onEventReceived = { events.append($0) }
+
+        monitor.pollOnce()
+        XCTAssertTrue(
+            events.isEmpty,
+            "inherited fork history must not replay, got \(events.map(\.hookEventName))"
+        )
+
+        // Real post-fork activity still has to come through.
+        try appendLine(
+            #"{"timestamp":"2026-03-14T01:25:41.223Z","type":"event_msg","payload":{"type":"task_started","turn_id":"live_turn"}}"#,
+            to: fileURL
+        )
+        try appendLine(
+            #"{"timestamp":"2026-03-14T01:26:04.624Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"live_turn","last_agent_message":"Fresh work"}}"#,
+            to: fileURL
+        )
+        monitor.pollOnce()
+
+        XCTAssertEqual(events.map(\.hookEventName), [
+            HookEventType.userPromptSubmit.rawValue,
+            HookEventType.stop.rawValue,
+            HookEventType.taskCompleted.rawValue,
+        ])
+        XCTAssertEqual(events[1].lastAssistantMessage, "Fresh work")
+        // Context from the inherited prefix must survive even though it was silent.
+        XCTAssertEqual(events[0].cwd, "/Users/test/project")
+        XCTAssertEqual(events[0].source, "codex-desktop")
+    }
+
+    func testNonForkedFileStillReplaysFullContent() throws {
+        let root = try makeTempSessionsRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
+        let fileURL = root
+            .appendingPathComponent("2026")
+            .appendingPathComponent("03")
+            .appendingPathComponent("14")
+            .appendingPathComponent("rollout-2026-03-14T01-24-49-\(sessionId).jsonl")
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try writeLines([
+            #"{"timestamp":"2026-03-14T01:24:49.844Z","type":"session_meta","payload":{"id":"\#(sessionId)","cwd":"/Users/test/project","source":"cli","originator":"codex_cli_rs"}}"#,
+            #"{"timestamp":"2026-03-14T01:24:49.876Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn_1"}}"#,
+        ], to: fileURL)
+
+        let monitor = CodexSessionMonitor(rootURL: root, pollInterval: 999)
+        var events: [AgentEvent] = []
+        monitor.onEventReceived = { events.append($0) }
+
+        monitor.pollOnce()
+
+        XCTAssertEqual(events.map(\.hookEventName), [
+            HookEventType.sessionStart.rawValue,
+            HookEventType.userPromptSubmit.rawValue,
+        ])
+    }
+
     private func makeTempSessionsRoot() throws -> URL {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("masko-codex-tests-\(UUID().uuidString)")

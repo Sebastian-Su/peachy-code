@@ -6,6 +6,10 @@ final class CodexSessionMonitor {
         var offset: UInt64
         var partialLine: String
         let sessionId: String?
+        /// Set for forked sessions: Codex replays the whole parent transcript into
+        /// the new file and rewrites every inherited record's timestamp to the fork
+        /// instant. Records at or before this cutoff update context but emit nothing.
+        var replayCutoff: Date?
     }
 
     static var defaultSessionsRoot: URL {
@@ -22,10 +26,19 @@ final class CodexSessionMonitor {
     private let pollInterval: TimeInterval
     private let bootstrapRecentWindow: TimeInterval
     private let bootstrapTailBytes: UInt64
+    /// Slack after a fork timestamp: the replayed prefix is written in one burst,
+    /// so anything within this window of the fork instant is inherited history.
+    private let forkReplayTolerance: TimeInterval
     private var trackedFiles: [String: TrackedFile] = [:]
     private var sessionContexts: [String: CodexSessionContext] = [:]
     private var pollSource: DispatchSourceTimer?
     private var isBootstrapping = false
+
+    private static let recordTimestampFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 
     var isRunning: Bool { pollSource != nil }
 
@@ -35,12 +48,14 @@ final class CodexSessionMonitor {
         rootURL: URL = CodexSessionMonitor.defaultSessionsRoot,
         pollInterval: TimeInterval = 1.0,
         bootstrapRecentWindow: TimeInterval = 15 * 60,
-        bootstrapTailBytes: UInt64 = 262_144
+        bootstrapTailBytes: UInt64 = 262_144,
+        forkReplayTolerance: TimeInterval = 2.0
     ) {
         self.rootURL = rootURL
         self.pollInterval = pollInterval
         self.bootstrapRecentWindow = bootstrapRecentWindow
         self.bootstrapTailBytes = bootstrapTailBytes
+        self.forkReplayTolerance = forkReplayTolerance
     }
 
     func start(bootstrapRecentFiles: Bool = true) {
@@ -105,10 +120,12 @@ final class CodexSessionMonitor {
     private func register(fileURL: URL, startAtEnd: Bool, bootstrapRecentFile shouldBootstrapRecentFile: Bool) {
         let size = fileSize(fileURL)
         let sessionId = CodexEventMapper.sessionId(fromFileURL: fileURL)
+        let firstLine = readFirstLine(of: fileURL, maxBytes: 131_072)
         trackedFiles[fileURL.path] = TrackedFile(
             offset: startAtEnd ? size : 0,
             partialLine: "",
-            sessionId: sessionId
+            sessionId: sessionId,
+            replayCutoff: forkReplayCutoff(firstLine: firstLine)
         )
         if let sessionId, sessionContexts[sessionId] == nil {
             sessionContexts[sessionId] = CodexSessionContext(
@@ -120,7 +137,7 @@ final class CodexSessionMonitor {
         }
 
         // Preserve source/cwd context for existing files by peeking at session_meta.
-        if let firstLine = readFirstLine(of: fileURL, maxBytes: 131_072),
+        if let firstLine,
            let trackedSessionId = sessionId {
             let result = CodexEventMapper.parse(
                 line: firstLine,
@@ -139,6 +156,29 @@ final class CodexSessionMonitor {
         if startAtEnd, shouldBootstrapRecentFile {
             bootstrapRecentFile(fileURL: fileURL)
         }
+    }
+
+    /// A forked session file opens with a `session_meta` carrying `forked_from_id`,
+    /// followed by the parent's entire replayed transcript. Every replayed record is
+    /// stamped at the fork instant, so that timestamp is the cutoff for real activity.
+    private func forkReplayCutoff(firstLine: String?) -> Date? {
+        guard let firstLine,
+              let data = firstLine.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              json["type"] as? String == "session_meta",
+              let payload = json["payload"] as? [String: Any],
+              let forkedFrom = payload["forked_from_id"] as? String,
+              !forkedFrom.isEmpty,
+              let timestamp = recordTimestamp(json) else {
+            return nil
+        }
+        PeachyLog.codex.debug("Forked Codex session detected, suppressing replay before \(timestamp)")
+        return timestamp
+    }
+
+    private func recordTimestamp(_ json: [String: Any]) -> Date? {
+        guard let raw = json["timestamp"] as? String else { return nil }
+        return Self.recordTimestampFormatter.date(from: raw)
     }
 
     private func processAppendedData(for fileURL: URL) {
@@ -188,11 +228,21 @@ final class CodexSessionMonitor {
         for lineSlice in completeLines {
             let line = lineSlice.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !line.isEmpty else { continue }
-            processLine(line, fileURL: fileURL, trackedSessionId: tracked.sessionId)
+            processLine(
+                line,
+                fileURL: fileURL,
+                trackedSessionId: tracked.sessionId,
+                replayCutoff: tracked.replayCutoff
+            )
         }
     }
 
-    private func processLine(_ line: String, fileURL: URL, trackedSessionId: String?) {
+    private func processLine(
+        _ line: String,
+        fileURL: URL,
+        trackedSessionId: String?,
+        replayCutoff: Date?
+    ) {
         let context = trackedSessionId.flatMap { sessionContexts[$0] }
         let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: context)
 
@@ -204,6 +254,11 @@ final class CodexSessionMonitor {
             }
         }
 
+        // Inherited fork history: keep the context it carries, drop the events.
+        if let replayCutoff, isReplayedRecord(line, cutoff: replayCutoff) {
+            return
+        }
+
         for event in result.events {
             // Skip transient phase events during bootstrap - they represent
             // momentary states (compacting) that are meaningless when replayed.
@@ -211,6 +266,16 @@ final class CodexSessionMonitor {
             PeachyLog.codex.debug("JSONL event: \(event.hookEventName) sid=\(event.sessionId ?? "-")")
             onEventReceived?(event)
         }
+    }
+
+    private func isReplayedRecord(_ line: String, cutoff: Date) -> Bool {
+        guard let data = line.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let timestamp = recordTimestamp(json) else {
+            // No usable timestamp inside the replayed prefix — treat as inherited.
+            return true
+        }
+        return timestamp <= cutoff.addingTimeInterval(forkReplayTolerance)
     }
 
     private func fileSize(_ fileURL: URL) -> UInt64 {
@@ -227,8 +292,14 @@ final class CodexSessionMonitor {
         guard !lines.isEmpty else { return }
 
         let trackedSessionId = trackedFiles[fileURL.path]?.sessionId
+        let replayCutoff = trackedFiles[fileURL.path]?.replayCutoff
         for line in lines {
-            processLine(line, fileURL: fileURL, trackedSessionId: trackedSessionId)
+            processLine(
+                line,
+                fileURL: fileURL,
+                trackedSessionId: trackedSessionId,
+                replayCutoff: replayCutoff
+            )
         }
     }
 
