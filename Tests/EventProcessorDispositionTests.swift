@@ -230,6 +230,55 @@ final class EventProcessorDispositionTests: XCTestCase {
         XCTAssertNotNil(ss.sessions.first(where: { $0.id == sessionId }))
     }
 
+    // A Codex ambient-suggestion turn arrives via the hook path as
+    // UserPromptSubmit + Stop, with the Stop carrying a machine JSON payload.
+    // It must leave no session and no notification behind.
+    func testHookPathStopWithInternalResultPayloadLeavesNoSession() async {
+        let (proc, ns, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sessionId = "019fea97-f76a-7853-ba77-47ffdbccc1d9"
+
+        await proc.process(AgentEvent(
+            hookEventName: HookEventType.userPromptSubmit.rawValue,
+            sessionId: sessionId,
+            cwd: "/",
+            prompt: "You are an expert at upholding safety and compliance standards for Codex ambient suggestions.",
+            source: "codex-desktop"
+        ))
+        await proc.process(AgentEvent(
+            hookEventName: HookEventType.stop.rawValue,
+            sessionId: sessionId,
+            cwd: "/",
+            source: "codex-desktop",
+            reason: "completed",
+            lastAssistantMessage: "{\"exclude\":[]}"
+        ))
+
+        XCTAssertNil(ss.sessions.first(where: { $0.id == sessionId }),
+                     "internal-result Stop must not leave a visible session")
+        XCTAssertNil(ns.notifications.first(where: { $0.sessionId == sessionId }),
+                     "internal-result Stop must not produce a notification")
+    }
+
+    // Guard: a Stop whose message is ordinary prose still completes normally.
+    func testHookPathStopWithProseStillNotifies() async {
+        let (proc, ns, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sessionId = "disp-stop-prose-\(UUID().uuidString)"
+
+        await proc.process(AgentEvent(
+            hookEventName: HookEventType.stop.rawValue,
+            sessionId: sessionId,
+            cwd: "/tmp/project",
+            source: "codex-desktop",
+            reason: "completed",
+            lastAssistantMessage: "已完成报告并同步飞书。"
+        ))
+
+        XCTAssertNotNil(ss.sessions.first(where: { $0.id == sessionId }))
+        XCTAssertEqual(ns.notifications.filter { $0.sessionId == sessionId }.count, 1)
+    }
+
     // Existing permissionRequest not in NotificationStore (regression guard)
     func testPermissionRequestNotInNotificationStore() async {
         let (proc, ns, ss) = makeProcessor()

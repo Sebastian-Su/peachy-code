@@ -1169,7 +1169,10 @@ enum CodexEventMapper {
         return trimmed.components(separatedBy: .newlines).first
     }
 
-    private static func isInternalResultSchema(_ text: String?) -> Bool {
+    /// True when the turn's final message is a machine-consumed JSON payload
+    /// (Codex ambient suggestions, exclusion votes, approval outcomes) rather
+    /// than prose meant for the user. Shared by the JSONL and hook paths.
+    static func isInternalResultSchema(_ text: String?) -> Bool {
         guard let text,
               let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

@@ -31,6 +31,13 @@ final class EventProcessor {
             // Activity Feed metadata — real turn completion is signalled by .stop
             return .recordOnly
         case .stop, .stopFailure:
+            // Hook-path Stop carries the raw turn result; Codex machine turns
+            // (ambient suggestions, approval votes) end with a recognised JSON
+            // schema instead of prose. The JSONL path already downgrades those
+            // to InternalResult — do the same here so both paths agree.
+            if CodexEventMapper.isInternalResultSchema(event.lastAssistantMessage) {
+                return .recordOnly
+            }
             return .userVisibleCompletion
         default:
             return .sessionActivity
@@ -70,8 +77,12 @@ final class EventProcessor {
 
         switch disp {
         case .recordOnly:
-            // internalResult → rollback using taskId if present, else sessionId as fallback key
-            if event.eventType == .internalResult, !sessionId.isEmpty {
+            // internalResult (or a Stop carrying an internal-result payload) →
+            // rollback using taskId if present, else sessionId as fallback key
+            let isInternalTurnEnd = event.eventType == .internalResult
+                || event.eventType == .stop
+                || event.eventType == .stopFailure
+            if isInternalTurnEnd, !sessionId.isEmpty {
                 let snapshotKey = event.taskId ?? sessionId
                 PeachyLog.event.debug("InternalResult rollback: taskId=\(snapshotKey) sid=\(sessionId)")
                 sessionStore.rollbackInternalTurn(taskId: snapshotKey, sessionId: sessionId)
