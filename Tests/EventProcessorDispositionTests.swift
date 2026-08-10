@@ -279,6 +279,47 @@ final class EventProcessorDispositionTests: XCTestCase {
         XCTAssertEqual(ns.notifications.filter { $0.sessionId == sessionId }.count, 1)
     }
 
+    // The ambient safety-review turn arrives as a lone UserPromptSubmit via the
+    // Claude hook config (no source), cwd "/", and never gets a Stop. It must be
+    // suppressed at the prompt, not left running forever.
+    func testCodexAmbientSafetyReviewPromptIsSuppressed() async {
+        let (proc, ns, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sessionId = "019fec34-28a2-7120-a11f-6f8b9fb89c19"
+
+        let visible = await proc.process(AgentEvent(
+            hookEventName: HookEventType.userPromptSubmit.rawValue,
+            sessionId: sessionId,
+            cwd: "/",
+            permissionMode: "bypassPermissions",
+            prompt: "You are an expert at upholding safety and compliance standards for Codex ambient suggestions.",
+            model: "gpt-5.6-luna"
+        ))
+
+        XCTAssertFalse(visible)
+        XCTAssertNil(ss.sessions.first(where: { $0.id == sessionId }))
+        XCTAssertNil(ns.notifications.first(where: { $0.sessionId == sessionId }))
+    }
+
+    // Same phrase typed by a real user in a real project must still be visible.
+    func testAmbientPhraseInRealProjectIsNotSuppressed() async {
+        let (proc, _, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sessionId = "019fec34-28a2-7120-a11f-6f8b9fb89c20"
+
+        let visible = await proc.process(AgentEvent(
+            hookEventName: HookEventType.userPromptSubmit.rawValue,
+            sessionId: sessionId,
+            cwd: "/Users/me/project",
+            permissionMode: "bypassPermissions",
+            transcriptPath: "/tmp/rollout.jsonl",
+            prompt: "explain how Codex ambient suggestions are generated"
+        ))
+
+        XCTAssertTrue(visible)
+        XCTAssertNotNil(ss.sessions.first(where: { $0.id == sessionId }))
+    }
+
     // Existing permissionRequest not in NotificationStore (regression guard)
     func testPermissionRequestNotInNotificationStore() async {
         let (proc, ns, ss) = makeProcessor()

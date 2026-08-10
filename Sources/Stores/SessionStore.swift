@@ -206,9 +206,17 @@ final class SessionStore {
 
     private static let autoHideKey = "auto_hide_inactive_sessions"
 
-    /// When off (default), idle sessions stay visible until a real SessionEnd or crash
-    /// recovery removes them. When on, idle sessions auto-expire after idleRetentionDuration.
-    var autoHideInactiveSessions: Bool = UserDefaults.standard.bool(forKey: SessionStore.autoHideKey) {
+    /// Defaults to on when the user has never touched the setting. `bool(forKey:)`
+    /// alone can't express that — it returns false for both "off" and "unset".
+    private static func storedAutoHidePreference() -> Bool {
+        guard UserDefaults.standard.object(forKey: autoHideKey) != nil else { return true }
+        return UserDefaults.standard.bool(forKey: autoHideKey)
+    }
+
+    /// When on (default), idle sessions auto-expire after idleRetentionDuration. When
+    /// off, they stay visible until a real SessionEnd or crash recovery removes them —
+    /// which means agents that exit without sending Stop accumulate forever.
+    var autoHideInactiveSessions: Bool = SessionStore.storedAutoHidePreference() {
         didSet {
             guard autoHideInactiveSessions != oldValue else { return }
             UserDefaults.standard.set(autoHideInactiveSessions, forKey: Self.autoHideKey)
@@ -554,8 +562,11 @@ final class SessionStore {
                 }
             } else if sessions[i].phase == .running,
                       sessions[i].terminalPid == nil,
-                      sessions[i].agentSource == .codex,
-                      sessions[i].rawSource == "codex-cli" {
+                      sessions[i].transcriptPath == nil {
+                // No terminal and no transcript → nobody is watching this turn and
+                // no log to reconcile against. Such a session may never receive a
+                // Stop (some Codex background tasks don't emit one), so retire it on
+                // silence alone rather than trusting a source string to identify it.
                 let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
                 if ref.addingTimeInterval(idleRetentionDuration) <= now {
                     sessions[i].status = .ended
@@ -583,11 +594,12 @@ final class SessionStore {
         }.min()
         let implicitExpiry = sessions.compactMap { s -> Date? in
             guard s.status == .active, s.idleUntil == nil else { return nil }
+            // Mirror the headless condition in expireIdleSessions, otherwise the
+            // timer never wakes up for these sessions.
             guard s.phase.isIdleLike || (
                 s.phase == .running &&
                 s.terminalPid == nil &&
-                s.agentSource == .codex &&
-                s.rawSource == "codex-cli"
+                s.transcriptPath == nil
             ) else { return nil }
             let ref = s.lastEventAt ?? s.startedAt
             return ref.addingTimeInterval(idleRetentionDuration)

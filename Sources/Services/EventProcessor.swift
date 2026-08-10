@@ -59,7 +59,7 @@ final class EventProcessor {
             return false
         }
 
-        if isCodexBackgroundStartup(event) {
+        if isCodexBackgroundStartup(event) || isCodexAmbientTask(event) {
             if let sessionId = event.sessionId {
                 suppressedSessions[sessionId] = now
             }
@@ -149,6 +149,29 @@ final class EventProcessor {
             return false
         }
         return (uuid.uuid.6 >> 4) == 7
+    }
+
+    /// Codex Desktop runs ambient housekeeping turns (suggestion generation and the
+    /// safety review of those suggestions) with no cwd, no terminal and no transcript.
+    /// They also never emit Stop, so they must be recognised at the prompt itself.
+    private func isCodexAmbientTask(_ event: AgentEvent) -> Bool {
+        guard event.eventType == .userPromptSubmit,
+              event.permissionMode == "bypassPermissions",
+              event.cwd == "/",
+              event.terminalPid == nil,
+              event.shellPid == nil,
+              event.transcriptPath == nil,
+              let sessionId = event.sessionId,
+              let uuid = UUID(uuidString: sessionId),
+              (uuid.uuid.6 >> 4) == 7,
+              let prompt = event.prompt else {
+            return false
+        }
+        let ambientMarkers = [
+            "Codex ambient suggestions",
+            "hyperpersonalized suggestions",
+        ]
+        return ambientMarkers.contains { prompt.contains($0) }
     }
 
     private func createNotification(from event: AgentEvent) -> AppNotification? {

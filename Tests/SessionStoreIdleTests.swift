@@ -44,6 +44,22 @@ final class SessionStoreIdleTests: XCTestCase {
         XCTAssertGreaterThan(session!.idleUntil!, Date(), "idleUntil must be in the future")
     }
 
+    /// A machine that has never touched the setting must still expire stale sessions,
+    /// otherwise agents that exit without Stop pile up forever.
+    func testAutoHideDefaultsOnWhenPreferenceUnset() {
+        let key = "auto_hide_inactive_sessions"
+        let previous = UserDefaults.standard.object(forKey: key)
+        UserDefaults.standard.removeObject(forKey: key)
+        defer {
+            if let previous { UserDefaults.standard.set(previous, forKey: key) }
+        }
+
+        let store = SessionStore(idleRetentionDuration: 300)
+        defer { store.stopTimers() }
+
+        XCTAssertTrue(store.autoHideInactiveSessions)
+    }
+
     func testHeadlessRunningCodexSessionExpiresWithoutStop() {
         let store = makeStore(idleRetention: 0)
         defer { store.stopTimers() }
@@ -67,11 +83,13 @@ final class SessionStoreIdleTests: XCTestCase {
         XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .ended)
     }
 
-    func testNonCodexHeadlessRunningSessionDoesNotImplicitlyExpire() {
+    /// A transcript means the turn is reconcilable against a log, so silence alone
+    /// must not retire it. Real Claude Code sessions always carry one.
+    func testRunningSessionWithTranscriptDoesNotImplicitlyExpire() {
         let store = makeStore(idleRetention: 0)
         defer { store.stopTimers() }
         let sid = "headless-claude-\(UUID().uuidString)"
-        let session = AgentSession(
+        var session = AgentSession(
             id: sid,
             projectDir: "/tmp",
             projectName: "test",
@@ -82,11 +100,37 @@ final class SessionStoreIdleTests: XCTestCase {
             startedAt: Date(timeIntervalSinceNow: -10),
             lastEventAt: Date(timeIntervalSinceNow: -10)
         )
+        session.transcriptPath = "/tmp/session.jsonl"
         store.injectSessionForTesting(session)
 
         store.expireIdleSessions()
 
         XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .active)
+    }
+
+    /// No terminal and no transcript → nobody is watching and there is no log to
+    /// reconcile against, so a silent running session is retired regardless of which
+    /// agent it claims to belong to (some Codex background tasks never emit Stop).
+    func testHeadlessRunningSessionExpiresRegardlessOfSource() {
+        let store = makeStore(idleRetention: 0)
+        defer { store.stopTimers() }
+        let sid = "headless-unknown-\(UUID().uuidString)"
+        let session = AgentSession(
+            id: sid,
+            projectDir: "/",
+            projectName: "/",
+            agentSource: .unknown,
+            status: .active,
+            phase: .running,
+            eventCount: 1,
+            startedAt: Date(timeIntervalSinceNow: -10),
+            lastEventAt: Date(timeIntervalSinceNow: -10)
+        )
+        store.injectSessionForTesting(session)
+
+        store.expireIdleSessions()
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.status, .ended)
     }
 
     func testHeadlessCompactingCodexSessionDoesNotImplicitlyExpire() {
