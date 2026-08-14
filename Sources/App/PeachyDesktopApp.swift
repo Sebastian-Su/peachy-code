@@ -203,13 +203,10 @@ struct PeachyDesktopApp: App {
                 .environment(overlayManager)
                 .environment(appUpdater)
         } label: {
-            if let url = Bundle.module.url(forResource: "logo", withExtension: "png", subdirectory: "Images"),
-               let nsImage = NSImage(contentsOf: url) {
-                let resized = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
-                    nsImage.draw(in: rect)
-                    return true
-                }
-                Image(nsImage: resized)
+            let menuBarState: PeachyIconProvider.MenuBarState =
+                appStore.sessionStore.runningSessions.isEmpty ? .idle : .working
+            if let nsImage = PeachyIconProvider.menuBarImage(for: menuBarState) {
+                Image(nsImage: nsImage)
                 if appStore.hasUnreadNotifications {
                     Circle()
                         .fill(Color.red)
@@ -217,7 +214,7 @@ struct PeachyDesktopApp: App {
                         .offset(x: 6, y: -6)
                 }
             } else {
-                Image(systemName: appStore.hasUnreadNotifications ? "bell.badge" : "bell")
+                Image(systemName: "ellipsis.message")
             }
         }
         .menuBarExtraStyle(.window)

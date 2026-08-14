@@ -19,7 +19,7 @@ let package = Package(
                 .product(name: "MarkdownUI", package: "swift-markdown-ui")
             ],
             path: "Sources",
-            exclude: ["PeachyPet.entitlements"],
+            exclude: ["PeachyPet.entitlements", "Resources/AppIcon.icns"],
             resources: [
                 .copy("Resources/Fonts"),
                 .copy("Resources/Images"),

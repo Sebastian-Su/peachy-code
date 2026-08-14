@@ -77,8 +77,7 @@ struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(spacing: 20) {
-            if let url = Bundle.module.url(forResource: "logo", withExtension: "png", subdirectory: "Images"),
-               let nsImage = NSImage(contentsOf: url) {
+            if let nsImage = PeachyIconProvider.brandImage() {
                 Image(nsImage: nsImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)

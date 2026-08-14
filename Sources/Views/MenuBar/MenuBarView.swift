@@ -8,10 +8,9 @@ struct MenuBarView: View {
         VStack(spacing: 0) {
             // Header
             HStack(spacing: 8) {
-                if let url = Bundle.module.url(forResource: "logo", withExtension: "png", subdirectory: "Images"),
-                   let nsImage = NSImage(contentsOf: url) {
-                    Image(nsImage: nsImage)
-                        .resizable()
+            if let nsImage = PeachyIconProvider.brandImage() {
+                Image(nsImage: nsImage)
+                    .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 24, height: 24)
                 }
