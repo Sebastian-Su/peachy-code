@@ -3,6 +3,37 @@ import XCTest
 @testable import PeachyPet
 
 final class CodexEventMapperTests: XCTestCase {
+    func testGuardianReviewLifecycleRoutesToParentSession() throws {
+        let parentId = "01a041e5-8be3-7752-bf6c-68d0e56ba320"
+        let guardianId = "01a042de-b23e-7870-b393-80ecb180a431"
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(guardianId).jsonl")
+        let meta = """
+        {"type":"session_meta","payload":{"session_id":"\(parentId)","id":"\(guardianId)","parent_thread_id":"\(parentId)","cwd":"/Users/test/project","originator":"Codex Desktop","cli_version":"0.150.0-alpha.8","source":{"subagent":{"other":"guardian"}},"thread_source":"guardian_review"}}
+        """
+
+        let start = CodexEventMapper.parse(line: meta, fileURL: fileURL, context: nil)
+        let context = try XCTUnwrap(start.context)
+        let taskStarted = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"task_started","turn_id":"guardian-turn"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+        let taskComplete = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"guardian-turn","last_agent_message":"{\"outcome\":\"allow\"}"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+
+        XCTAssertEqual(start.events.map(\.eventType), [.subagentStart])
+        XCTAssertEqual(start.events.first?.sessionId, parentId)
+        XCTAssertEqual(start.events.first?.agentId, guardianId)
+        XCTAssertEqual(taskStarted.events.map(\.eventType), [.subagentStart])
+        XCTAssertEqual(taskStarted.events.first?.sessionId, parentId)
+        XCTAssertEqual(taskComplete.events.map(\.eventType), [.subagentStop])
+        XCTAssertEqual(taskComplete.events.first?.sessionId, parentId)
+        XCTAssertEqual(taskComplete.events.first?.agentId, guardianId)
+    }
+
     func testSubagentLifecycleStaysOnRootSessionWithoutChildTurnEvents() throws {
         let rootId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
         let childId = "019f8f26-6b9d-7d13-8342-b0dd55ee0803"
