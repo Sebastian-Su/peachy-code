@@ -13,13 +13,15 @@ final class SessionStoreSubagentTests: XCTestCase {
         _ type: HookEventType,
         sessionId: String,
         agentId: String? = nil,
-        taskId: String? = nil
+        taskId: String? = nil,
+        cwd: String = "/tmp/subagent-test",
+        source: String? = "claude-code"
     ) -> AgentEvent {
         AgentEvent(
             hookEventName: type.rawValue,
             sessionId: sessionId,
-            cwd: "/tmp/subagent-test",
-            source: "claude-code",
+            cwd: cwd,
+            source: source,
             agentId: agentId,
             taskId: taskId
         )
@@ -90,17 +92,29 @@ final class SessionStoreSubagentTests: XCTestCase {
         XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.activeSubagentCount, 0)
     }
 
-    func testSubagentStartCreatesRunningSessionWhenSessionStartWasMissed() {
+    func testOrphanSubagentLifecycleDoesNotCreateSession() {
         let store = makeStore()
         defer { store.stopTimers() }
         let sid = "subagent-first-\(UUID().uuidString)"
 
-        store.recordEvent(event(.subagentStart, sessionId: sid, agentId: "A"))
+        let cwd = "/private/tmp/qwork-test/ziqdo/rust/crates/tools"
+        store.recordEvent(event(
+            .subagentStart,
+            sessionId: sid,
+            agentId: "A",
+            cwd: cwd,
+            source: nil
+        ))
+        store.recordEvent(event(
+            .subagentStop,
+            sessionId: sid,
+            agentId: "A",
+            cwd: cwd,
+            source: nil
+        ))
 
         let session = store.sessions.first(where: { $0.id == sid })
-        XCTAssertEqual(session?.status, .active)
-        XCTAssertEqual(session?.phase, .running)
-        XCTAssertEqual(session?.activeSubagentCount, 1)
+        XCTAssertNil(session)
     }
 
     func testStopStopFailureAndSessionEndClearSubagents() {

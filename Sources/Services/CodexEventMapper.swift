@@ -100,19 +100,7 @@ enum CodexEventMapper {
             )
             let mergedContext = merged(existing: context, update: discovered)
             result.context = mergedContext
-            if isSubagent, let rootSessionId {
-                result.events = [
-                    AgentEvent(
-                        hookEventName: HookEventType.subagentStart.rawValue,
-                        sessionId: rootSessionId,
-                        cwd: mergedContext.cwd,
-                        source: mergedContext.normalizedSource,
-                        model: payload["cli_version"] as? String,
-                        agentId: sessionId,
-                        agentType: mergedContext.subagentType
-                    ),
-                ]
-            } else {
+            if !isSubagent {
                 result.events = [
                     AgentEvent(
                         hookEventName: HookEventType.sessionStart.rawValue,

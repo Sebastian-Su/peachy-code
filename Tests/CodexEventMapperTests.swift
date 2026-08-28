@@ -24,9 +24,7 @@ final class CodexEventMapperTests: XCTestCase {
             context: context
         )
 
-        XCTAssertEqual(start.events.map(\.eventType), [.subagentStart])
-        XCTAssertEqual(start.events.first?.sessionId, parentId)
-        XCTAssertEqual(start.events.first?.agentId, guardianId)
+        XCTAssertTrue(start.events.isEmpty, "metadata alone must not mark an unstarted guardian as active")
         XCTAssertEqual(taskStarted.events.map(\.eventType), [.subagentStart])
         XCTAssertEqual(taskStarted.events.first?.sessionId, parentId)
         XCTAssertEqual(taskComplete.events.map(\.eventType), [.subagentStop])
@@ -55,8 +53,7 @@ final class CodexEventMapperTests: XCTestCase {
             context: context
         )
 
-        XCTAssertEqual(start.events.first?.eventType, .subagentStart)
-        XCTAssertEqual(start.events.first?.sessionId, rootId)
+        XCTAssertTrue(start.events.isEmpty, "metadata alone must not mark an unstarted subagent as active")
         XCTAssertEqual(taskStarted.events.map(\.eventType), [.subagentStart])
         XCTAssertEqual(taskStarted.events.first?.sessionId, rootId)
         XCTAssertEqual(taskStarted.events.first?.agentId, childId)
@@ -64,7 +61,7 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(taskComplete.events.first?.sessionId, rootId)
         XCTAssertEqual(taskComplete.events.first?.agentId, childId)
     }
-    func testSubagentSessionMetaMapsToParentSubagentStart() throws {
+    func testSubagentSessionMetaOnlyUpdatesContext() throws {
         let parentId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
         let childId = "019f8f01-9123-7a02-80be-53371dfea5f6"
         let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(childId).jsonl")
@@ -74,13 +71,11 @@ final class CodexEventMapperTests: XCTestCase {
 
         let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: nil)
 
-        XCTAssertEqual(result.events.count, 1)
-        let event = try XCTUnwrap(result.events.first)
-        XCTAssertEqual(event.eventType, .subagentStart)
-        XCTAssertEqual(event.sessionId, parentId)
-        XCTAssertEqual(event.agentId, childId)
-        XCTAssertEqual(event.agentType, "Popper")
-        XCTAssertEqual(event.source, "codex-desktop")
+        XCTAssertTrue(result.events.isEmpty)
+        XCTAssertEqual(result.context?.rootSessionId, parentId)
+        XCTAssertEqual(result.context?.sessionId, childId)
+        XCTAssertEqual(result.context?.subagentType, "Popper")
+        XCTAssertEqual(result.context?.normalizedSource, "codex-desktop")
     }
 
     func testSessionMetaMapsToSessionStartForDesktop() throws {
