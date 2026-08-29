@@ -18,6 +18,8 @@ final class AppStore {
     let notificationService = NotificationService.shared
     let pendingPermissionStore = PendingPermissionStore()
     let mascotStore = MascotStore()
+    let mascotProjectStore = MascotProjectStore()
+    let mediaProviderSettings = MediaProviderSettingsStore()
     let hotkeyManager = GlobalHotkeyManager()
     let sessionSwitcherStore = SessionSwitcherStore()
     let sessionFinishedStore = SessionFinishedStore()

@@ -52,6 +52,7 @@ final class VideoCache: Sendable {
 
     /// Returns local file URL if cached, otherwise the original remote URL.
     func resolve(_ remoteURL: URL) -> URL {
+        guard !remoteURL.isFileURL else { return remoteURL }
         let local = cacheDir.appendingPathComponent(remoteURL.lastPathComponent)
         if FileManager.default.fileExists(atPath: local.path) {
             return local
@@ -61,7 +62,12 @@ final class VideoCache: Sendable {
 
     /// Download all HEVC videos from config in parallel. Non-blocking — fire and forget.
     func preload(config: PeachyAnimationConfig) async {
-        let urls = Set(config.edges.compactMap { $0.videos.hevc }.compactMap { URL(string: $0) })
+        let urls = Set(
+            config.edges
+                .compactMap { $0.videos.hevc }
+                .compactMap { URL(string: $0) }
+                .filter { ["http", "https"].contains($0.scheme?.lowercased() ?? "") }
+        )
         let uncached = urls.filter { !FileManager.default.fileExists(atPath: cacheDir.appendingPathComponent($0.lastPathComponent).path) }
 
         guard !uncached.isEmpty else {

@@ -62,6 +62,17 @@ Sources/
 - 位置：`~/Library/Application Support/PeachyPet/`
 - 文件：`mascots.json`（见 `Sources/Stores/MascotStore.swift` 与 `Sources/Utilities/LocalStorage.swift`）
 
+**Masko 创作中心采用本地项目包。**
+- UI：Dashboard → Peachy → Create
+- 项目目录：`~/Library/Application Support/PeachyPet/Mascots/<uuid>/`
+- `project.json` 保存草稿、生成任务、验证结果和 Block
+- `character/`、`styles/`、`states/`、`transitions/` 保存本地素材
+- `.masko` 是带 `manifest.json` 与 SHA-256 清单的可迁移目录包
+- 自定义生成 Provider 的 API Key 只存 macOS Keychain，不写入项目或导出包
+- Custom API / MCP Bridge 契约见 `docs/masko-creation-center-spec.md`
+- 生成后必须通过图片解码、HEVC Alpha 编码、首尾锚点和转场端点检查；失败项进入 Block
+- MVP 只自动创建 `Idle <-> 其他状态` 转场，并通过 Any State 路由经 Idle 完成跨状态切换
+
 如果要支持“从本地文件读取 JSON（选择文件/路径覆盖/热更新）”，通常需要：
 - 增加文件选择器（SwiftUI `fileImporter` 或 `NSOpenPanel`）
 - 为 sandbox/签名场景保存并使用 security-scoped bookmark（避免下次启动失去权限）
