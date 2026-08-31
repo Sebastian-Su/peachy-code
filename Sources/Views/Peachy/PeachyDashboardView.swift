@@ -176,6 +176,7 @@ struct PeachyDashboardView: View {
     @Environment(OverlayManager.self) var overlayManager
 
     @State private var showingAddSheet = false
+    @State private var showingCreationCenter = false
     @State private var selectedMascotId: UUID?
     @State private var jsonText = ""
     @State private var parseError: String?
@@ -216,7 +217,7 @@ struct PeachyDashboardView: View {
         VStack(spacing: 0) {
             // Inline header
             HStack(spacing: 10) {
-                Text("Mascots")
+                Text("Masko Library")
                     .font(Constants.heading(size: 18, weight: .semibold))
                     .foregroundColor(Constants.textPrimary)
 
@@ -275,6 +276,11 @@ struct PeachyDashboardView: View {
                         )
                 }
                 .buttonStyle(.plain)
+
+                Button(action: { showingCreationCenter = true }) {
+                    Label("Create", systemImage: "paintbrush.pointed.fill")
+                }
+                .buttonStyle(BrandSecondaryButton())
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -333,6 +339,9 @@ struct PeachyDashboardView: View {
         .sheet(isPresented: $showingAddSheet) {
             addMascotSheet
         }
+        .sheet(isPresented: $showingCreationCenter) {
+            MascotCreationCenterView()
+        }
     }
 
     // MARK: - Mascot List
@@ -387,10 +396,10 @@ struct PeachyDashboardView: View {
                     .foregroundColor(Constants.orangePrimary)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Browse Community Mascots")
+                    Text("Legacy Community Mascots")
                         .font(Constants.heading(size: 14, weight: .semibold))
                         .foregroundColor(Constants.textPrimary)
-                    Text("Discover and install mascots made by the community")
+                    Text("Remote assets may become unavailable; import local .masko packages for durable use")
                         .font(Constants.body(size: 12))
                         .foregroundColor(Constants.textMuted)
                 }
@@ -414,7 +423,7 @@ struct PeachyDashboardView: View {
 
     private var createMascotBanner: some View {
         Button(action: {
-            NSWorkspace.shared.open(URL(string: "\(Constants.peachyBaseURL)/create/desktop")!)
+            showingCreationCenter = true
         }) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
@@ -435,7 +444,7 @@ struct PeachyDashboardView: View {
                 HStack {
                     Spacer()
                     HStack(spacing: 4) {
-                        Text("Open Mascot Creator")
+                        Text("Open Creation Center")
                             .font(Constants.heading(size: 13, weight: .semibold))
                             .foregroundColor(.white)
                         Image(systemName: "arrow.up.right")

@@ -27,6 +27,9 @@ let package = Package(
                 .copy("Resources/Extensions"),
                 .process("Resources/en.lproj"),
                 .process("Resources/zh.lproj")
+            ],
+            linkerSettings: [
+                .linkedFramework("Security")
             ]
         ),
         .testTarget(

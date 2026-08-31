@@ -23,6 +23,12 @@ final class LanguageManagerTests: XCTestCase {
     func testChineseTranslation() {
         LanguageManager.shared.setLanguage(.zh)
         XCTAssertEqual(t("settings.title"), "设置")
+        XCTAssertEqual(t("creator.title"), "Masko 创作中心")
+    }
+
+    func testCreationCenterEnglishTranslation() {
+        LanguageManager.shared.setLanguage(.en)
+        XCTAssertEqual(t("creator.create_generate"), "Create & Generate")
     }
 
     func testUnknownKeyReturnsSelf() {

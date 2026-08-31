@@ -6,6 +6,7 @@ struct SavedMascot: Identifiable, Codable {
     var config: PeachyAnimationConfig
     let addedAt: Date
     var templateSlug: String?
+    var projectID: UUID? = nil
 }
 
 // MARK: - Preset Info
@@ -192,6 +193,26 @@ final class MascotStore {
             templateSlug: nil
         )
         mascots.insert(mascot, at: 0)
+        persist()
+    }
+
+    func addOrUpdateFromProject(config: PeachyAnimationConfig, projectID: UUID) {
+        if let index = mascots.firstIndex(where: { $0.projectID == projectID }) {
+            mascots[index].config = config
+            persist()
+            return
+        }
+        mascots.insert(
+            SavedMascot(
+                id: UUID(),
+                name: config.name,
+                config: config,
+                addedAt: Date(),
+                templateSlug: nil,
+                projectID: projectID
+            ),
+            at: 0
+        )
         persist()
     }
 

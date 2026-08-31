@@ -62,6 +62,8 @@ final class OverlayStateMachine {
     // MARK: - Private state
 
     private var pendingEdge: PeachyAnimationEdge?
+    /// A transition selected while a loop is playing. It starts at the next loop boundary.
+    private var queuedEdge: PeachyAnimationEdge?
     private var loopCount = 0
     private var nodeArrivalTime: Date?
     private var nodeTimeTimer: Timer?
@@ -103,11 +105,16 @@ final class OverlayStateMachine {
         inputs["nodeTime"] = .number(0)
 
         // Agent state inputs - set both "agent::" and "claudeCode::" so old JSONs work
-        setAgentStateInput("isWorking", .bool(false))
-        setAgentStateInput("isIdle", .bool(true))
-        setAgentStateInput("isAlert", .bool(false))
-        setAgentStateInput("isCompacting", .bool(false))
-        setAgentStateInput("sessionCount", .number(0))
+        inputs[Self.agentPrefix + "isWorking"] = .bool(false)
+        inputs[Self.legacyPrefix + "isWorking"] = .bool(false)
+        inputs[Self.agentPrefix + "isIdle"] = .bool(true)
+        inputs[Self.legacyPrefix + "isIdle"] = .bool(true)
+        inputs[Self.agentPrefix + "isAlert"] = .bool(false)
+        inputs[Self.legacyPrefix + "isAlert"] = .bool(false)
+        inputs[Self.agentPrefix + "isCompacting"] = .bool(false)
+        inputs[Self.legacyPrefix + "isCompacting"] = .bool(false)
+        inputs[Self.agentPrefix + "sessionCount"] = .number(0)
+        inputs[Self.legacyPrefix + "sessionCount"] = .number(0)
 
         // Custom inputs from config
         if let configInputs = config.inputs {
@@ -120,8 +127,8 @@ final class OverlayStateMachine {
     /// Set an agent state input under both "agent::" and "claudeCode::" prefixes.
     /// This ensures old mascot JSONs referencing "claudeCode::isWorking" keep working.
     func setAgentStateInput(_ name: String, _ value: ConditionValue) {
-        inputs[Self.agentPrefix + name] = value
         inputs[Self.legacyPrefix + name] = value
+        setInput(Self.agentPrefix + name, value)
     }
 
     /// Set an agent event trigger under both prefixes.
@@ -161,6 +168,12 @@ final class OverlayStateMachine {
 
         inputs[name] = value
 
+        // Re-evaluate a queued boundary transition when state changes before the loop ends.
+        // This prevents firing a stale edge whose conditions are no longer true.
+        if phase == .looping {
+            queuedEdge = nil
+        }
+
         // Only update debug state when debug HUD is visible
         if UserDefaults.standard.bool(forKey: "overlay_show_debug") {
             lastInputChange = "\(name) = \(conditionValueStr(value))"
@@ -186,6 +199,12 @@ final class OverlayStateMachine {
     func handleLoopCycleCompleted() {
         guard phase == .looping else { return }
         loopCount += 1
+        if let edge = queuedEdge {
+            inputs["loopCount"] = .number(Double(loopCount))
+            queuedEdge = nil
+            beginTransition(edge)
+            return
+        }
         setInput("loopCount", .number(Double(loopCount)))
     }
 
@@ -197,6 +216,15 @@ final class OverlayStateMachine {
         print("[PeachyPet] Transition video ended — arriving at \(targetName)")
 
         pendingEdge = nil
+        if config.version == AnimationCompiler.runtimeVersion,
+           let target = pendingTarget,
+           target != edge.target,
+           let chainedEdge = findEdgeWithVideo(from: edge.target, to: target) {
+            pendingTarget = nil
+            arriveAtNode(edge.target, evaluateAfterArrival: false)
+            beginTransition(chainedEdge)
+            return
+        }
         arriveAtNode(edge.target)
     }
 
@@ -208,14 +236,16 @@ final class OverlayStateMachine {
         #endif
 
         guard phase == .looping || phase == .idle else {
-            // During transitions: only update pendingTarget if a higher-priority Any State matches
+            // During transitions, keep the route target synchronized with the latest aggregate state.
+            // This includes returning to the source node while a hub transition is already playing.
             if phase == .transitioning, !anyStateEdges.isEmpty {
-                if let best = findBestAnyStateMatch(), best.target != currentNodeId {
-                    if pendingTarget == nil || best.target != pendingTarget {
-                        pendingTarget = best.target
-                        let targetName = config.nodes.first(where: { $0.id == best.target })?.name ?? best.target
-                        print("[PeachyPet] Mid-transition: updated pendingTarget to \(targetName)")
-                    }
+                let latestTarget = findBestAnyStateMatch()?.target
+                if latestTarget != pendingTarget {
+                    pendingTarget = latestTarget
+                    let targetName = latestTarget.flatMap { target in
+                        config.nodes.first(where: { $0.id == target })?.name
+                    } ?? latestTarget ?? "none"
+                    print("[PeachyPet] Mid-transition: updated pendingTarget to \(targetName)")
                 }
             }
             lastMatchResult = "Ignored (phase=\(phase))"
@@ -403,8 +433,9 @@ final class OverlayStateMachine {
 
     // MARK: - Node Arrival
 
-    private func arriveAtNode(_ nodeId: String) {
+    private func arriveAtNode(_ nodeId: String, evaluateAfterArrival: Bool = true) {
         cancelNodeTimeTimer()
+        queuedEdge = nil
         loopCount = 0
         currentNodeId = nodeId
 
@@ -446,7 +477,9 @@ final class OverlayStateMachine {
         startNodeTimeTimer()
 
         // Immediately evaluate — session inputs may already match an edge
-        evaluateAndFire(changedInput: "nodeArrival")
+        if evaluateAfterArrival {
+            evaluateAndFire(changedInput: "nodeArrival")
+        }
     }
 
     // MARK: - nodeTime Timer
@@ -486,6 +519,16 @@ final class OverlayStateMachine {
 
     private func playTransition(_ edge: PeachyAnimationEdge) {
         guard phase == .looping || phase == .idle else { return }
+        if phase == .looping, config.version == AnimationCompiler.runtimeVersion {
+            queuedEdge = edge
+            let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
+            print("[PeachyPet] Queued transition at loop boundary: \(currentNodeName) → \(targetName)")
+            return
+        }
+        beginTransition(edge)
+    }
+
+    private func beginTransition(_ edge: PeachyAnimationEdge) {
         guard let hevc = edge.videos.hevc, let url = URL(string: hevc) else {
             let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
             print("[PeachyPet] No transition video — jumping directly to \(targetName)")
