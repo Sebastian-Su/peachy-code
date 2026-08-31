@@ -33,7 +33,10 @@
 "settings.enable_terminal_switching" = "Enable terminal switching";
 
 /* Settings – Shortcuts */
+"settings.enable_global_shortcuts" = "Enable global shortcuts";
 "settings.global_shortcuts" = "Global Shortcuts";
+"settings.hotkeys_active" = "Active";
+"settings.hotkeys_inactive" = "Disabled / Needs Accessibility";
 "settings.focus_toggle" = "Focus Toggle";
 "settings.keyboard_shortcuts" = "Keyboard Shortcuts";
 "settings.grant_accessibility" = "Grant Accessibility Permission";

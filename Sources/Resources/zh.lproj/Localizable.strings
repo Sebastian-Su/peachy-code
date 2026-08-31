@@ -33,7 +33,10 @@
 "settings.enable_terminal_switching" = "启用终端切换";
 
 /* Settings – Shortcuts */
+"settings.enable_global_shortcuts" = "启用全局快捷键";
 "settings.global_shortcuts" = "全局快捷键";
+"settings.hotkeys_active" = "已启用";
+"settings.hotkeys_inactive" = "已停用 / 需要辅助功能权限";
 "settings.focus_toggle" = "聚焦切换";
 "settings.keyboard_shortcuts" = "键盘快捷键";
 "settings.grant_accessibility" = "授权辅助功能";

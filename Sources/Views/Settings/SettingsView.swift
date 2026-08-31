@@ -209,6 +209,11 @@ struct SettingsView: View {
 
             // MARK: – Keyboard Shortcuts
             Section {
+                @Bindable var store = appStore
+
+                Toggle(t("settings.enable_global_shortcuts"), isOn: $store.areHotkeysEnabled)
+                    .foregroundColor(Constants.textPrimary)
+
                 HStack {
                     Text(t("settings.global_shortcuts"))
                         .foregroundColor(Constants.textPrimary)
@@ -217,7 +222,9 @@ struct SettingsView: View {
                         Circle()
                             .fill(appStore.hotkeyManager.isActive ? Color.green : Color.gray.opacity(0.4))
                             .frame(width: 8, height: 8)
-                        Text(appStore.hotkeyManager.isActive ? "Active" : "Needs Accessibility")
+                        Text(appStore.hotkeyManager.isActive
+                            ? t("settings.hotkeys_active")
+                            : t("settings.hotkeys_inactive"))
                             .foregroundColor(Constants.textMuted)
                     }
                 }
