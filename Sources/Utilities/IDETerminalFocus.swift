@@ -6,11 +6,18 @@ import Foundation
 enum IDETerminalFocus {
 
     /// Focus the terminal for a given session.
-    static func focusSession(_ session: AgentSession) {
+    static func focusSession(
+        _ session: AgentSession,
+        codexThreadOpener: (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    ) {
         // Codex Desktop (ChatGPT.app) is a GUI app with no terminal — activate it
-        // directly instead of resolving a terminal (which falls through to the
-        // wrong app, e.g. Cursor open on the same project).
+        // with its registered thread deep link instead of resolving a terminal
+        // (which falls through to the wrong app, e.g. Cursor on the same project).
         if session.isCodexDesktop {
+            if let url = URL(string: "codex://threads/\(session.id)"),
+               codexThreadOpener(url) {
+                return
+            }
             activateApp(bundleId: "com.openai.codex")
             return
         }

@@ -44,6 +44,20 @@ final class SessionStoreIdleTests: XCTestCase {
         XCTAssertGreaterThan(session!.idleUntil!, Date(), "idleUntil must be in the future")
     }
 
+    func testGenericCodexStopDoesNotDowngradeDesktopSessionIdentity() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "desktop-source-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .sessionStart, sessionId: sid, source: "codex-desktop"))
+        store.recordEvent(event(type: .stop, sessionId: sid, source: "codex"))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.rawSource, "codex-desktop")
+        XCTAssertTrue(session?.isCodexDesktop == true)
+        XCTAssertEqual(session?.focusAppBundleId, "com.openai.codex")
+    }
+
     /// A machine that has never touched the setting must still expire stale sessions,
     /// otherwise agents that exit without Stop pile up forever.
     func testAutoHideDefaultsOnWhenPreferenceUnset() {
@@ -451,6 +465,49 @@ final class SessionStoreIdleTests: XCTestCase {
     }
 
     // MARK: - Startup migration
+
+    func testStartupRestoresCompletedCodexTranscriptToIdleWhenAutoHideIsOff() throws {
+        let transcriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("completed-codex-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: transcriptURL) }
+        let terminalRecords = """
+
+        {"type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1"}}
+        {"type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-1"}}
+        """
+        let terminalData = Data(terminalRecords.utf8)
+        let prefixByteCount = 65_537 - terminalData.count
+        var transcriptData = Data("你".utf8)
+        transcriptData.append(Data(repeating: 0x61, count: prefixByteCount - 3))
+        transcriptData.append(terminalData)
+        try transcriptData.write(to: transcriptURL, options: .atomic)
+
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        store.autoHideInactiveSessions = false
+        var session = AgentSession(
+            id: "completed-transcript-\(UUID().uuidString)",
+            projectDir: "/tmp",
+            projectName: "test",
+            agentSource: .codex,
+            status: .active,
+            phase: .running,
+            eventCount: 2,
+            startedAt: Date(timeIntervalSinceNow: -600),
+            lastEventAt: Date(timeIntervalSinceNow: -600),
+            activeSubagentCount: 1,
+            transcriptPath: transcriptURL.path
+        )
+        session.rawSource = "codex-desktop"
+        store.injectSessionForTesting(session)
+
+        store.runStartupMigration()
+
+        let restored = store.sessions.first(where: { $0.id == session.id })
+        XCTAssertEqual(restored?.status, .active)
+        XCTAssertEqual(restored?.phase, .idle)
+        XCTAssertEqual(restored?.activeSubagentCount, 0)
+    }
 
     func testStartupMigratesIdleSessionWithPastIdleUntil() {
         let store = makeStore(idleRetention: 300)

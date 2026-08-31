@@ -3,6 +3,35 @@ import XCTest
 @testable import PeachyPet
 
 final class CodexEventMapperTests: XCTestCase {
+    func testGuardianReviewLifecycleRoutesToParentSession() throws {
+        let parentId = "01a041e5-8be3-7752-bf6c-68d0e56ba320"
+        let guardianId = "01a042de-b23e-7870-b393-80ecb180a431"
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(guardianId).jsonl")
+        let meta = """
+        {"type":"session_meta","payload":{"session_id":"\(parentId)","id":"\(guardianId)","parent_thread_id":"\(parentId)","cwd":"/Users/test/project","originator":"Codex Desktop","cli_version":"0.150.0-alpha.8","source":{"subagent":{"other":"guardian"}},"thread_source":"guardian_review"}}
+        """
+
+        let start = CodexEventMapper.parse(line: meta, fileURL: fileURL, context: nil)
+        let context = try XCTUnwrap(start.context)
+        let taskStarted = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"task_started","turn_id":"guardian-turn"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+        let taskComplete = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"task_complete","turn_id":"guardian-turn","last_agent_message":"{\"outcome\":\"allow\"}"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+
+        XCTAssertTrue(start.events.isEmpty, "metadata alone must not mark an unstarted guardian as active")
+        XCTAssertEqual(taskStarted.events.map(\.eventType), [.subagentStart])
+        XCTAssertEqual(taskStarted.events.first?.sessionId, parentId)
+        XCTAssertEqual(taskComplete.events.map(\.eventType), [.subagentStop])
+        XCTAssertEqual(taskComplete.events.first?.sessionId, parentId)
+        XCTAssertEqual(taskComplete.events.first?.agentId, guardianId)
+    }
+
     func testSubagentLifecycleStaysOnRootSessionWithoutChildTurnEvents() throws {
         let rootId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
         let childId = "019f8f26-6b9d-7d13-8342-b0dd55ee0803"
@@ -24,8 +53,7 @@ final class CodexEventMapperTests: XCTestCase {
             context: context
         )
 
-        XCTAssertEqual(start.events.first?.eventType, .subagentStart)
-        XCTAssertEqual(start.events.first?.sessionId, rootId)
+        XCTAssertTrue(start.events.isEmpty, "metadata alone must not mark an unstarted subagent as active")
         XCTAssertEqual(taskStarted.events.map(\.eventType), [.subagentStart])
         XCTAssertEqual(taskStarted.events.first?.sessionId, rootId)
         XCTAssertEqual(taskStarted.events.first?.agentId, childId)
@@ -33,7 +61,7 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(taskComplete.events.first?.sessionId, rootId)
         XCTAssertEqual(taskComplete.events.first?.agentId, childId)
     }
-    func testSubagentSessionMetaMapsToParentSubagentStart() throws {
+    func testSubagentSessionMetaOnlyUpdatesContext() throws {
         let parentId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
         let childId = "019f8f01-9123-7a02-80be-53371dfea5f6"
         let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(childId).jsonl")
@@ -43,13 +71,11 @@ final class CodexEventMapperTests: XCTestCase {
 
         let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: nil)
 
-        XCTAssertEqual(result.events.count, 1)
-        let event = try XCTUnwrap(result.events.first)
-        XCTAssertEqual(event.eventType, .subagentStart)
-        XCTAssertEqual(event.sessionId, parentId)
-        XCTAssertEqual(event.agentId, childId)
-        XCTAssertEqual(event.agentType, "Popper")
-        XCTAssertEqual(event.source, "codex-desktop")
+        XCTAssertTrue(result.events.isEmpty)
+        XCTAssertEqual(result.context?.rootSessionId, parentId)
+        XCTAssertEqual(result.context?.sessionId, childId)
+        XCTAssertEqual(result.context?.subagentType, "Popper")
+        XCTAssertEqual(result.context?.normalizedSource, "codex-desktop")
     }
 
     func testSessionMetaMapsToSessionStartForDesktop() throws {

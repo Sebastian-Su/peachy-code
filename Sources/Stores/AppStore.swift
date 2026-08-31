@@ -387,6 +387,12 @@ final class AppStore {
             guard let self else { return }
             let reversed = Array(self.pendingPermissionStore.pending.reversed())
             if let topPerm = reversed.first {
+                if topPerm.event.assistantClientKind == .codexDesktop,
+                   let sessionId = topPerm.event.sessionId,
+                   let session = self.sessionStore.sessions.first(where: { $0.id == sessionId }) {
+                    IDETerminalFocus.focusSession(session)
+                    return
+                }
                 // For Codex events without terminal PID, use the interactive bridge
                 if topPerm.event.terminalPid == nil,
                    CodexInteractiveBridge.focus(event: topPerm.event) {

@@ -80,8 +80,13 @@ enum CodexEventMapper {
         switch recordType {
         case "session_meta":
             guard let sessionId = (payload["id"] as? String) ?? fallbackSessionId else { return result }
-            let isSubagent = (payload["thread_source"] as? String)?.lowercased() == "subagent"
-            let rootSessionId = payload["session_id"] as? String
+            let threadSource = (payload["thread_source"] as? String)?.lowercased()
+            let parentThreadId = payload["parent_thread_id"] as? String
+            let subagentSource = (payload["source"] as? [String: Any])?["subagent"] as? [String: Any]
+            let isSubagent = threadSource == "subagent"
+                || parentThreadId != nil
+                || subagentSource != nil
+            let rootSessionId = payload["session_id"] as? String ?? parentThreadId
             let discovered = CodexSessionContext(
                 sessionId: sessionId,
                 cwd: payload["cwd"] as? String,
@@ -91,22 +96,11 @@ enum CodexEventMapper {
                 isSubagent: isSubagent,
                 subagentType: (payload["agent_nickname"] as? String)
                     ?? (payload["agent_path"] as? String)
+                    ?? (subagentSource?["other"] as? String)
             )
             let mergedContext = merged(existing: context, update: discovered)
             result.context = mergedContext
-            if isSubagent, let rootSessionId {
-                result.events = [
-                    AgentEvent(
-                        hookEventName: HookEventType.subagentStart.rawValue,
-                        sessionId: rootSessionId,
-                        cwd: mergedContext.cwd,
-                        source: mergedContext.normalizedSource,
-                        model: payload["cli_version"] as? String,
-                        agentId: sessionId,
-                        agentType: mergedContext.subagentType
-                    ),
-                ]
-            } else {
+            if !isSubagent {
                 result.events = [
                     AgentEvent(
                         hookEventName: HookEventType.sessionStart.rawValue,

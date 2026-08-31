@@ -397,6 +397,30 @@ final class SessionStore {
         return false
     }
 
+    private static func transcriptIndicatesCompletedTurn(path: String) -> Bool {
+        let url = URL(fileURLWithPath: path)
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { handle.closeFile() }
+
+        let fileSize = handle.seekToEndOfFile()
+        guard fileSize > 0 else { return false }
+        let readSize = min(UInt64(65_536), fileSize)
+        handle.seek(toFileOffset: fileSize - readSize)
+        let data = handle.readDataToEndOfFile()
+
+        let text = String(decoding: data, as: UTF8.self)
+        for line in text.components(separatedBy: "\n").reversed() {
+            guard let lineData = line.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                  json["type"] as? String == "event_msg",
+                  let payload = json["payload"] as? [String: Any],
+                  let eventType = payload["type"] as? String else { continue }
+            if eventType == "task_complete" { return true }
+            if eventType == "task_started" { return false }
+        }
+        return false
+    }
+
     /// Invalidate all timers — called on app termination
     func stopTimers() {
         reconcileTimer?.invalidate()
@@ -707,6 +731,13 @@ final class SessionStore {
             clearSubagents(at: i)
             if hadPersistedSubagents { changed = true }
             guard sessions[i].status == .active else { continue }
+            if sessions[i].phase == .running,
+               sessions[i].agentSource == .codex,
+               let transcriptPath = sessions[i].transcriptPath,
+               Self.transcriptIndicatesCompletedTurn(path: transcriptPath) {
+                sessions[i].phase = .idle
+                changed = true
+            }
             guard autoHideInactiveSessions else { continue }
             switch sessions[i].phase {
             case .idle, .waitingInput:
@@ -833,8 +864,11 @@ final class SessionStore {
                 sessions[index].lastToolName = toolName
             }
             if let source = event.source, !source.isEmpty {
-                sessions[index].agentSource = AgentSource(rawSource: source)
-                sessions[index].rawSource = source
+                let isGenericCodexUpdate = source.lowercased() == "codex"
+                if !(sessions[index].isCodexDesktop && isGenericCodexUpdate) {
+                    sessions[index].agentSource = AgentSource(rawSource: source)
+                    sessions[index].rawSource = source
+                }
             }
             if let path = event.transcriptPath, sessions[index].transcriptPath == nil {
                 sessions[index].transcriptPath = path
@@ -982,9 +1016,15 @@ final class SessionStore {
             if event.eventType == .notification && event.notificationType == "idle_prompt" {
                 return
             }
+            // Child lifecycle events must attach to an existing root session. Test
+            // runners and standalone tools can legitimately emit these hooks with
+            // synthetic parent IDs; treating them as roots creates phantom cards.
+            if event.eventType == .subagentStart || event.eventType == .subagentStop {
+                return
+            }
             // New session
             let phase: AgentSession.Phase
-            if event.eventType == .userPromptSubmit || event.eventType == .subagentStart {
+            if event.eventType == .userPromptSubmit {
                 phase = .running
             } else {
                 phase = .idle
@@ -1011,16 +1051,6 @@ final class SessionStore {
                let prompt = event.prompt,
                !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 session.firstUserPrompt = prompt
-                shouldNotifyObservers = true
-            }
-            if event.eventType == .subagentStart {
-                if let agentId = event.agentId {
-                    reconciledSubagentStopIds[sessionId]?.remove(agentId)
-                    activeSubagentIds[sessionId] = [agentId]
-                } else {
-                    anonymousSubagentCounts[sessionId] = 1
-                }
-                session.activeSubagentCount = 1
                 shouldNotifyObservers = true
             }
             PeachyLog.session.info("Session created: \(sessionId) project=\(session.projectName ?? "/") src=\(session.rawSource ?? "-")")
