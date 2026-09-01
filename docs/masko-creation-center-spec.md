@@ -55,6 +55,7 @@
 - 使用独立的 Base URL、视频模型、认证请求头和 Keychain 凭据，不覆盖 Custom API 配置。
 - 新建、继续生成和重新生成前都请求 `POST sidecar/media/quotes`；只有 `exact=true` 且 `operation=image_to_video` 才展示本批次费用确认，用户取消或报价不精确时不创建媒体任务。
 - 费用授权只保存在本次生成的内存中。每条视频创建前重新报价；当前单价超过用户已确认上限时立即停止，批次结束后清除授权。
+- 确认弹窗按 QWork 当前计价口径 `1 Credit = 10,000 microcredits` 展示单条和本批次最高 Credits。
 - 确认后按 `POST sidecar/media/videos` → `GET sidecar/media/tasks/{id}` → 受保护的 `downloadPath` 顺序获取视频，下载请求继续携带同一认证头。
 - 认证值是 QWork Sidecar 的完整短期请求头值（例如 `Bearer …`），可能过期；PeachyPet 不持有 QWork 会话 Cookie，也不绕过 QWork 登录换取长期凭据。
 - QWork 当前不提供 Masko 所需的图生图锚点生成，因此状态锚点直接保留用户角色参考图。

@@ -346,6 +346,8 @@ final class QWorkSidecarMediaProviderTests: XCTestCase {
 
         XCTAssertEqual(summary.videoTaskCount, 7)
         XCTAssertEqual(summary.maximumTotalMicrocredits, 350_000)
+        XCTAssertEqual(summary.maximumUnitCredits, 5)
+        XCTAssertEqual(summary.maximumTotalCredits, 35)
     }
 
     private func makeProvider() -> QWorkSidecarMediaGenerationProvider {

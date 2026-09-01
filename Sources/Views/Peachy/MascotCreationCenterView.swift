@@ -611,13 +611,11 @@ struct MascotCreationCenterView: View {
 
     private var qworkQuoteMessage: String {
         guard let summary = qworkQuoteSummary else { return "" }
-        let unitCost = Double(summary.quote.maximumCostMicrocredits) / 1_000_000
-        let totalCost = Double(summary.maximumTotalMicrocredits) / 1_000_000
         return String(
             format: t("creator.qwork_quote_message"),
             summary.videoTaskCount,
-            unitCost,
-            totalCost
+            summary.maximumUnitCredits,
+            summary.maximumTotalCredits
         )
     }
 

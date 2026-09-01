@@ -17,6 +17,8 @@ struct QWorkMediaQuote: Decodable, Equatable {
 }
 
 struct QWorkGenerationQuoteSummary: Equatable {
+    static let microcreditsPerCredit: Int64 = 10_000
+
     let quote: QWorkMediaQuote
     let videoTaskCount: Int
 
@@ -33,6 +35,14 @@ struct QWorkGenerationQuoteSummary: Equatable {
 
     var maximumTotalMicrocredits: Int64 {
         quote.maximumCostMicrocredits * Int64(videoTaskCount)
+    }
+
+    var maximumUnitCredits: Double {
+        Double(quote.maximumCostMicrocredits) / Double(Self.microcreditsPerCredit)
+    }
+
+    var maximumTotalCredits: Double {
+        Double(maximumTotalMicrocredits) / Double(Self.microcreditsPerCredit)
     }
 }
 
