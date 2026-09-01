@@ -1,6 +1,13 @@
 import AppKit
 import SwiftUI
 
+private enum QWorkPendingGenerationAction {
+    case create
+    case resume(projectID: UUID)
+    case regenerateState(projectID: UUID, stateID: String)
+    case regenerateTransition(projectID: UUID, transitionID: String)
+}
+
 struct MascotCreationCenterView: View {
     @Environment(AppStore.self) private var appStore
     @Environment(OverlayManager.self) private var overlayManager
@@ -21,6 +28,9 @@ struct MascotCreationCenterView: View {
     @State private var apiKey = ""
     @State private var isWorking = false
     @State private var message: String?
+    @State private var qworkQuoteSummary: QWorkGenerationQuoteSummary?
+    @State private var showingQWorkQuote = false
+    @State private var qworkPendingAction: QWorkPendingGenerationAction?
 
     private var projectStore: MascotProjectStore { appStore.mascotProjectStore }
     private var providerSettings: MediaProviderSettingsStore { appStore.mediaProviderSettings }
@@ -79,6 +89,12 @@ struct MascotCreationCenterView: View {
         }
         .frame(minWidth: 820, minHeight: 620)
         .background(Constants.lightBackground)
+        .alert(t("creator.qwork_quote_title"), isPresented: $showingQWorkQuote) {
+            Button(t("permission.cancel"), role: .cancel) { cancelQWorkGeneration() }
+            Button(t("creator.qwork_quote_continue")) { confirmQWorkGeneration() }
+        } message: {
+            Text(qworkQuoteMessage)
+        }
     }
 
     private var projectSidebar: some View {
@@ -259,11 +275,15 @@ struct MascotCreationCenterView: View {
             Picker(t("creator.provider"), selection: $providerID) {
                 Text(t("creator.provider_mock")).tag(MockMediaGenerationProvider.providerID)
                 Text(t("creator.provider_custom")).tag(MediaProviderSettingsStore.customHTTPProviderID)
+                Text(t("creator.provider_qwork")).tag(QWorkSidecarMediaGenerationProvider.providerID)
             }
             .pickerStyle(.segmented)
+            .onChange(of: providerID) { _, _ in apiKey = "" }
 
             if providerID == MediaProviderSettingsStore.customHTTPProviderID {
                 customProviderForm
+            } else if providerID == QWorkSidecarMediaGenerationProvider.providerID {
+                qworkProviderForm
             }
 
             if let message {
@@ -273,7 +293,7 @@ struct MascotCreationCenterView: View {
             HStack {
                 Spacer()
                 Button {
-                    createAndGenerate()
+                    beginCreateAndGenerate()
                 } label: {
                     if isWorking {
                         ProgressView().controlSize(.small)
@@ -311,6 +331,32 @@ struct MascotCreationCenterView: View {
             }
             .textFieldStyle(.roundedBorder)
             Text(t("creator.bridge_contract"))
+                .font(Constants.body(size: 10))
+                .foregroundColor(Constants.textMuted)
+        }
+        .padding(12)
+        .background(Constants.surfaceWhite)
+        .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
+    }
+
+    private var qworkProviderForm: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TextField(t("creator.base_url"), text: Bindable(providerSettings).qworkBaseURL)
+                .textFieldStyle(.roundedBorder)
+            TextField(t("creator.video_model"), text: Bindable(providerSettings).qworkVideoModel)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                TextField(t("creator.api_key_header"), text: Bindable(providerSettings).qworkAPIKeyHeader)
+                SecureField(
+                    t(providerSettings.hasStoredAPIKey(for: providerID) ? "creator.api_key_saved" : "creator.api_key"),
+                    text: $apiKey
+                )
+            }
+            .textFieldStyle(.roundedBorder)
+            Text(t("creator.qwork_contract"))
+                .font(Constants.body(size: 10))
+                .foregroundColor(Constants.textMuted)
+            Text(t("creator.qwork_auth_hint"))
                 .font(Constants.body(size: 10))
                 .foregroundColor(Constants.textMuted)
         }
@@ -386,7 +432,7 @@ struct MascotCreationCenterView: View {
                         }
                         if transition.video != nil {
                             Button(t("creator.regenerate")) {
-                                regenerateTransition(projectID: project.id, transitionID: transition.id)
+                                beginRegenerateTransition(project: project, transitionID: transition.id)
                             }
                             .buttonStyle(BrandGhostButton())
                             .disabled(isWorking)
@@ -406,7 +452,7 @@ struct MascotCreationCenterView: View {
             HStack(spacing: 10) {
                 Button(t("creator.export_package")) { exportPackage(project) }
                     .buttonStyle(BrandGhostButton())
-                Button(t("creator.generate_resume")) { generate(projectID: project.id) }
+                Button(t("creator.generate_resume")) { beginResume(project) }
                     .buttonStyle(BrandSecondaryButton())
                     .disabled(isWorking)
                 Spacer()
@@ -442,7 +488,7 @@ struct MascotCreationCenterView: View {
             }
             if state.anchor != nil || state.loop != nil {
                 Button(t("creator.regenerate_state")) {
-                    regenerateState(projectID: project.id, stateID: state.id)
+                    beginRegenerateState(project: project, stateID: state.id)
                 }
                 .buttonStyle(BrandGhostButton())
                 .disabled(isWorking)
@@ -563,6 +609,122 @@ struct MascotCreationCenterView: View {
         }
     }
 
+    private var qworkQuoteMessage: String {
+        guard let summary = qworkQuoteSummary else { return "" }
+        let unitCost = Double(summary.quote.maximumCostMicrocredits) / 1_000_000
+        let totalCost = Double(summary.maximumTotalMicrocredits) / 1_000_000
+        return String(
+            format: t("creator.qwork_quote_message"),
+            summary.videoTaskCount,
+            unitCost,
+            totalCost
+        )
+    }
+
+    private func beginCreateAndGenerate() {
+        guard providerID == QWorkSidecarMediaGenerationProvider.providerID else {
+            createAndGenerate()
+            return
+        }
+        requestQWorkConfirmation(
+            videoTaskCount: selectedStates.count + 2 * max(0, selectedStates.count - 1),
+            action: .create,
+            saveCurrentConfiguration: true
+        )
+    }
+
+    private func beginResume(_ project: MascotProject) {
+        let videoTaskCount = project.states.filter { $0.loop == nil }.count +
+            project.transitions.filter { $0.video == nil }.count
+        guard project.providerID == QWorkSidecarMediaGenerationProvider.providerID,
+              videoTaskCount > 0 else {
+            generate(projectID: project.id)
+            return
+        }
+        requestQWorkConfirmation(
+            videoTaskCount: videoTaskCount,
+            action: .resume(projectID: project.id)
+        )
+    }
+
+    private func beginRegenerateState(project: MascotProject, stateID: String) {
+        guard project.providerID == QWorkSidecarMediaGenerationProvider.providerID else {
+            regenerateState(projectID: project.id, stateID: stateID)
+            return
+        }
+        let videoTaskCount = 1 + project.transitions.filter {
+            $0.source == stateID || $0.target == stateID
+        }.count
+        requestQWorkConfirmation(
+            videoTaskCount: videoTaskCount,
+            action: .regenerateState(projectID: project.id, stateID: stateID)
+        )
+    }
+
+    private func beginRegenerateTransition(project: MascotProject, transitionID: String) {
+        guard project.providerID == QWorkSidecarMediaGenerationProvider.providerID else {
+            regenerateTransition(projectID: project.id, transitionID: transitionID)
+            return
+        }
+        requestQWorkConfirmation(
+            videoTaskCount: 1,
+            action: .regenerateTransition(projectID: project.id, transitionID: transitionID)
+        )
+    }
+
+    private func requestQWorkConfirmation(
+        videoTaskCount: Int,
+        action: QWorkPendingGenerationAction,
+        saveCurrentConfiguration: Bool = false
+    ) {
+        isWorking = true
+        message = t("creator.qwork_quote_loading")
+        Task { @MainActor in
+            defer { isWorking = false }
+            do {
+                if saveCurrentConfiguration {
+                    try providerSettings.saveConfiguration(
+                        apiKey: apiKey.isEmpty ? nil : apiKey,
+                        providerID: QWorkSidecarMediaGenerationProvider.providerID
+                    )
+                }
+                let quote = try await providerSettings.quoteQWorkImageToVideo()
+                qworkQuoteSummary = QWorkGenerationQuoteSummary(
+                    quote: quote,
+                    videoTaskCount: videoTaskCount
+                )
+                qworkPendingAction = action
+                message = nil
+                showingQWorkQuote = true
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    private func cancelQWorkGeneration() {
+        qworkQuoteSummary = nil
+        qworkPendingAction = nil
+        providerSettings.clearQWorkCostApproval()
+    }
+
+    private func confirmQWorkGeneration() {
+        guard let summary = qworkQuoteSummary, let action = qworkPendingAction else { return }
+        providerSettings.approveQWorkQuote(summary.quote)
+        qworkQuoteSummary = nil
+        qworkPendingAction = nil
+        switch action {
+        case .create:
+            createAndGenerate()
+        case .resume(let projectID):
+            generate(projectID: projectID)
+        case .regenerateState(let projectID, let stateID):
+            regenerateState(projectID: projectID, stateID: stateID)
+        case .regenerateTransition(let projectID, let transitionID):
+            regenerateTransition(projectID: projectID, transitionID: transitionID)
+        }
+    }
+
     private func createAndGenerate() {
         guard let referenceURL else { return }
         do {
@@ -581,15 +743,23 @@ struct MascotCreationCenterView: View {
             selectedProjectID = project.id
             generate(projectID: project.id)
         } catch {
+            if providerID == QWorkSidecarMediaGenerationProvider.providerID {
+                providerSettings.clearQWorkCostApproval()
+            }
             message = error.localizedDescription
         }
     }
 
     private func generate(projectID: UUID) {
+        let usesQWork = projectStore.project(id: projectID)?.providerID ==
+            QWorkSidecarMediaGenerationProvider.providerID
         isWorking = true
         message = t("creator.generating")
         Task { @MainActor in
-            defer { isWorking = false }
+            defer {
+                isWorking = false
+                if usesQWork { providerSettings.clearQWorkCostApproval() }
+            }
             do {
                 let completed = try await coordinator.generate(projectID: projectID)
                 if completed.status == .ready {
@@ -619,6 +789,10 @@ struct MascotCreationCenterView: View {
             try coordinator.resetState(projectID: projectID, stateID: stateID)
             generate(projectID: projectID)
         } catch {
+            if projectStore.project(id: projectID)?.providerID ==
+                QWorkSidecarMediaGenerationProvider.providerID {
+                providerSettings.clearQWorkCostApproval()
+            }
             message = error.localizedDescription
         }
     }
@@ -628,6 +802,10 @@ struct MascotCreationCenterView: View {
             try coordinator.resetTransition(projectID: projectID, transitionID: transitionID)
             generate(projectID: projectID)
         } catch {
+            if projectStore.project(id: projectID)?.providerID ==
+                QWorkSidecarMediaGenerationProvider.providerID {
+                providerSettings.clearQWorkCostApproval()
+            }
             message = error.localizedDescription
         }
     }

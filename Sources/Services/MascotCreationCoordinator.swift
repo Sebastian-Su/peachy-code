@@ -19,8 +19,9 @@ struct MascotCreationCoordinator {
     let mascotStore: MascotStore
 
     func createProject(_ request: MascotProjectCreationRequest) throws -> MascotProject {
-        if request.providerID == MediaProviderSettingsStore.customHTTPProviderID {
-            try providerSettings.saveConfiguration(apiKey: request.apiKey)
+        if request.providerID == MediaProviderSettingsStore.customHTTPProviderID ||
+            request.providerID == QWorkSidecarMediaGenerationProvider.providerID {
+            try providerSettings.saveConfiguration(apiKey: request.apiKey, providerID: request.providerID)
         }
         var project = try projectStore.createProject(
             name: request.name,

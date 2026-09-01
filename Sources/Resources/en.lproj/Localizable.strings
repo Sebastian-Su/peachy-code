@@ -188,6 +188,7 @@
 "creator.provider" = "Provider";
 "creator.provider_mock" = "Local Mock — no credits";
 "creator.provider_custom" = "Custom API / MCP Bridge";
+"creator.provider_qwork" = "QWork Sidecar — experimental";
 "creator.create_generate" = "Create & Generate";
 "creator.base_url" = "Base URL";
 "creator.image_path" = "Image path";
@@ -198,6 +199,19 @@
 "creator.api_key_saved" = "API key saved in Keychain";
 "creator.api_key" = "API key";
 "creator.bridge_contract" = "The bridge must accept the JSON contract documented in docs/masko-creation-center-spec.md. Secrets stay in Keychain.";
+"creator.qwork_contract" = "Uses QWork exact quotes, asynchronous tasks, polling, and protected downloads. Character anchors keep the source image; current H.264 single-image videos will normally remain blocked by alpha or endpoint validation.";
+"creator.qwork_auth_hint" = "Paste the full short-lived header value (for example, Bearer …). Each generated video is fixed at 5 seconds.";
+"creator.qwork_quote_loading" = "Loading an exact QWork quote…";
+"creator.qwork_quote_title" = "Confirm QWork generation cost";
+"creator.qwork_quote_message" = "This will create %ld five-second videos. Maximum cost is %.4f Credits each and %.4f Credits total. Continuing calls the real provider.";
+"creator.qwork_quote_continue" = "Confirm & Generate";
+"creator.error.qwork_invalid_response" = "QWork returned an invalid media response";
+"creator.error.qwork_inexact_quote" = "QWork did not return an exact image-to-video quote";
+"creator.error.qwork_missing_cost_approval" = "Confirm the current QWork generation cost before creating media tasks";
+"creator.error.qwork_quote_exceeds_approval" = "The current QWork price exceeds the amount you confirmed";
+"creator.error.qwork_task_failed" = "The QWork media task failed: %@";
+"creator.error.qwork_task_timeout" = "Timed out waiting for the QWork media task";
+"creator.error.qwork_missing_result" = "The QWork media task completed without a downloadable result";
 "creator.project_summary" = "%ld states · %ld Idle hub transitions";
 "creator.blocked_items" = "Blocked items";
 "creator.transitions" = "Transitions";

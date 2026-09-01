@@ -70,6 +70,8 @@ Sources/
 - `.masko` 是带 `manifest.json` 与 SHA-256 清单的可迁移目录包
 - 自定义生成 Provider 的 API Key 只存 macOS Keychain，不写入项目或导出包
 - Custom API / MCP Bridge 契约见 `docs/masko-creation-center-spec.md`
+- 实验性 QWork Sidecar Provider 使用独立配置和 Keychain 凭据；仅接受精确报价，按异步任务轮询并携带认证下载结果
+- QWork 当前保留原角色图作为锚点，单参考帧 5 秒 H.264 输出仍须通过既有 HEVC Alpha 和端点门禁，否则保持 Block
 - 生成后必须通过图片解码、HEVC Alpha 编码、首尾锚点和转场端点检查；失败项进入 Block
 - MVP 只自动创建 `Idle <-> 其他状态` 转场，并通过 Any State 路由经 Idle 完成跨状态切换
 

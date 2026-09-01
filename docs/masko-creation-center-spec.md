@@ -27,6 +27,7 @@
 - 提供统一图片/视频生成接口。
 - 内置本地 Mock Provider，保证无网络时可走通完整流程。
 - 提供可配置 HTTP Provider，API Key 从 Keychain 注入。
+- 提供实验性的 QWork Sidecar Provider，复用其精确报价、异步媒体任务、轮询和受保护下载契约。
 - MCP 适配保留相同接口，但真实 MCP 工具契约和模型质量验证属于后续 Block。
 
 ### 自定义 HTTP / MCP Bridge 契约
@@ -49,6 +50,16 @@
 
 视频必须使用 HEVC Alpha 编码；编码不符、没有透明 alpha 或端点与锚点不匹配时，项目进入 Block，不会编译为 Ready Mascot。
 
+### QWork Sidecar 契约（实验）
+
+- 使用独立的 Base URL、视频模型、认证请求头和 Keychain 凭据，不覆盖 Custom API 配置。
+- 新建、继续生成和重新生成前都请求 `POST sidecar/media/quotes`；只有 `exact=true` 且 `operation=image_to_video` 才展示本批次费用确认，用户取消或报价不精确时不创建媒体任务。
+- 费用授权只保存在本次生成的内存中。每条视频创建前重新报价；当前单价超过用户已确认上限时立即停止，批次结束后清除授权。
+- 确认后按 `POST sidecar/media/videos` → `GET sidecar/media/tasks/{id}` → 受保护的 `downloadPath` 顺序获取视频，下载请求继续携带同一认证头。
+- 认证值是 QWork Sidecar 的完整短期请求头值（例如 `Bearer …`），可能过期；PeachyPet 不持有 QWork 会话 Cookie，也不绕过 QWork 登录换取长期凭据。
+- QWork 当前不提供 Masko 所需的图生图锚点生成，因此状态锚点直接保留用户角色参考图。
+- 当前 QWork 图生视频只接收一个参考帧、固定 5 秒并输出 H.264 MP4，不能证明循环末帧或转场目标帧匹配，也不满足 HEVC Alpha。下载完成后仍执行现有严格校验，不合格结果保持 Block，禁止用补帧或转码伪造 Ready。
+
 ## 验收
 
 - App 重启和断网后，本地 Masko 仍能播放。
@@ -64,3 +75,4 @@
 - 所有状态两两直连的自动生成。
 - 循环中任意时刻无损打断；仅创作中心编译的配置在循环边界切换，旧 Masko 保持原有行为。
 - 真实模型效果与成本验收。
+- QWork 长期认证、双端点约束生成、HEVC Alpha 输出或经验证的透明背景后处理。

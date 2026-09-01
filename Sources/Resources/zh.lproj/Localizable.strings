@@ -188,6 +188,7 @@
 "creator.provider" = "服务";
 "creator.provider_mock" = "本地 Mock（不消耗额度）";
 "creator.provider_custom" = "自定义 API / MCP Bridge";
+"creator.provider_qwork" = "QWork Sidecar（实验）";
 "creator.create_generate" = "创建并生成";
 "creator.base_url" = "基础 URL";
 "creator.image_path" = "图片接口路径";
@@ -198,6 +199,19 @@
 "creator.api_key_saved" = "API Key 已保存到钥匙串";
 "creator.api_key" = "API Key";
 "creator.bridge_contract" = "Bridge 必须接受 docs/masko-creation-center-spec.md 中的 JSON 契约；密钥只保存在钥匙串。";
+"creator.qwork_contract" = "使用 QWork 的精确报价、异步任务、轮询和受保护下载。角色锚点保留原参考图；当前 H.264 单图视频通常会被透明通道或首尾帧门禁阻塞。";
+"creator.qwork_auth_hint" = "请粘贴完整的短期请求头值（例如 Bearer …）；每条生成视频固定 5 秒。";
+"creator.qwork_quote_loading" = "正在获取 QWork 精确报价…";
+"creator.qwork_quote_title" = "确认 QWork 生成费用";
+"creator.qwork_quote_message" = "将创建 %ld 条 5 秒视频；每条最高 %.4f Credits，合计最高 %.4f Credits。继续后会调用真实 Provider。";
+"creator.qwork_quote_continue" = "确认并生成";
+"creator.error.qwork_invalid_response" = "QWork 返回了无效的媒体响应";
+"creator.error.qwork_inexact_quote" = "QWork 未返回可确认的精确图生视频报价";
+"creator.error.qwork_missing_cost_approval" = "创建媒体任务前需要先确认当前 QWork 生成费用";
+"creator.error.qwork_quote_exceeds_approval" = "当前 QWork 价格已超过你确认的金额";
+"creator.error.qwork_task_failed" = "QWork 媒体任务失败：%@";
+"creator.error.qwork_task_timeout" = "等待 QWork 媒体任务超时";
+"creator.error.qwork_missing_result" = "QWork 媒体任务完成但没有可下载结果";
 "creator.project_summary" = "%ld 个状态 · %ld 个 Idle 枢纽转场";
 "creator.blocked_items" = "阻塞项";
 "creator.transitions" = "转场";
