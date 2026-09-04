@@ -256,6 +256,9 @@ final class OverlayManager {
 
         // --- Permission panel (smart-positioned, adapts to screen edges) ---
         permissionHUDConfig = PermissionHUDConfig()
+        permissionHUDConfig.updateMaximumSessionSwitcherHeight(
+            visibleScreenHeight: screenFrame.height
+        )
         permissionHUDConfig.onContentSizeChange = { [weak self] _ in
             self?.scheduleHUDReposition()
         }
@@ -698,6 +701,9 @@ final class OverlayManager {
 
         // --- Permission panel (above stats, no tail) ---
         permissionHUDConfig = PermissionHUDConfig()
+        permissionHUDConfig.updateMaximumSessionSwitcherHeight(
+            visibleScreenHeight: screen.height
+        )
         permissionHUDConfig.onContentSizeChange = { [weak self] _ in
             self?.scheduleHUDReposition()
         }
@@ -824,6 +830,14 @@ final class OverlayManager {
     /// Set the dialog scale and reposition.
     func setDialogScale(_ scale: Double) {
         permissionHUDConfig.scale = CGFloat(scale)
+        let screen = panel?.screen?.visibleFrame
+            ?? statsPanel?.screen?.visibleFrame
+            ?? permissionPanel?.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? .zero
+        permissionHUDConfig.updateMaximumSessionSwitcherHeight(
+            visibleScreenHeight: screen.height
+        )
         permissionHUDConfig.updateScaledSize()
         scheduleHUDReposition()
     }
@@ -1169,11 +1183,25 @@ final class OverlayManager {
         #endif
         guard let permissionPanel else { return }
 
+        let screen = panel?.screen?.visibleFrame
+            ?? statsPanel?.screen?.visibleFrame
+            ?? permissionPanel.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? .zero
+        permissionHUDConfig.updateMaximumSessionSwitcherHeight(
+            visibleScreenHeight: screen.height
+        )
         let contentSize = permissionHUDConfig.contentSize
         // Skip if no content (no permissions AND no session switcher)
         if contentSize.height <= 10 { return }
 
-        let permSize = CGSize(width: max(contentSize.width, 280), height: contentSize.height)
+        let permSize = CGSize(
+            width: max(contentSize.width, 280),
+            height: Self.boundedPermissionPanelHeight(
+                contentHeight: contentSize.height,
+                screenFrame: screen
+            )
+        )
 
         // Standalone mode — no mascot panel, position above the draggable stats pill
         guard let panel else {
@@ -1184,13 +1212,14 @@ final class OverlayManager {
                     y: statsFrame.maxY + 4
                 )
                 // Clamp to screen
-                let screen = statsPanel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
                 let clampedX = max(screen.minX, min(origin.x, screen.maxX - permSize.width))
-                let clampedY = min(origin.y, screen.maxY - permSize.height)
+                let clampedY = max(screen.minY, min(origin.y, screen.maxY - permSize.height))
                 permissionPanel.setFrame(NSRect(origin: CGPoint(x: clampedX, y: clampedY), size: permSize), display: true)
             } else {
-                let screen = permissionPanel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
-                let origin = CGPoint(x: screen.maxX - permSize.width - 20, y: screen.minY + 80)
+                let origin = CGPoint(
+                    x: max(screen.minX, screen.maxX - permSize.width - 20),
+                    y: max(screen.minY, min(screen.minY + 80, screen.maxY - permSize.height))
+                )
                 permissionPanel.setFrame(NSRect(origin: origin, size: permSize), display: true)
             }
             permissionHUDConfig.tailSide = .none
@@ -1199,7 +1228,6 @@ final class OverlayManager {
         }
 
         let mascotFrame = panel.frame
-        let screen = panel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
         let gap: CGFloat = 4
         let statsTop = statsPanel?.frame.maxY ?? mascotFrame.maxY
 
@@ -1260,6 +1288,16 @@ final class OverlayManager {
         #endif
         permissionHUDConfig.tailSide = tailSide
         permissionHUDConfig.tailPercent = tailPercent
+    }
+
+    static func boundedPermissionPanelHeight(
+        contentHeight: CGFloat,
+        screenFrame: NSRect,
+        edgeInset: CGFloat = 16
+    ) -> CGFloat {
+        guard screenFrame.height > 0 else { return max(0, contentHeight) }
+        let maximumHeight = max(0, screenFrame.height - edgeInset * 2)
+        return min(max(0, contentHeight), maximumHeight)
     }
 
     /// Reposition all HUD panels.

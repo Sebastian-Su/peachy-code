@@ -90,6 +90,7 @@ final class PermissionHUDConfig {
     var tailPercent: CGFloat = 0.80
     var onContentSizeChange: ((CGSize) -> Void)?
     var showPreview = false
+    var maximumSessionSwitcherHeight: CGFloat = 560
     var scale: CGFloat {
         get {
             let v = UserDefaults.standard.double(forKey: "permission_panel_scale")
@@ -119,6 +120,15 @@ final class PermissionHUDConfig {
             height: unscaledSize.height * scale
         )
     }
+
+    func updateMaximumSessionSwitcherHeight(visibleScreenHeight: CGFloat) {
+        let newHeight = sessionSwitcherMaximumHeight(
+            visibleScreenHeight: visibleScreenHeight,
+            scale: scale
+        )
+        guard abs(newHeight - maximumSessionSwitcherHeight) > 1 else { return }
+        maximumSessionSwitcherHeight = newHeight
+    }
 }
 
 struct PermissionHUDView: View {
@@ -132,7 +142,7 @@ struct PermissionHUDView: View {
             if config.showPreview {
                 DialogScalePreview()
             }
-            SessionSwitcherView()
+            SessionSwitcherView(maximumHeight: config.maximumSessionSwitcherHeight)
             SessionFinishedToastView()
             PermissionStackView()
         }

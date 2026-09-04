@@ -17,6 +17,13 @@ func sessionPhaseLabel(_ phase: AgentSession.Phase) -> String {
 private let subagentIndicatorWidth: CGFloat = 10
 private let subagentIndicatorSpacing: CGFloat = 4
 private let subagentIndicatorRightInset: CGFloat = 6
+private let sessionSwitcherScreenHeightFraction: CGFloat = 0.72
+private let sessionSwitcherHintHeight: CGFloat = 24
+
+func sessionSwitcherMaximumHeight(visibleScreenHeight: CGFloat, scale: CGFloat) -> CGFloat {
+    guard visibleScreenHeight > 0 else { return 0 }
+    return visibleScreenHeight * sessionSwitcherScreenHeightFraction / max(scale, 0.01)
+}
 
 func subagentIndicatorCapacity(availableWidth: CGFloat) -> Int {
     let usableWidth = max(0, availableWidth - subagentIndicatorRightInset)
@@ -33,6 +40,7 @@ func subagentIndicatorTopOffset(containerHeight: CGFloat) -> CGFloat {
 struct SessionSwitcherView: View {
     @Environment(SessionSwitcherStore.self) var store
     @Environment(GlobalHotkeyManager.self) var hotkeyManager
+    let maximumHeight: CGFloat
 
     var body: some View {
         if store.isActive {
@@ -44,20 +52,11 @@ struct SessionSwitcherView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                 } else {
-                    ForEach(Array(store.sessions.enumerated()), id: \.element.id) { index, session in
-                        SessionSwitcherRow(
-                            session: session,
-                            index: index,
-                            isSelected: index == store.selectedIndex,
-                            showShortcuts: hotkeyManager.isCmdHeld,
-                            onTap: { store.tapConfirm(index: index) }
-                        )
-
-                        if index < store.sessions.count - 1 {
-                            Divider()
-                                .padding(.leading, 12)
-                        }
+                    ViewThatFits(in: .vertical) {
+                        sessionRows
+                        scrollableSessionRows
                     }
+                    .frame(maxHeight: max(0, maximumHeight - sessionSwitcherHintHeight))
                 }
 
                 // Hint bar — always visible
@@ -68,6 +67,7 @@ struct SessionSwitcherView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
             }
+            .frame(maxHeight: maximumHeight)
             .animation(.easeInOut(duration: 0.15), value: hotkeyManager.isCmdHeld)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
@@ -77,6 +77,51 @@ struct SessionSwitcherView: View {
             )
             .shadow(color: Constants.cardShadowColor, radius: 4, x: 0, y: 2)
         }
+    }
+
+    private var sessionRows: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(store.sessions.enumerated()), id: \.element.id) { index, session in
+                SessionSwitcherRow(
+                    session: session,
+                    index: index,
+                    isSelected: index == store.selectedIndex,
+                    showShortcuts: hotkeyManager.isCmdHeld,
+                    onTap: { store.tapConfirm(index: index) }
+                )
+
+                if index < store.sessions.count - 1 {
+                    Divider()
+                        .padding(.leading, 12)
+                }
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var scrollableSessionRows: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                sessionRows
+            }
+            .scrollIndicators(.visible)
+            .onAppear {
+                scrollToSelection(using: proxy)
+            }
+            .onChange(of: store.selectedIndex) { _, _ in
+                withAnimation(.easeOut(duration: 0.12)) {
+                    scrollToSelection(using: proxy)
+                }
+            }
+            .onChange(of: store.sessions.map(\.id)) { _, _ in
+                scrollToSelection(using: proxy)
+            }
+        }
+    }
+
+    private func scrollToSelection(using proxy: ScrollViewProxy) {
+        guard store.sessions.indices.contains(store.selectedIndex) else { return }
+        proxy.scrollTo(store.sessions[store.selectedIndex].id, anchor: .center)
     }
 }
 
