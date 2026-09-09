@@ -15,8 +15,8 @@ EXEC_NAME="PeachyPet"
 APP="$OUT_DIR/$APP_NAME.app"
 
 echo "── Release build ──────────────────────────────"
-swift build -c release --package-path "$REPO"
-BIN="$(swift build -c release --package-path "$REPO" --show-bin-path)"
+swift build -c release --package-path "$REPO" -Xswiftc -DPEACHY_APP_BUNDLE
+BIN="$(swift build -c release --package-path "$REPO" -Xswiftc -DPEACHY_APP_BUNDLE --show-bin-path)"
 echo "bin: $BIN"
 
 echo "── Assemble bundle ────────────────────────────"
@@ -31,15 +31,13 @@ cp "$BIN/$EXEC_NAME" "$APP/Contents/MacOS/$EXEC_NAME"
 # Info.plist (CFBundleExecutable must match EXEC_NAME)
 cp "$REPO/Info.plist" "$APP/Contents/Info.plist"
 
-# Resources: icon + copied resource dirs + SPM-generated resource bundle
+# App builds read standard Contents/Resources instead of SwiftPM's build-relative bundle.
 cp "$REPO/Sources/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-for dir in Defaults Fonts Images Extensions; do
+for dir in Defaults Fonts Images Extensions en.lproj zh.lproj; do
   [ -d "$REPO/Sources/Resources/$dir" ] && cp -R "$REPO/Sources/Resources/$dir" "$APP/Contents/Resources/$dir"
 done
-# SPM resource bundle (peachy-code_peachy-code.bundle)
-if [ -d "$BIN/${EXEC_NAME}_${EXEC_NAME}.bundle" ]; then
-  cp -R "$BIN/${EXEC_NAME}_${EXEC_NAME}.bundle" "$APP/Contents/Resources/"
-fi
+
+"$REPO/scripts/verify-app-bundle-resources.sh" "$APP"
 
 # Sparkle framework — the release executable links @rpath/Sparkle.framework
 # with rpath @loader_path (the MacOS dir), so place it beside the executable.

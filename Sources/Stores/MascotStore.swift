@@ -105,7 +105,11 @@ final class MascotStore {
     }
 
     static func loadBundledConfig(named filename: String) -> PeachyAnimationConfig? {
-        guard let url = Bundle.module.url(forResource: filename, withExtension: "json", subdirectory: "Defaults"),
+        guard let url = PeachyResourceBundle.current.url(
+            forResource: filename,
+            withExtension: "json",
+            subdirectory: "Defaults"
+        ),
               let data = try? Data(contentsOf: url),
               let config = try? JSONDecoder().decode(PeachyAnimationConfig.self, from: data) else { return nil }
         return config

@@ -43,7 +43,6 @@ enum PeachyIconProvider {
     }
 
     private static func resourceURL(named name: String) -> URL? {
-        Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "Images")
-            ?? Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "Images")
+        PeachyResourceBundle.current.url(forResource: name, withExtension: "png", subdirectory: "Images")
     }
 }

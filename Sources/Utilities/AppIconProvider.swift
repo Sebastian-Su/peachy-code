@@ -16,7 +16,7 @@ enum AppIconProvider {
     }
 
     private static func bundledIcon(_ bundleId: String) -> NSImage? {
-        guard let url = Bundle.module.url(
+        guard let url = PeachyResourceBundle.current.url(
             forResource: bundleId,
             withExtension: "png",
             subdirectory: "Images/app-icons"

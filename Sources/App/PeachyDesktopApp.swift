@@ -19,11 +19,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "Rubik-Regular", "Rubik-Medium", "Rubik-SemiBold"
         ]
         for name in fontNames {
-            if let url = Bundle.module.url(forResource: name, withExtension: "ttf", subdirectory: "Fonts") {
-                CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-                continue
-            }
-            if let url = Bundle.main.url(forResource: name, withExtension: "ttf", subdirectory: "Fonts") {
+            if let url = PeachyResourceBundle.current.url(
+                forResource: name,
+                withExtension: "ttf",
+                subdirectory: "Fonts"
+            ) {
                 CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
             }
         }
