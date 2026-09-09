@@ -122,7 +122,7 @@ enum HookInstaller {
         try writeSettings(settings)
     }
 
-    private static let scriptVersion = "# version: 16"
+    private static let scriptVersion = "# version: 17"
 
     /// Exposed for testing: returns the script content that would be written by ensureScriptExists().
     /// This avoids tests needing to touch the real home directory.
@@ -202,11 +202,17 @@ enum HookInstaller {
           CUR="$PAR"
         done
 
-        # Inject terminal_pid and shell_pid into JSON payload
+        # Inject terminal_pid, shell_pid, and ITERM_SESSION_ID into JSON payload
         if [ -n "$TERM_PID" ]; then
           INJECT="\\"terminal_pid\\":$TERM_PID"
           [ -n "$SHELL_PID" ] && INJECT="$INJECT,\\"shell_pid\\":$SHELL_PID"
           INPUT=$(echo "$INPUT" | sed "s/}$/,$INJECT}/")
+        fi
+        if [ -n "$ITERM_SESSION_ID" ]; then
+          # ITERM_SESSION_ID format is "wXtYpZ:UUID" — extract only the UUID portion
+          # because iTerm2 AppleScript "unique id" matches only the UUID part.
+          ITERM_UUID="${ITERM_SESSION_ID##*:}"
+          INPUT=$(echo "$INPUT" | sed "s/}$/,\\"iterm_session_id\\":\\"$ITERM_UUID\\"}/")
         fi
 
         if [ "$EVENT_NAME" = "PermissionRequest" ]; then

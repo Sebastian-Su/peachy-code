@@ -19,6 +19,9 @@ struct AgentSession: Identifiable, Codable {
     var terminalPid: Int?
     var terminalBundleId: String?
     var shellPid: Int?
+    /// iTerm2 session unique ID (from $ITERM_SESSION_ID, injected by hook script).
+    /// Used as a more reliable fallback than tty-matching on newer iTerm2 versions.
+    var itermSessionId: String?
     var transcriptPath: String?
     var idleUntil: Date?
     var sessionTitle: String?
@@ -85,6 +88,7 @@ struct AgentSession: Identifiable, Codable {
         activeSubagentCount: Int = 0,
         terminalPid: Int? = nil,
         shellPid: Int? = nil,
+        itermSessionId: String? = nil,
         transcriptPath: String? = nil,
         sessionTitle: String? = nil,
         projectDisplayName: String? = nil,
@@ -103,6 +107,7 @@ struct AgentSession: Identifiable, Codable {
         self.activeSubagentCount = activeSubagentCount
         self.terminalPid = terminalPid
         self.shellPid = shellPid
+        self.itermSessionId = itermSessionId
         self.transcriptPath = transcriptPath
         self.sessionTitle = sessionTitle
         self.projectDisplayName = projectDisplayName
@@ -144,6 +149,7 @@ struct AgentSession: Identifiable, Codable {
         case activeSubagentCount
         case terminalPid
         case shellPid
+        case itermSessionId
         case transcriptPath
         case idleUntil
         case sessionTitle
@@ -176,6 +182,7 @@ struct AgentSession: Identifiable, Codable {
         activeSubagentCount = try container.decodeIfPresent(Int.self, forKey: .activeSubagentCount) ?? 0
         terminalPid = try container.decodeIfPresent(Int.self, forKey: .terminalPid)
         shellPid = try container.decodeIfPresent(Int.self, forKey: .shellPid)
+        itermSessionId = try container.decodeIfPresent(String.self, forKey: .itermSessionId)
         transcriptPath = try container.decodeIfPresent(String.self, forKey: .transcriptPath)
         rawSource = try container.decodeIfPresent(String.self, forKey: .rawSource)
         idleUntil = try container.decodeIfPresent(Date.self, forKey: .idleUntil)
@@ -880,6 +887,9 @@ final class SessionStore {
             if let pid = event.shellPid, sessions[index].shellPid == nil {
                 sessions[index].shellPid = pid
             }
+            if let sid = event.itermSessionId, sessions[index].itermSessionId == nil {
+                sessions[index].itermSessionId = sid
+            }
 
             // Reactivate ended sessions when active-work events arrive
             // (handles app restart while Claude Code is mid-session)
@@ -913,6 +923,9 @@ final class SessionStore {
                 }
                 if let pid = event.shellPid {
                     sessions[index].shellPid = pid
+                }
+                if let sid = event.itermSessionId {
+                    sessions[index].itermSessionId = sid
                 }
 
             case .notification where event.notificationType == "idle_prompt":
@@ -1046,6 +1059,7 @@ final class SessionStore {
                 session.terminalBundleId = Self.resolveBundleId(pid: pid)
             }
             session.shellPid = event.shellPid
+            session.itermSessionId = event.itermSessionId
             session.transcriptPath = event.transcriptPath
             if event.eventType == .userPromptSubmit,
                let prompt = event.prompt,

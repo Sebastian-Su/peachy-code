@@ -50,6 +50,9 @@ struct AgentEvent: Identifiable, Codable {
     // Shell PID (injected by hook script — the zsh/bash PID that VS Code Terminal.processId returns)
     let shellPid: Int?
 
+    // iTerm2 session unique ID (from $ITERM_SESSION_ID env var — injected by hook script)
+    let itermSessionId: String?
+
     // Timestamp (set locally when received)
     let receivedAt: Date
 
@@ -130,6 +133,7 @@ struct AgentEvent: Identifiable, Codable {
         case permissionSuggestions = "permission_suggestions"
         case terminalPid = "terminal_pid"
         case shellPid = "shell_pid"
+        case itermSessionId = "iterm_session_id"
         case receivedAt
     }
 
@@ -161,6 +165,7 @@ struct AgentEvent: Identifiable, Codable {
         self.permissionSuggestions = try container.decodeIfPresent([AnyCodable].self, forKey: .permissionSuggestions)
         self.terminalPid = try container.decodeIfPresent(Int.self, forKey: .terminalPid)
         self.shellPid = try container.decodeIfPresent(Int.self, forKey: .shellPid)
+        self.itermSessionId = try container.decodeIfPresent(String.self, forKey: .itermSessionId)
         self.receivedAt = Date()
     }
 
@@ -189,7 +194,8 @@ struct AgentEvent: Identifiable, Codable {
         taskSubject: String? = nil,
         permissionSuggestions: [AnyCodable]? = nil,
         terminalPid: Int? = nil,
-        shellPid: Int? = nil
+        shellPid: Int? = nil,
+        itermSessionId: String? = nil
     ) {
         self.id = UUID()
         self.hookEventName = hookEventName
@@ -216,6 +222,7 @@ struct AgentEvent: Identifiable, Codable {
         self.taskSubject = taskSubject
         self.terminalPid = terminalPid
         self.shellPid = shellPid
+        self.itermSessionId = itermSessionId
         self.permissionSuggestions = permissionSuggestions
         self.receivedAt = Date()
     }

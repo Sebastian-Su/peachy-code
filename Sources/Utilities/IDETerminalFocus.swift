@@ -33,14 +33,20 @@ enum IDETerminalFocus {
             }
         }
 
-        focus(terminalPid: terminalPid, shellPid: shellPid, projectDir: session.projectDir, savedBundleId: session.terminalBundleId)
+        focus(
+            terminalPid: terminalPid,
+            shellPid: shellPid,
+            itermSessionId: session.itermSessionId,
+            projectDir: session.projectDir,
+            savedBundleId: session.terminalBundleId
+        )
     }
 
     /// Focus a terminal by PID.
     /// 1. If shellPid + IDE extension available → bring correct window to front, then open URI to focus exact terminal tab
     /// 2. If terminalPid available → activate the IDE/terminal app (brings to foreground)
     /// 3. Fallback → activate first running terminal-like app
-    static func focus(terminalPid: Int? = nil, shellPid: Int? = nil, projectDir: String? = nil, savedBundleId: String? = nil) {
+    static func focus(terminalPid: Int? = nil, shellPid: Int? = nil, itermSessionId: String? = nil, projectDir: String? = nil, savedBundleId: String? = nil) {
         // Resolve bundle ID from terminalPid, fall back to persisted bundleId
         var bundleId: String?
         if let pid = terminalPid,
@@ -110,8 +116,8 @@ enum IDETerminalFocus {
         }
 
         // Try terminal-specific tab switching (iTerm2, Terminal.app)
-        if let shellPid, let bundleId {
-            if activateTerminalTab(bundleId: bundleId, shellPid: shellPid) {
+        if let bundleId {
+            if activateTerminalTab(bundleId: bundleId, shellPid: shellPid, itermSessionId: itermSessionId) {
                 return
             }
         }
@@ -202,31 +208,57 @@ enum IDETerminalFocus {
         } catch { return nil }
     }
 
-    /// Try to switch to the exact terminal tab matching shellPid's tty.
+    /// Try to switch to the exact terminal tab matching shellPid's tty or iTerm2 session unique id.
     /// Returns true if a terminal-specific AppleScript succeeded.
-    private static func activateTerminalTab(bundleId: String, shellPid: Int) -> Bool {
-        guard let tty = ttyForPid(shellPid), !tty.isEmpty else { return false }
-        let ttyDevice = "/dev/\(tty)"
-
+    private static func activateTerminalTab(bundleId: String, shellPid: Int?, itermSessionId: String?) -> Bool {
         let script: String?
         switch bundleId {
         case "com.googlecode.iterm2":
-            script = """
-            tell application "iTerm2"
-                activate
-                repeat with aWindow in windows
-                    repeat with aTab in tabs of aWindow
-                        repeat with aSession in sessions of aTab
-                            if tty of aSession is "\(ttyDevice)" then
-                                select aTab
-                                return
-                            end if
+            // Prefer ITERM_SESSION_ID (unique id) — more reliable on newer iTerm2.
+            // Fall back to tty matching when itermSessionId is unavailable.
+            if let sid = itermSessionId {
+                script = """
+                tell application "iTerm2"
+                    activate
+                    repeat with aWindow in windows
+                        repeat with aTab in tabs of aWindow
+                            repeat with aSession in sessions of aTab
+                                if unique id of aSession is "\(sid)" then
+                                    tell aWindow
+                                        select aTab
+                                    end tell
+                                    return
+                                end if
+                            end repeat
                         end repeat
                     end repeat
-                end repeat
-            end tell
-            """
+                end tell
+                """
+            } else if let pid = shellPid, let tty = ttyForPid(pid), !tty.isEmpty {
+                let ttyDevice = "/dev/\(tty)"
+                script = """
+                tell application "iTerm2"
+                    activate
+                    repeat with aWindow in windows
+                        repeat with aTab in tabs of aWindow
+                            repeat with aSession in sessions of aTab
+                                if tty of aSession is "\(ttyDevice)" then
+                                    tell aWindow
+                                        select aTab
+                                    end tell
+                                    return
+                                end if
+                            end repeat
+                        end repeat
+                    end repeat
+                end tell
+                """
+            } else {
+                script = nil
+            }
         case "com.apple.Terminal":
+            guard let pid = shellPid, let tty = ttyForPid(pid), !tty.isEmpty else { return false }
+            let ttyDevice = "/dev/\(tty)"
             script = """
             tell application "Terminal"
                 activate
