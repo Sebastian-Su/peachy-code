@@ -122,7 +122,7 @@ enum HookInstaller {
         try writeSettings(settings)
     }
 
-    private static let scriptVersion = "# version: 17"
+    private static let scriptVersion = "# version: 18"
 
     /// Exposed for testing: returns the script content that would be written by ensureScriptExists().
     /// This avoids tests needing to touch the real home directory.
@@ -197,6 +197,9 @@ enum HookInstaller {
           COMM=$(ps -o comm= -p "$PAR" 2>/dev/null); COMM="${COMM##*/}"
           case "$COMM" in
             zsh|bash|fish|sh|nu|pwsh|elvish|-zsh|-bash|-fish|-sh) LAST_SHELL="$PAR" ;;
+            # Newer iTerm2 (3.5+) runs the shell under a separate iTermServer process
+            # instead of the app; resolve the app PID by name in that case.
+            iTermServer*) TERM_PID=$(pgrep -x iTerm2 2>/dev/null | head -1); SHELL_PID="$LAST_SHELL"; break ;;
             Terminal|iTerm2|wezterm-gui|kitty|Cursor|Code|Windsurf|ghostty|alacritty|Warp|Zed|pycharm|idea|webstorm|goland|clion|phpstorm|rubymine|rider|Claude) TERM_PID="$PAR"; SHELL_PID="$LAST_SHELL"; break ;;
           esac
           CUR="$PAR"

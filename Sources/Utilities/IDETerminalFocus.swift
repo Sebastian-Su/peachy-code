@@ -56,6 +56,11 @@ enum IDETerminalFocus {
         if bundleId == nil {
             bundleId = savedBundleId
         }
+        // An iTerm2 session id can only come from iTerm2 — it lets tab switching work
+        // even when terminal_pid could not be resolved (e.g. iTermServer-owned shells).
+        if bundleId == nil, itermSessionId != nil {
+            bundleId = "com.googlecode.iterm2"
+        }
 
         // Claude Desktop: activate the app window
         if bundleId == "com.anthropic.claudefordesktop" {
