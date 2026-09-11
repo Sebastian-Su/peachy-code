@@ -389,9 +389,8 @@ final class AppStore {
             guard let self else { return }
             let reversed = Array(self.pendingPermissionStore.pending.reversed())
             if let topPerm = reversed.first {
-                if topPerm.event.assistantClientKind == .codexDesktop,
-                   let sessionId = topPerm.event.sessionId,
-                   let session = self.sessionStore.sessions.first(where: { $0.id == sessionId }) {
+                let session = self.sessionStore.sessions.first(where: { $0.id == topPerm.event.sessionId })
+                if topPerm.event.assistantClientKind == .codexDesktop, let session {
                     IDETerminalFocus.focusSession(session)
                     return
                 }
@@ -400,11 +399,17 @@ final class AppStore {
                    CodexInteractiveBridge.focus(event: topPerm.event) {
                     return
                 }
-                let sessionDir = self.sessionStore.sessions.first(where: { $0.id == topPerm.event.sessionId })?.projectDir
+                // Prefer focusSession: it carries the session's iTerm2 UUID and persisted
+                // bundle id, which exact tab switching needs. The event may lack those.
+                if let session {
+                    IDETerminalFocus.focusSession(session)
+                    return
+                }
                 IDETerminalFocus.focus(
                     terminalPid: topPerm.event.terminalPid,
                     shellPid: topPerm.event.shellPid,
-                    projectDir: sessionDir ?? topPerm.event.cwd
+                    itermSessionId: topPerm.event.itermSessionId,
+                    projectDir: topPerm.event.cwd
                 )
             } else if let toast = self.sessionFinishedStore.current,
                       let session = self.sessionStore.sessions.first(where: { $0.id == toast.sessionId }) {
