@@ -880,14 +880,18 @@ final class SessionStore {
             if let path = event.transcriptPath, sessions[index].transcriptPath == nil {
                 sessions[index].transcriptPath = path
             }
-            if let pid = event.terminalPid, sessions[index].terminalPid == nil {
+            // Always refresh terminal/shell PIDs and the iTerm2 session id: all three are
+            // resolved per-event by the hook, and macOS recycles PIDs across reboots.
+            // A stale value (surviving from before a restart) would pin focus to a dead
+            // or unrelated process for the rest of the session's life.
+            if let pid = event.terminalPid {
                 sessions[index].terminalPid = pid
                 sessions[index].terminalBundleId = Self.resolveBundleId(pid: pid)
             }
-            if let pid = event.shellPid, sessions[index].shellPid == nil {
+            if let pid = event.shellPid {
                 sessions[index].shellPid = pid
             }
-            if let sid = event.itermSessionId, sessions[index].itermSessionId == nil {
+            if let sid = event.itermSessionId {
                 sessions[index].itermSessionId = sid
             }
 

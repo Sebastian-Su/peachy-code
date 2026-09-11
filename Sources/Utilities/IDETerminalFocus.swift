@@ -214,8 +214,15 @@ enum IDETerminalFocus {
     }
 
     /// Try to switch to the exact terminal tab matching shellPid's tty or iTerm2 session unique id.
-    /// Returns true if a terminal-specific AppleScript succeeded.
+    /// Returns true only when a matching tab was actually selected — an AppleScript that runs
+    /// cleanly but finds no match (stale session id after an iTerm2 restart, etc.) must fall
+    /// through to the caller's remaining strategies instead of short-circuiting them.
     private static func activateTerminalTab(bundleId: String, shellPid: Int?, itermSessionId: String?) -> Bool {
+        let ttyDevice: String? = shellPid.flatMap { pid -> String? in
+            guard let tty = ttyForPid(pid), !tty.isEmpty else { return nil }
+            return "/dev/\(tty)"
+        }
+
         let script: String?
         switch bundleId {
         case "com.googlecode.iterm2":
@@ -232,15 +239,15 @@ enum IDETerminalFocus {
                                     tell aWindow
                                         select aTab
                                     end tell
-                                    return
+                                    return true
                                 end if
                             end repeat
                         end repeat
                     end repeat
+                    return false
                 end tell
                 """
-            } else if let pid = shellPid, let tty = ttyForPid(pid), !tty.isEmpty {
-                let ttyDevice = "/dev/\(tty)"
+            } else if let ttyDevice {
                 script = """
                 tell application "iTerm2"
                     activate
@@ -251,19 +258,19 @@ enum IDETerminalFocus {
                                     tell aWindow
                                         select aTab
                                     end tell
-                                    return
+                                    return true
                                 end if
                             end repeat
                         end repeat
                     end repeat
+                    return false
                 end tell
                 """
             } else {
                 script = nil
             }
         case "com.apple.Terminal":
-            guard let pid = shellPid, let tty = ttyForPid(pid), !tty.isEmpty else { return false }
-            let ttyDevice = "/dev/\(tty)"
+            guard let ttyDevice else { return false }
             script = """
             tell application "Terminal"
                 activate
@@ -272,10 +279,11 @@ enum IDETerminalFocus {
                         if tty of aTab is "\(ttyDevice)" then
                             set selected tab of aWindow to aTab
                             set index of aWindow to 1
-                            return
+                            return true
                         end if
                     end repeat
                 end repeat
+                return false
             end tell
             """
         default:
@@ -286,7 +294,7 @@ enum IDETerminalFocus {
         // Try in-process first (works in .app bundle with NSAppleEventsUsageDescription)
         if let appleScript = NSAppleScript(source: src) {
             var error: NSDictionary?
-            appleScript.executeAndReturnError(&error)
+            let result = appleScript.executeAndReturnError(&error)
             if let error {
                 let code = error[NSAppleScript.errorNumber] as? Int ?? 0
                 // -1743 = not authorized — try osascript subprocess as fallback
@@ -295,7 +303,7 @@ enum IDETerminalFocus {
                 }
                 return false
             }
-            return true
+            return result.booleanValue
         }
         return false
     }
