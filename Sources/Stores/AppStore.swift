@@ -415,7 +415,12 @@ final class AppStore {
                       let session = self.sessionStore.sessions.first(where: { $0.id == toast.sessionId }) {
                 IDETerminalFocus.focusSession(session)
                 self.sessionFinishedStore.dismiss()
-            } else if let session = self.sessionStore.sessions.last(where: { $0.terminalPid != nil }) {
+            } else if let session = self.sessionStore.activeSessions
+                .filter({ $0.terminalPid != nil || $0.itermSessionId != nil })
+                .max(by: { ($0.lastEventAt ?? $0.startedAt) < ($1.lastEventAt ?? $1.startedAt) }) {
+                // `sessions` is newest-first (insert at 0) and keeps ended sessions, so `.last`
+                // picked the oldest ended one — jumping to a long-dead terminal. Take the most
+                // recently active session that still carries a terminal handle instead.
                 IDETerminalFocus.focusSession(session)
             } else {
                 self.hotkeyManager.toggleFocus()

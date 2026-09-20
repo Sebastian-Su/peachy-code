@@ -214,6 +214,11 @@ enum IDETerminalFocus {
     }
 
     /// Try to switch to the exact terminal tab matching shellPid's tty or iTerm2 session unique id.
+    /// Selecting a tab alone does not raise its window: with several iTerm2 windows open the tab
+    /// changes in the background while the previously key window stays in front, so the window has
+    /// to be selected too. Order matters — `select aWindow` reorders `windows`, which invalidates
+    /// the `aTab` reference bound to the old index and lands on the wrong tab, so the tab is
+    /// selected first. `activate` runs only on a hit, leaving a miss to the caller's fallbacks.
     /// Returns true only when a matching tab was actually selected — an AppleScript that runs
     /// cleanly but finds no match (stale session id after an iTerm2 restart, etc.) must fall
     /// through to the caller's remaining strategies instead of short-circuiting them.
@@ -231,14 +236,13 @@ enum IDETerminalFocus {
             if let sid = itermSessionId {
                 script = """
                 tell application "iTerm2"
-                    activate
                     repeat with aWindow in windows
                         repeat with aTab in tabs of aWindow
                             repeat with aSession in sessions of aTab
                                 if unique id of aSession is "\(sid)" then
-                                    tell aWindow
-                                        select aTab
-                                    end tell
+                                    select aTab
+                                    select aWindow
+                                    activate
                                     return true
                                 end if
                             end repeat
@@ -250,14 +254,13 @@ enum IDETerminalFocus {
             } else if let ttyDevice {
                 script = """
                 tell application "iTerm2"
-                    activate
                     repeat with aWindow in windows
                         repeat with aTab in tabs of aWindow
                             repeat with aSession in sessions of aTab
                                 if tty of aSession is "\(ttyDevice)" then
-                                    tell aWindow
-                                        select aTab
-                                    end tell
+                                    select aTab
+                                    select aWindow
+                                    activate
                                     return true
                                 end if
                             end repeat
@@ -273,12 +276,12 @@ enum IDETerminalFocus {
             guard let ttyDevice else { return false }
             script = """
             tell application "Terminal"
-                activate
                 repeat with aWindow in windows
                     repeat with aTab in tabs of aWindow
                         if tty of aTab is "\(ttyDevice)" then
                             set selected tab of aWindow to aTab
                             set index of aWindow to 1
+                            activate
                             return true
                         end if
                     end repeat
