@@ -29,6 +29,11 @@ final class OverlayManager {
     private var permissionPanel: OverlayPanel? // Permission prompts — smart-positioned
     private var permissionHUDConfig = PermissionHUDConfig()
     private var workspaceObservers: [NSObjectProtocol] = []
+    /// Polls the hardware mouse button after a move so the mascot can be snapped back
+    /// once the drag actually ends. `isMovableByWindowBackground` drags run inside an
+    /// AppKit tracking loop that swallows the terminating mouse-up, so the button state
+    /// is read directly instead of waiting for an event that never arrives.
+    private var dragEndWatchdog: Timer?
 
     // Overlay enabled/disabled (notification-only mode)
     // Stored property so @Observable can track it for SwiftUI reactivity
@@ -107,7 +112,7 @@ final class OverlayManager {
         hideOverlay()
 
         let px = currentSizePixels
-        let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+        let screenFrame = Self.primaryScreenFrame
 
         let savedX = UserDefaults.standard.double(forKey: "overlay_x")
         let savedY = UserDefaults.standard.double(forKey: "overlay_y")
@@ -190,7 +195,7 @@ final class OverlayManager {
 
         // --- Mascot panel (fixed size, just the video) ---
         let px = currentSizePixels
-        let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+        let screenFrame = Self.primaryScreenFrame
 
         let savedX = UserDefaults.standard.double(forKey: "overlay_x")
         let savedY = UserDefaults.standard.double(forKey: "overlay_y")
@@ -1325,6 +1330,41 @@ final class OverlayManager {
         UserDefaults.standard.set(panel.frame.origin.y, forKey: "overlay_y")
     }
 
+    /// Arm a one-shot watchdog that snaps the mascot back once the pointer is released.
+    /// Snapping on every move would fight the drag in progress, so the frame is only
+    /// corrected after the mouse button actually comes up.
+    private func scheduleDragEndSnap() {
+        guard dragEndWatchdog == nil else { return }
+        guard NSEvent.pressedMouseButtons & 0x1 != 0 else {
+            snapMascotIntoScreen()
+            return
+        }
+        dragEndWatchdog = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
+            guard NSEvent.pressedMouseButtons & 0x1 == 0 else { return }
+            timer.invalidate()
+            Task { @MainActor in
+                self?.dragEndWatchdog = nil
+                self?.snapMascotIntoScreen()
+            }
+        }
+    }
+
+    /// Pull the mascot back to the nearest fully-visible position on the display its body
+    /// is on. Keeps the live side length so a snap never doubles as a resize.
+    private func snapMascotIntoScreen() {
+        guard let panel else { return }
+        let frame = panel.frame
+        let target = Self.clampedMascotRect(
+            origin: frame.origin,
+            side: frame.width,
+            screenFrame: Self.screenFrame(hosting: frame)
+        )
+        guard target != frame else { return }
+        panel.setFrame(target, display: true, animate: true)
+        savePosition()
+        scheduleHUDReposition()
+    }
+
     private func setupObservers(for targetPanel: OverlayPanel) {
         // Observe position changes to persist
         let moveObserver = NotificationCenter.default.addObserver(
@@ -1332,7 +1372,10 @@ final class OverlayManager {
             object: targetPanel,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.savePosition() }
+            Task { @MainActor in
+                self?.savePosition()
+                self?.scheduleDragEndSnap()
+            }
         }
         workspaceObservers.append(moveObserver)
 
@@ -1359,7 +1402,7 @@ final class OverlayManager {
 
     private func repairMascotPanelIfNeeded(_ mascotPanel: OverlayPanel) {
         let frame = mascotPanel.frame
-        let screen = mascotPanel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+        let screen = Self.screenFrame(hosting: frame)
         let hasValidSize = frame.width >= Self.minMascotSide && frame.height >= Self.minMascotSide
         let intersectsScreen = screen.intersects(frame)
         guard !(hasValidSize && intersectsScreen) else { return }
@@ -1373,6 +1416,47 @@ final class OverlayManager {
         savePosition()
         scheduleHUDReposition()
         print("[PeachyPet] Repaired mascot frame from \(frame) to \(repaired)")
+    }
+
+    /// Visible frame of the primary display — the one carrying the menu bar, always
+    /// `NSScreen.screens.first`. Deliberately not `NSScreen.main`, which is the screen of
+    /// the current key window and therefore follows whatever happened to have focus when
+    /// the overlay was created, making startup placement non-deterministic.
+    static var primaryScreenFrame: NSRect {
+        NSScreen.screens.first?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+    }
+
+    /// Visible frame of the display the mascot's body currently sits on.
+    static func screenFrame(hosting rect: NSRect) -> NSRect {
+        screenFrame(
+            hosting: rect,
+            candidates: NSScreen.screens.map(\.visibleFrame),
+            fallback: primaryScreenFrame
+        )
+    }
+
+    /// Resolve which display a rect belongs to: the one covering most of its body wins.
+    /// When nothing overlaps — the mascot was dragged into a gap between displays, or its
+    /// display was unplugged — the display whose centre is nearest takes it, so the snap
+    /// back is always to the closest reachable screen rather than to the primary one.
+    static func screenFrame(hosting rect: NSRect, candidates: [NSRect], fallback: NSRect) -> NSRect {
+        guard !candidates.isEmpty else { return fallback }
+
+        var best: (frame: NSRect, area: CGFloat)?
+        for candidate in candidates {
+            let overlap = candidate.intersection(rect)
+            guard !overlap.isNull else { continue }
+            let area = overlap.width * overlap.height
+            guard area > 0 else { continue }
+            if area > (best?.area ?? 0) { best = (candidate, area) }
+        }
+        if let best { return best.frame }
+
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        return candidates.min(by: { lhs, rhs in
+            hypot(lhs.midX - center.x, lhs.midY - center.y)
+                < hypot(rhs.midX - center.x, rhs.midY - center.y)
+        }) ?? fallback
     }
 
     static func startingMascotRect(savedX: Double, savedY: Double, sidePixels: Int, screenFrame: NSRect) -> NSRect {
