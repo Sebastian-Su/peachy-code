@@ -493,6 +493,9 @@ enum CodexEventMapper {
         context: CodexSessionContext
     ) -> [AgentEvent] {
         guard context.isSubagent, let rootSessionId = context.rootSessionId else { return events }
+        // A subagent compacting its own context says nothing about the parent session;
+        // forwarding it marked the parent as compacting and multiplied compaction alerts.
+        let events = events.filter { $0.eventType != .preCompact }
         guard !events.isEmpty else { return [] }
 
         if events.contains(where: {

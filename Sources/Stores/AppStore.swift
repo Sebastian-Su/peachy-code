@@ -578,7 +578,9 @@ final class AppStore {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
+            // Run synchronously: the process exits right after this notification,
+            // so a deferred Task could skip flushing pending session state.
+            MainActor.assumeIsolated {
                 self?.stop()
             }
         }

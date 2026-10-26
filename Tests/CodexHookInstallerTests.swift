@@ -36,6 +36,38 @@ final class CodexHookInstallerTests: XCTestCase {
         XCTAssertTrue(CodexHookInstaller.hookEvents.contains("SubagentStop"))
     }
 
+    /// Codex ignores an `args` field, so the source flag must be part of the command string;
+    /// a legacy bare-command entry must be replaced rather than duplicated.
+    func testInstallPutsSourceFlagInCommandAndMigratesLegacyEntry() throws {
+        let legacy: [String: Any] = [
+            "hooks": [
+                "Stop": [
+                    ["matcher": "", "hooks": [[
+                        "type": "command",
+                        "command": "~/.peachypet/hooks/hook-sender.sh",
+                        "args": ["--source", "codex-cli"],
+                    ]]],
+                ]
+            ]
+        ]
+        try JSONSerialization.data(withJSONObject: legacy).write(to: URL(fileURLWithPath: hooksPath))
+        XCTAssertFalse(CodexHookInstaller.isRegistered(hooksJSONPath: hooksPath))
+
+        try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
+
+        let data = try Data(contentsOf: URL(fileURLWithPath: hooksPath))
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
+        let stop = try XCTUnwrap(hooks["Stop"] as? [[String: Any]])
+        let ours = stop.flatMap { ($0["hooks"] as? [[String: Any]]) ?? [] }
+            .filter { ($0["command"] as? String)?.contains("hook-sender.sh") == true }
+
+        XCTAssertEqual(ours.count, 1)
+        XCTAssertEqual(ours.first?["command"] as? String, "~/.peachypet/hooks/hook-sender.sh --source codex-cli")
+        XCTAssertNil(ours.first?["args"])
+        XCTAssertTrue(CodexHookInstaller.isRegistered(hooksJSONPath: hooksPath))
+    }
+
     func testInstallDoesNotRegisterBlockingPermissionRequestHook() throws {
         try CodexHookInstaller.install(hooksJSONPath: hooksPath, ensureScript: false)
 

@@ -4,7 +4,12 @@ import Foundation
 /// Reuses the same hook-sender.sh script installed by HookInstaller.
 enum CodexHookInstaller {
 
-    private static let hookCommand = "~/.peachypet/hooks/hook-sender.sh"
+    /// Codex runs `command` through the shell and ignores an `args` field, so the source
+    /// flag must live in the command string itself. Without it hook events reach the app
+    /// unlabeled, get treated as Claude Code, and the JSONL poller re-reports every one.
+    private static let hookCommand = "~/.peachypet/hooks/hook-sender.sh --source codex-cli"
+    /// Bare command written by earlier versions (paired with the ignored `args` field).
+    private static let legacyHookCommand = "~/.peachypet/hooks/hook-sender.sh"
 
     /// Codex-supported events we subscribe to (camelCase, matches Codex 0.144.5).
     /// PostToolUse and PostCompact omitted — same reasoning as Claude hooks:
@@ -69,7 +74,6 @@ enum CodexHookInstaller {
             "hooks": [[
                 "type": "command",
                 "command": hookCommand,
-                "args": ["--source", "codex-cli"],
                 "timeout": 600,
             ]],
         ]
@@ -131,12 +135,16 @@ enum CodexHookInstaller {
         return inner.contains { ($0["command"] as? String) == hookCommand }
     }
 
+    private static func isOurCommand(_ command: String?) -> Bool {
+        command == hookCommand || command == legacyHookCommand
+    }
+
     private static func removeOurHooks(from hooks: inout [String: Any], for events: [String]) {
         for event in events {
             guard let entries = hooks[event] as? [[String: Any]] else { continue }
             let filteredEntries = entries.compactMap { entry -> [String: Any]? in
                 guard var inner = entry["hooks"] as? [[String: Any]] else { return entry }
-                inner.removeAll { ($0["command"] as? String) == hookCommand }
+                inner.removeAll { isOurCommand($0["command"] as? String) }
                 guard !inner.isEmpty else { return nil }
                 var updatedEntry = entry
                 updatedEntry["hooks"] = inner

@@ -209,6 +209,8 @@ final class SessionStore {
     private var reconcileTimer: Timer?
     private var interruptWatcherTimer: Timer?
     private var idleExpiryTimer: Timer?
+    private var persistTimer: Timer?
+    private static let maxEndedSessions = 200
     private let idleRetentionDuration: TimeInterval
 
     private static let autoHideKey = "auto_hide_inactive_sessions"
@@ -436,6 +438,12 @@ final class SessionStore {
         interruptWatcherTimer = nil
         idleExpiryTimer?.invalidate()
         idleExpiryTimer = nil
+        // Flush a pending debounced write so shutdown never drops the last second of state.
+        if persistTimer != nil {
+            persistTimer?.invalidate()
+            persistTimer = nil
+            persistNow()
+        }
     }
 
     deinit {
@@ -547,8 +555,32 @@ final class SessionStore {
 
     // MARK: - Persistence
 
+    /// Debounced persist — batches rapid writes (max once per second).
+    /// Writing the full session list on every event saturated the main thread under event floods.
     private func persist() {
+        guard persistTimer == nil else { return }
+        persistTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            self?.persistTimer = nil
+            self?.persistNow()
+        }
+    }
+
+    private func persistNow() {
+        pruneEndedSessions()
         LocalStorage.save(sessions, to: Self.filename)
+    }
+
+    /// Ended sessions are only kept for history and reactivation; cap them so the file stays small.
+    private func pruneEndedSessions() {
+        var endedSeen = 0
+        let pruned = sessions.filter { session in
+            guard session.status == .ended else { return true }
+            endedSeen += 1
+            return endedSeen <= Self.maxEndedSessions
+        }
+        if pruned.count != sessions.count {
+            sessions = pruned
+        }
     }
 
     // MARK: - Idle Retention

@@ -61,6 +61,30 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(taskComplete.events.first?.sessionId, rootId)
         XCTAssertEqual(taskComplete.events.first?.agentId, childId)
     }
+    func testSubagentCompactionIsNotReportedOnRootSession() throws {
+        let rootId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
+        let childId = "019f8f26-6b9d-7d13-8342-b0dd55ee0803"
+        let fileURL = URL(fileURLWithPath: "/tmp/rollout-\(childId).jsonl")
+        let meta = """
+        {"type":"session_meta","payload":{"session_id":"\(rootId)","id":"\(childId)","parent_thread_id":"\(rootId)","cwd":"/Users/test/project","originator":"codex_cli_rs","source":{"subagent":{"thread_spawn":{}}},"thread_source":"subagent"}}
+        """
+        let context = try XCTUnwrap(CodexEventMapper.parse(line: meta, fileURL: fileURL, context: nil).context)
+
+        let compacted = CodexEventMapper.parse(
+            line: #"{"type":"compacted","payload":{"message":""}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+        let compactedMessage = CodexEventMapper.parse(
+            line: #"{"type":"event_msg","payload":{"type":"context_compacted"}}"#,
+            fileURL: fileURL,
+            context: context
+        )
+
+        XCTAssertTrue(compacted.events.isEmpty)
+        XCTAssertTrue(compactedMessage.events.isEmpty)
+    }
+
     func testSubagentSessionMetaOnlyUpdatesContext() throws {
         let parentId = "019f8e9a-d9c4-73f2-8881-3c4f4cf23942"
         let childId = "019f8f01-9123-7a02-80be-53371dfea5f6"
