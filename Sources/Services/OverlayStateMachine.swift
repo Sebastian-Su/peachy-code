@@ -64,6 +64,9 @@ final class OverlayStateMachine {
     private var pendingEdge: PeachyAnimationEdge?
     /// A transition selected while a loop is playing. It starts at the next loop boundary.
     private var queuedEdge: PeachyAnimationEdge?
+    /// True while evaluating at a boundary (node arrival, loop end) or for a person/trigger input:
+    /// a matched transition starts now instead of waiting for the loop to end.
+    private var startsNow = false
     private var loopCount = 0
     private var nodeArrivalTime: Date?
     private var nodeTimeTimer: Timer?
@@ -182,6 +185,10 @@ final class OverlayStateMachine {
 
         print("[PeachyPet] Input: \(name) = \(conditionValueStr(value))")
 
+        // Clicks, hover and one-shot event triggers react at once; agent state waits for the loop end.
+        let previous = startsNow
+        startsNow = previous || name == "clicked" || name == "mouseOver" || isTriggerInput(name)
+        defer { startsNow = previous }
         evaluateAndFire(changedInput: name)
     }
 
@@ -205,6 +212,9 @@ final class OverlayStateMachine {
             beginTransition(edge)
             return
         }
+        // A loop end is a boundary: whatever matches now starts without another loop.
+        startsNow = true
+        defer { startsNow = false }
         setInput("loopCount", .number(Double(loopCount)))
     }
 
@@ -405,30 +415,30 @@ final class OverlayStateMachine {
         }
     }
 
+    /// Agent event triggers (agent::* / claudeCode::* other than the persistent state inputs)
+    /// and custom trigger-type inputs.
+    private func isTriggerInput(_ name: String) -> Bool {
+        for prefix in [Self.agentPrefix, Self.legacyPrefix] where name.hasPrefix(prefix) {
+            return !Self.agentStateInputs.contains(String(name.dropFirst(prefix.count)))
+        }
+        return config.inputs?.first(where: { $0.name == name })?.type == "trigger"
+    }
+
     private func resetTriggerInput(_ name: String) {
         // Built-in trigger: clicked always resets
         if name == "clicked" {
             inputs["clicked"] = .bool(false)
         }
-        // Agent event triggers (agent::* and claudeCode::*) always reset,
-        // but persistent state inputs (isWorking, isIdle, etc.) do not.
-        for prefix in [Self.agentPrefix, Self.legacyPrefix] {
-            if name.hasPrefix(prefix) {
-                let suffix = String(name.dropFirst(prefix.count))
-                if !Self.agentStateInputs.contains(suffix) {
-                    // Reset both prefixes for this trigger
-                    inputs[Self.agentPrefix + suffix] = .bool(false)
-                    inputs[Self.legacyPrefix + suffix] = .bool(false)
-                }
-                break
-            }
+        guard isTriggerInput(name) else { return }
+        for prefix in [Self.agentPrefix, Self.legacyPrefix] where name.hasPrefix(prefix) {
+            // Reset both prefixes for this trigger
+            let suffix = String(name.dropFirst(prefix.count))
+            inputs[Self.agentPrefix + suffix] = .bool(false)
+            inputs[Self.legacyPrefix + suffix] = .bool(false)
+            return
         }
         // Custom trigger-type inputs reset after firing
-        if let configInputs = config.inputs,
-           let def = configInputs.first(where: { $0.name == name }),
-           def.type == "trigger" {
-            inputs[name] = .bool(false)
-        }
+        inputs[name] = .bool(false)
     }
 
     // MARK: - Node Arrival
@@ -476,8 +486,11 @@ final class OverlayStateMachine {
         // Start nodeTime timer if any edge uses it
         startNodeTimeTimer()
 
-        // Immediately evaluate — session inputs may already match an edge
+        // Arrival is a boundary: a transition that already matches starts now,
+        // without playing this node's loop first.
         if evaluateAfterArrival {
+            startsNow = true
+            defer { startsNow = false }
             evaluateAndFire(changedInput: "nodeArrival")
         }
     }
@@ -519,7 +532,9 @@ final class OverlayStateMachine {
 
     private func playTransition(_ edge: PeachyAnimationEdge) {
         guard phase == .looping || phase == .idle else { return }
-        if phase == .looping, config.version == AnimationCompiler.runtimeVersion {
+        // Agent state changes wait for the loop end so the clip starts from the pose's own frame,
+        // and a change that is undone before then never plays (matches the Masko player rules).
+        if phase == .looping, !startsNow {
             queuedEdge = edge
             let targetName = config.nodes.first(where: { $0.id == edge.target })?.name ?? edge.target
             print("[PeachyPet] Queued transition at loop boundary: \(currentNodeName) → \(targetName)")

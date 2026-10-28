@@ -42,8 +42,71 @@ final class OverlayStateMachineBoundaryTests: XCTestCase {
     }
 
     @MainActor
-    func testLegacyMascotTransitionStartsImmediately() {
-        let config = PeachyAnimationConfig(
+    func testLegacyMascotTransitionWaitsForLoopBoundary() {
+        let machine = OverlayStateMachine(config: legacyConfig())
+        machine.start()
+        let loopURL = machine.currentVideoURL
+
+        machine.setAgentStateInput("isWorking", .bool(true))
+
+        XCTAssertEqual(machine.phase, .looping)
+        XCTAssertEqual(machine.currentVideoURL, loopURL)
+
+        machine.handleLoopCycleCompleted()
+
+        XCTAssertEqual(machine.phase, .transitioning)
+        XCTAssertTrue(machine.currentVideoURL?.absoluteString.contains("idle-working.mov") == true)
+    }
+
+    @MainActor
+    func testStateUndoneBeforeLoopBoundaryNeverPlays() {
+        let machine = OverlayStateMachine(config: legacyConfig())
+        machine.start()
+        let loopURL = machine.currentVideoURL
+
+        machine.setAgentStateInput("isWorking", .bool(true))
+        machine.setAgentStateInput("isWorking", .bool(false))
+        machine.handleLoopCycleCompleted()
+
+        XCTAssertEqual(machine.phase, .looping)
+        XCTAssertEqual(machine.currentNodeId, "idle")
+        XCTAssertEqual(machine.currentVideoURL, loopURL)
+    }
+
+    @MainActor
+    func testArrivalStartsMatchingTransitionWithoutPlayingLoop() {
+        let machine = OverlayStateMachine(config: legacyConfig())
+        machine.start()
+        machine.setAgentStateInput("isWorking", .bool(true))
+        machine.handleLoopCycleCompleted()
+
+        // Working is reached while the agent already went idle again.
+        machine.setAgentStateInput("isWorking", .bool(false))
+        machine.handleVideoEnded()
+
+        XCTAssertEqual(machine.currentNodeId, "working")
+        XCTAssertEqual(machine.phase, .transitioning)
+        XCTAssertTrue(machine.currentVideoURL?.absoluteString.contains("working-idle.mov") == true)
+    }
+
+    @MainActor
+    func testClickStartsTransitionAtOnce() {
+        var config = legacyConfig()
+        config.edges.append(
+            edge(id: "idle-poke", source: "idle", target: "working", loop: false,
+                 condition: PeachyAnimationCondition(input: "clicked", value: .bool(true)))
+        )
+        let machine = OverlayStateMachine(config: config)
+        machine.start()
+
+        machine.handleClick()
+
+        XCTAssertEqual(machine.phase, .transitioning)
+        XCTAssertTrue(machine.currentVideoURL?.absoluteString.contains("idle-poke.mov") == true)
+    }
+
+    private func legacyConfig() -> PeachyAnimationConfig {
+        PeachyAnimationConfig(
             version: "2.0",
             name: "Legacy",
             initialNode: "idle",
@@ -62,16 +125,16 @@ final class OverlayStateMachineBoundaryTests: XCTestCase {
                     loop: false,
                     condition: PeachyAnimationCondition(input: "agent::isWorking", value: .bool(true))
                 ),
+                edge(
+                    id: "working-idle",
+                    source: "working",
+                    target: "idle",
+                    loop: false,
+                    condition: PeachyAnimationCondition(input: "agent::isWorking", value: .bool(false))
+                ),
             ],
             inputs: nil
         )
-        let machine = OverlayStateMachine(config: config)
-        machine.start()
-
-        machine.setAgentStateInput("isWorking", .bool(true))
-
-        XCTAssertEqual(machine.phase, .transitioning)
-        XCTAssertTrue(machine.currentVideoURL?.absoluteString.contains("idle-working.mov") == true)
     }
 
     private func edge(
