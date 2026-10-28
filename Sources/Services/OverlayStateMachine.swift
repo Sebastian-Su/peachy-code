@@ -20,6 +20,8 @@ final class OverlayStateMachine {
     private(set) var currentVideoURL: URL?
     private(set) var isLoopVideo = true
     private(set) var currentPlaybackRate: Float = 1.0
+    /// The transition clip that starts at the next loop end, so the view can decode it ahead.
+    private(set) var upcomingVideoURL: URL?
 
     let config: PeachyAnimationConfig
 
@@ -62,7 +64,13 @@ final class OverlayStateMachine {
 
     private var pendingEdge: PeachyAnimationEdge?
     /// A transition selected while a loop is playing. It starts at the next loop boundary.
-    private var queuedEdge: PeachyAnimationEdge?
+    private var queuedEdge: PeachyAnimationEdge? {
+        didSet {
+            upcomingVideoURL = queuedEdge?.videos.hevc
+                .flatMap(URL.init(string:))
+                .map { VideoCache.shared.resolve($0) }
+        }
+    }
     /// True while evaluating at a boundary (node arrival, loop end) or for a person/trigger input:
     /// a matched transition starts now instead of waiting for the loop to end.
     private var startsNow = false

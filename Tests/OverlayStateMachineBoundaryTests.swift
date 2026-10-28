@@ -74,6 +74,25 @@ final class OverlayStateMachineBoundaryTests: XCTestCase {
         XCTAssertEqual(machine.currentVideoURL, loopURL)
     }
 
+    /// The queued transition is published so the view can decode it before the loop ends.
+    @MainActor
+    func testQueuedTransitionIsPublishedUntilItStarts() {
+        let machine = OverlayStateMachine(config: legacyConfig())
+        machine.start()
+        XCTAssertNil(machine.upcomingVideoURL)
+
+        machine.setAgentStateInput("isWorking", .bool(true))
+        XCTAssertTrue(machine.upcomingVideoURL?.absoluteString.contains("idle-working.mov") == true)
+
+        machine.setAgentStateInput("isWorking", .bool(false))
+        XCTAssertNil(machine.upcomingVideoURL)
+
+        machine.setAgentStateInput("isWorking", .bool(true))
+        machine.handleLoopCycleCompleted()
+        XCTAssertNil(machine.upcomingVideoURL)
+        XCTAssertEqual(machine.currentVideoURL?.lastPathComponent, "idle-working.mov")
+    }
+
     @MainActor
     func testArrivalStartsMatchingTransitionWithoutPlayingLoop() {
         let machine = OverlayStateMachine(config: legacyConfig())

@@ -27,6 +27,7 @@ struct OverlayStateMachineView: View {
                 url: stateMachine.currentVideoURL,
                 isLoop: stateMachine.isLoopVideo,
                 rate: stateMachine.currentPlaybackRate,
+                upcoming: stateMachine.upcomingVideoURL,
                 stateMachine: stateMachine
             )
             .onTapGesture {
@@ -239,6 +240,8 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
     let url: URL?
     let isLoop: Bool
     let rate: Float
+    /// Clip the state machine will start at the next loop end; decoded ahead on the hidden layer.
+    let upcoming: URL?
     let stateMachine: OverlayStateMachine
 
     func makeNSView(context: Context) -> NSView {
@@ -292,6 +295,7 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
             coordinator.currentRate = rate
             coordinator.activePlayer?.rate = rate
         }
+        coordinator.prepare(upcoming)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -312,6 +316,8 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
         var currentRate: Float = 1.0
         private var endObserver: NSObjectProtocol?
         private var readyObserver: NSKeyValueObservation?
+        /// The clip loaded paused on the hidden layer, waiting for the loop to end.
+        private var preparedURL: URL?
 
         var activePlayer: AVPlayer? { activeIsA ? playerA : playerB }
         private var activeLayer: AVPlayerLayer? { activeIsA ? layerA : layerB }
@@ -324,6 +330,32 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
             Task { @MainActor in PerfMonitor.shared.avPlayerDestroyed() }
             #endif
             player = nil
+        }
+
+        /// Loads `url` paused on its first frame into the hidden layer, so the loop end can show it
+        /// at once instead of replaying the loop while a new player decodes.
+        func prepare(_ url: URL?) {
+            guard url != preparedURL else { return }
+            // Never touch the hidden layer while a swap onto it is still pending.
+            guard let url, readyObserver == nil, playerA != nil || playerB != nil else {
+                if url == nil { preparedURL = nil }
+                return
+            }
+            let player = AVPlayer(url: url)
+            player.isMuted = true
+            #if DEBUG
+            Task { @MainActor in PerfMonitor.shared.avPlayerCreated() }
+            #endif
+            if activeIsA {
+                releasePlayer(&playerB)
+                playerB = player
+                layerB?.player = player
+            } else {
+                releasePlayer(&playerA)
+                playerA = player
+                layerA?.player = player
+            }
+            preparedURL = url
         }
 
         func loadVideo(url: URL, loop: Bool, rate: Float = 1.0) {
@@ -340,15 +372,20 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
             currentRate = rate
 
             let isFirstLoad = playerA == nil && playerB == nil
-            let newPlayer = AVPlayer(url: url)
+            let reusesPrepared = !isFirstLoad && url == preparedURL
+            preparedURL = nil
+            let newPlayer = reusesPrepared ? (activeIsA ? playerB : playerA) ?? AVPlayer(url: url) : AVPlayer(url: url)
             newPlayer.isMuted = true
             #if DEBUG
-            Task { @MainActor in PerfMonitor.shared.avPlayerCreated() }
+            if !reusesPrepared { Task { @MainActor in PerfMonitor.shared.avPlayerCreated() } }
             #endif
 
             // Load onto the inactive buffer, releasing any old player there
             let targetLayer: AVPlayerLayer?
-            if isFirstLoad {
+            if reusesPrepared {
+                // Already decoded on the hidden layer.
+                targetLayer = activeIsA ? layerB : layerA
+            } else if isFirstLoad {
                 // First video — load directly onto A
                 playerA = newPlayer
                 layerA?.player = newPlayer
@@ -370,7 +407,17 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
 
             guard let targetLayer else { return }
 
-            if !isFirstLoad {
+            if !isFirstLoad, targetLayer.isReadyForDisplay {
+                // Prepared clip already decoded: swap in the same frame.
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                targetLayer.opacity = 1
+                activeLayer?.opacity = 0
+                CATransaction.commit()
+                activePlayer?.pause()
+                activePlayer?.replaceCurrentItem(with: nil)
+                activeIsA.toggle()
+            } else if !isFirstLoad {
                 // Wait for the new layer to have a decoded frame, then swap
                 let oldPlayer = activePlayer
                 let oldLayer = activeLayer
@@ -387,6 +434,9 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
                         oldPlayer?.pause()
                         oldPlayer?.replaceCurrentItem(with: nil)
                         self.activeIsA.toggle()
+                        MainActor.assumeIsolated {
+                            self.prepare(self.stateMachine?.upcomingVideoURL)
+                        }
                     }
                     self?.readyObserver?.invalidate()
                     self?.readyObserver = nil
@@ -399,26 +449,36 @@ struct StateMachineVideoPlayer: NSViewRepresentable {
                 object: newPlayer.currentItem,
                 queue: .main
             ) { [weak self] _ in
-                guard let self else { return }
-                if self.currentLoop {
-                    self.activePlayer?.seek(to: .zero)
-                    self.activePlayer?.play()
-                    if self.currentRate != 1.0 {
-                        self.activePlayer?.rate = self.currentRate
-                    }
-                    Task { @MainActor in
-                        self.stateMachine?.handleLoopCycleCompleted()
-                    }
-                } else {
-                    Task { @MainActor in
-                        self.stateMachine?.handleVideoEnded()
-                    }
+                MainActor.assumeIsolated {
+                    self?.clipEnded()
                 }
             }
 
             newPlayer.play()
             if rate != 1.0 {
                 newPlayer.rate = rate
+            }
+        }
+
+        /// The clip on screen ended. The state machine decides first, in the same turn, and its next
+        /// clip is shown directly instead of after a SwiftUI update, so nothing replays in between.
+        @MainActor
+        private func clipEnded() {
+            guard let stateMachine else { return }
+            if currentLoop {
+                stateMachine.handleLoopCycleCompleted()
+            } else {
+                stateMachine.handleVideoEnded()
+            }
+            if let next = stateMachine.currentVideoURL,
+               next != currentURL || stateMachine.isLoopVideo != currentLoop {
+                loadVideo(url: next, loop: stateMachine.isLoopVideo, rate: stateMachine.currentPlaybackRate)
+            } else if currentLoop {
+                activePlayer?.seek(to: .zero)
+                activePlayer?.play()
+                if currentRate != 1.0 {
+                    activePlayer?.rate = currentRate
+                }
             }
         }
 
