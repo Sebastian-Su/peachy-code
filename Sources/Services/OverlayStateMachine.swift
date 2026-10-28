@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 
 /// Runs the canvas animation state machine using the inputs + conditions model.
@@ -465,7 +464,7 @@ final class OverlayStateMachine {
         if let loopEdge, let hevc = loopEdge.videos.hevc, let url = URL(string: hevc) {
             let resolved = VideoCache.shared.resolve(url)
             currentVideoURL = resolved
-            currentPlaybackRate = playbackRate(for: loopEdge, videoURL: resolved)
+            currentPlaybackRate = playbackRate(for: loopEdge)
             isLoopVideo = true
             phase = .looping
             print("[PeachyPet] Arrived at \(nodeName) — looping")
@@ -568,7 +567,7 @@ final class OverlayStateMachine {
         pendingEdge = edge
         let resolved = VideoCache.shared.resolve(url)
         currentVideoURL = resolved
-        currentPlaybackRate = playbackRate(for: edge, videoURL: resolved)
+        currentPlaybackRate = playbackRate(for: edge)
         isLoopVideo = false
         phase = .transitioning
     }
@@ -586,15 +585,9 @@ final class OverlayStateMachine {
         a.doubleValue == b.doubleValue
     }
 
-    /// Compute playback rate for an edge.
-    /// If `speed` is explicitly set, use it. Otherwise, derive rate from video duration / edge duration.
-    private func playbackRate(for edge: PeachyAnimationEdge, videoURL: URL) -> Float {
-        if let speed = edge.speed { return Float(speed) }
-        let asset = AVAsset(url: videoURL)
-        let videoDuration = CMTimeGetSeconds(asset.duration)
-        guard videoDuration > 0, edge.duration > 0 else { return 1.0 }
-        let rate = Float(videoDuration / edge.duration)
-        if abs(rate - 1.0) < 0.01 { return 1.0 }
-        return rate
+    /// Clips play at their own speed (1 when unset). `duration` is metadata only and never
+    /// stretches a clip; stretching slowed the 3.7 s preset loops down to their 4 s duration.
+    private func playbackRate(for edge: PeachyAnimationEdge) -> Float {
+        Float(edge.speed ?? 1)
     }
 }

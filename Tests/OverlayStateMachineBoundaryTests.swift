@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import PeachyPet
 
@@ -103,6 +104,56 @@ final class OverlayStateMachineBoundaryTests: XCTestCase {
 
         XCTAssertEqual(machine.phase, .transitioning)
         XCTAssertTrue(machine.currentVideoURL?.absoluteString.contains("idle-poke.mov") == true)
+    }
+
+    /// `duration` must not stretch a clip: a 1 s file with duration 4 still plays at its speed.
+    @MainActor
+    func testPlaybackRateIgnoresDuration() async throws {
+        let clip = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rate-\(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: clip) }
+        try await writeOneSecondClip(to: clip)
+
+        func config(speed: Double?) -> PeachyAnimationConfig {
+            PeachyAnimationConfig(
+                version: "2.0", name: "Rate", initialNode: "idle", autoPlay: true,
+                nodes: [PeachyAnimationNode(id: "idle", name: "Idle", transparentThumbnailUrl: nil)],
+                edges: [PeachyAnimationEdge(
+                    id: "idle-loop", source: "idle", target: "idle", isLoop: true, duration: 4,
+                    conditions: [], videos: PeachyAnimationVideos(webm: nil, hevc: clip.absoluteString),
+                    priority: nil, speed: speed, sound: nil
+                )],
+                inputs: nil
+            )
+        }
+
+        let plain = OverlayStateMachine(config: config(speed: nil))
+        plain.start()
+        XCTAssertEqual(plain.currentPlaybackRate, 1)
+
+        let fast = OverlayStateMachine(config: config(speed: 2))
+        fast.start()
+        XCTAssertEqual(fast.currentPlaybackRate, 2)
+    }
+
+    private func writeOneSecondClip(to url: URL) async throws {
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 16, AVVideoHeightKey: 16,
+        ])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
+        writer.add(input)
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(nil, 16, 16, kCVPixelFormatType_32BGRA, nil, &buffer)
+        for frame in 0...10 {
+            while !input.isReadyForMoreMediaData { try await Task.sleep(nanoseconds: 1_000_000) }
+            adaptor.append(buffer!, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: 10))
+        }
+        input.markAsFinished()
+        await writer.finishWriting()
+        XCTAssertEqual(writer.status, .completed)
     }
 
     private func legacyConfig() -> PeachyAnimationConfig {
