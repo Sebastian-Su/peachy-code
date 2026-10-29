@@ -42,10 +42,16 @@ final class LanguageManager {
     /// For testing — set the root directory path that contains .lproj directories directly.
     func setResourceRootPath(_ path: String) {
         searchRoots = [
-            (path as NSString).appendingPathComponent("PeachyPet_PeachyPet.bundle"),
+            Self.resourceRoot(ofBundleAt: (path as NSString).appendingPathComponent("PeachyPet_PeachyPet.bundle")),
             path,
         ]
         setLanguage(language)
+    }
+
+    /// The directory holding a bundle's resources. SwiftPM writes the resource bundle flat or,
+    /// with the newer build system, as `Contents/Resources`; `Bundle` resolves both.
+    private static func resourceRoot(ofBundleAt path: String) -> String {
+        Bundle(path: path)?.resourcePath ?? path
     }
 
     private static func buildSearchRoots(from b: Bundle) -> [String] {
@@ -53,10 +59,10 @@ final class LanguageManager {
         // Sub-bundle produced by SPM .process() for the PeachyPet target
         let subBundleName = "PeachyPet_PeachyPet.bundle"
         if let rp = b.resourcePath {
-            roots.append((rp as NSString).appendingPathComponent(subBundleName))
+            roots.append(resourceRoot(ofBundleAt: (rp as NSString).appendingPathComponent(subBundleName)))
             roots.append(rp)
         }
-        roots.append((b.bundlePath as NSString).appendingPathComponent(subBundleName))
+        roots.append(resourceRoot(ofBundleAt: (b.bundlePath as NSString).appendingPathComponent(subBundleName)))
         roots.append(b.bundlePath)
         return roots
     }

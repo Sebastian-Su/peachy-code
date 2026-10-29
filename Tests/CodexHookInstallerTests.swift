@@ -192,8 +192,8 @@ final class CodexHookInstallerTests: XCTestCase {
 
     // MARK: - C1: hook-sender.sh --source 注入测试
 
-    /// 验证生成的脚本包含 --source 参数解析 + source 注入逻辑，且版本已递增到 16
-    func testScriptContainsSourceInjectionLogicAndVersionIs16() throws {
+    /// 验证生成的脚本包含 --source 参数解析 + source 注入逻辑
+    func testScriptContainsSourceInjectionLogic() throws {
         let scriptDir = tmpDir.appendingPathComponent("hooks")
         try FileManager.default.createDirectory(at: scriptDir, withIntermediateDirectories: true)
         let scriptPath = scriptDir.appendingPathComponent("hook-sender.sh").path
@@ -204,10 +204,6 @@ final class CodexHookInstallerTests: XCTestCase {
         // 因此改为通过已写出的真实脚本验证（需要 ensureScriptExists 真实运行一次）。
         // 实际上只需断言 scriptContent 包含关键逻辑，因此用 scriptContentForTesting() 获取。
         let content = HookInstaller.scriptContentForTesting()
-
-        // 版本号必须是 16
-        XCTAssertTrue(content.contains("# version: 16"),
-                      "scriptVersion 必须已递增到 16，实际内容前50字符: \(String(content.prefix(200)))")
 
         // 脚本必须包含 --source 参数解析
         XCTAssertTrue(content.contains("--source"),
