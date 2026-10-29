@@ -168,6 +168,12 @@ Sources/
 
 两路通过 `CodexHookLiveness` 去重（hook 到达后标记为 live，抑制 JSONL 轮询的重复事件）。JSONL 通常比 hook 的 SessionStart 早约 3 秒发现新会话，所以已激活会话再收到 SessionStart 只更新状态、不再发通知（`EventProcessor`）。
 
+### Paseo 启动的会话
+
+- Paseo 经 app-server 驱动 Codex/Claude，rollout 里是 `source: vscode`，看起来像 Codex Desktop
+- `PaseoRegistry` 用会话 ID 查 `~/.paseo/agents/*/<agentId>.json` 的 `runtimeInfo.sessionId` 识别；命中则图标为 Paseo，跳转打开 `paseo://h/<server-id>/agent/<agentId>`
+- 记录文件按修改时间缓存，未命中最多 5 秒重扫一次；Paseo 删除 agent 后对应会话退回 Codex 显示
+
 ### Subagent 状态追踪
 
 - Claude Code 与 Codex 必须成对注册 `SubagentStart` / `SubagentStop`。

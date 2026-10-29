@@ -63,6 +63,7 @@ struct AgentSession: Identifiable, Codable {
     /// The app bundle id whose icon best represents this session's terminal/client.
     /// Matches IDETerminalFocus.focusSession's activation target so the icon == where a click goes.
     var focusAppBundleId: String? {
+        if PaseoRegistry.shared.agent(forSession: id) != nil { return PaseoRegistry.bundleId }
         if isCodexDesktop { return "com.openai.codex" }   // ChatGPT.app
         if let bundleId = terminalBundleId { return bundleId }
         // terminalBundleId may be nil for older sessions even when terminalPid is known.
