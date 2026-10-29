@@ -102,13 +102,18 @@ final class EventProcessor {
             if event.eventType == .sessionStart, !sessionId.isEmpty {
                 sessionStore.saveSnapshot(taskId: sessionId, sessionId: sessionId)
             }
+            // Codex reports one start twice: the JSONL poller sees session_meta about 3 s
+            // before the hook's SessionStart arrives. A start for a session that is already
+            // active is that second report, not a new session.
+            let isRepeatedStart = event.eventType == .sessionStart
+                && sessionStore.sessions.contains { $0.id == sessionId && $0.status == .active }
             sessionStore.recordEvent(event)
 
             if event.eventType == .sessionEnd, !sessionId.isEmpty {
                 CodexHookLiveness.shared.clear(sessionId: sessionId)
             }
 
-            if let notification = createNotification(from: event) {
+            if !isRepeatedStart, let notification = createNotification(from: event) {
                 if notification.category != .permissionRequest {
                     notificationStore.append(notification)
                 }

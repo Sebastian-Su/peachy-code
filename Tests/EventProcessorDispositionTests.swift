@@ -149,6 +149,26 @@ final class EventProcessorDispositionTests: XCTestCase {
         XCTAssertNil(ns.notifications.first(where: { $0.sessionId == sessionId }))
     }
 
+    // Codex reports a start from the JSONL poller and again from its hook ~3 s later.
+    func testRepeatedSessionStartNotifiesOnce() async {
+        let (proc, ns, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sessionId = "01a17796-cc83-7000-8000-000000000001"
+
+        for source in ["codex-desktop", "codex-cli"] {
+            await proc.process(AgentEvent(
+                hookEventName: HookEventType.sessionStart.rawValue,
+                sessionId: sessionId,
+                cwd: "/tmp/project",
+                source: source
+            ))
+        }
+
+        let starts = ns.notifications.filter { $0.sessionId == sessionId && $0.title == "Session Started" }
+        XCTAssertEqual(starts.count, 1)
+        XCTAssertNotNil(ss.sessions.first(where: { $0.id == sessionId }))
+    }
+
     // A real Codex Desktop session (source=vscode) must not be filtered.
     func testRealCodexDesktopSessionIsVisible() async {
         let (proc, _, ss) = makeProcessor()

@@ -163,9 +163,10 @@ Sources/
 ### Codex 事件 → PeachyPet（双路径）
 
 1. **Hook 路径（实时）**：Codex 触发 `~/.codex/hooks.json` 里的 hook-sender.sh → POST `/hook` → `LocalServer` → `CodexAdapter`
+   - 注册的 `command` 必须是 `~/.peachypet/hooks/hook-sender.sh --source codex-cli`：Codex 忽略 `args` 字段，来源标记只能写在命令里；缺了它事件会被当成 Claude Code，去重失效。旧的「裸命令 + args」注册项在安装时自动迁移
 2. **JSONL 轮询（1秒）**：`CodexSessionMonitor` 轮询 `~/.codex/sessions/**/*.jsonl` → `CodexEventMapper` 解析 → `CodexAdapter`
 
-两路通过 `CodexHookLiveness` 去重（hook 到达后标记为 live，抑制 JSONL 轮询的重复事件）。
+两路通过 `CodexHookLiveness` 去重（hook 到达后标记为 live，抑制 JSONL 轮询的重复事件）。JSONL 通常比 hook 的 SessionStart 早约 3 秒发现新会话，所以已激活会话再收到 SessionStart 只更新状态、不再发通知（`EventProcessor`）。
 
 ### Subagent 状态追踪
 
