@@ -122,7 +122,7 @@ enum HookInstaller {
         try writeSettings(settings)
     }
 
-    private static let scriptVersion = "# version: 18"
+    private static let scriptVersion = "# version: 19"
 
     /// Exposed for testing: returns the script content that would be written by ensureScriptExists().
     /// This avoids tests needing to touch the real home directory.
@@ -172,18 +172,18 @@ enum HookInstaller {
         EVENT_NAME=$(echo "$INPUT" | grep -o '"hook_event_name":"[^"]*"' | head -1 | cut -d'"' -f4)
 
         # Parse --source <value> argument (passed by Codex hook registration).
-        # When present, overwrite the "source" field in the JSON payload so the app
-        # can correctly identify Codex events even when Codex sends source="local".
+        # When present, record it as "peachy_client" so the app knows which agent sent the
+        # event. The agent's own "source" field (the SessionStart reason) is left untouched.
         # When absent (Claude Code path), the payload is left completely unmodified.
-        SOURCE_OVERRIDE=""
+        CLIENT_TAG=""
         while [ "$#" -gt 0 ]; do
           case "$1" in
-            --source) SOURCE_OVERRIDE="$2"; shift 2 ;;
+            --source) CLIENT_TAG="$2"; shift 2 ;;
             *) shift ;;
           esac
         done
-        if [ -n "$SOURCE_OVERRIDE" ]; then
-          INPUT=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); d['source']='$SOURCE_OVERRIDE'; print(json.dumps(d))")
+        if [ -n "$CLIENT_TAG" ]; then
+          INPUT=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); d['peachy_client']='$CLIENT_TAG'; print(json.dumps(d))")
         fi
 
         # Walk up process tree to find terminal app PID and shell PID

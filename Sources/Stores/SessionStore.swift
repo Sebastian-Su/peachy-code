@@ -5,9 +5,11 @@ struct AgentSession: Identifiable, Codable {
     let id: String // session_id from hook event
     let projectDir: String?
     let projectName: String?
+    /// The agent engine, fixed when the session is created.
     var agentSource: AgentSource = .claudeCode
-    /// Raw source string before normalization (e.g. "vscode" for Codex Desktop),
-    /// used to distinguish Codex Desktop (GUI app) from Codex CLI (terminal).
+    /// The app the session runs in. Only moves from unknown to known, or to paseo.
+    var host: SessionHost = .unknown
+    /// Last `source` value seen on an event, for diagnostics only; nothing decides from it.
     var rawSource: String?
     var status: Status
     var phase: Phase = .idle
@@ -53,18 +55,15 @@ struct AgentSession: Identifiable, Codable {
         return nonEmpty(sessionTitle) ?? nonEmpty(firstUserPrompt)
     }
 
-    /// Codex Desktop (ChatGPT.app) is a GUI app with no terminal — focus should
-    /// activate the app directly rather than resolving a terminal window.
-    var isCodexDesktop: Bool {
-        let s = (rawSource ?? "").lowercased()
-        return s == "vscode" || s.contains("desktop")
-    }
-
     /// The app bundle id whose icon best represents this session's terminal/client.
     /// Matches IDETerminalFocus.focusSession's activation target so the icon == where a click goes.
     var focusAppBundleId: String? {
-        if PaseoRegistry.shared.agent(forSession: id) != nil { return PaseoRegistry.bundleId }
-        if isCodexDesktop { return "com.openai.codex" }   // ChatGPT.app
+        switch host {
+        case .paseo: return PaseoRegistry.bundleId
+        case .codexDesktop: return "com.openai.codex"   // ChatGPT.app
+        case .other: return nil
+        case .terminal, .unknown: break
+        }
         if let bundleId = terminalBundleId { return bundleId }
         // terminalBundleId may be nil for older sessions even when terminalPid is known.
         // Fall back to a live NSRunningApplication lookup so existing sessions also get icons.
@@ -140,6 +139,7 @@ struct AgentSession: Identifiable, Codable {
         case projectDir
         case projectName
         case agentSource
+        case host
         case rawSource
         case status
         case phase
@@ -174,6 +174,10 @@ struct AgentSession: Identifiable, Codable {
                 agentSource = .unknown
             }
         }
+        // Older versions derived the engine from Claude's SessionStart reason ("fork", "startup"…),
+        // which left Claude Code sessions as unknown. Codex and Copilot sessions were always named.
+        if agentSource == .unknown { agentSource = .claudeCode }
+        host = try container.decodeIfPresent(SessionHost.self, forKey: .host) ?? .unknown
         status = try container.decode(Status.self, forKey: .status)
         phase = try container.decodeIfPresent(Phase.self, forKey: .phase) ?? .idle
         eventCount = try container.decode(Int.self, forKey: .eventCount)
@@ -260,8 +264,11 @@ final class SessionStore {
     /// Wire this to refresh overlay and session switcher snapshots.
     var onPhasesChanged: (() -> Void)?
 
-    init(idleRetentionDuration: TimeInterval = 300) {
+    private let hostResolver: SessionHostResolver
+
+    init(idleRetentionDuration: TimeInterval = 300, hostResolver: SessionHostResolver = SessionHostResolver()) {
         self.idleRetentionDuration = idleRetentionDuration
+        self.hostResolver = hostResolver
         sessions = LocalStorage.load([AgentSession].self, from: Self.filename) ?? []
         // On launch, no session can be mid-compact - reset any stale compacting phase
         var needsPersist = false
@@ -270,6 +277,7 @@ final class SessionStore {
             needsPersist = true
         }
         if needsPersist { persist() }
+        resolveUnknownHosts()
         runStartupMigration()
         reconcileIfNeeded()
         startReconcileTimer()
@@ -761,6 +769,60 @@ final class SessionStore {
         internalTurnSnapshots.removeValue(forKey: taskId)
     }
 
+    // MARK: - Host
+
+    private func resolveHost(
+        sessionId: String, engine: AgentSource, event: AgentEvent?, transcriptPath: String?
+    ) -> SessionHost {
+        let rollout = event?.originator.map {
+            SessionHostResolver.RolloutMeta(originator: $0, source: event?.source)
+        }
+        return hostResolver.resolve(
+            sessionId: sessionId,
+            engine: engine,
+            hasTerminal: event?.terminalPid != nil || event?.itermSessionId != nil,
+            rollout: rollout,
+            transcriptPath: transcriptPath
+        )
+    }
+
+    /// The host only moves from unknown to a known value, or to paseo. Later events never
+    /// demote it, so a hook event cannot turn a Codex Desktop session into a terminal one.
+    private func upgradeHost(at index: Int, with event: AgentEvent) {
+        let current = sessions[index].host
+        if case .paseo = current { return }
+        let resolved = resolveHost(
+            sessionId: sessions[index].id,
+            engine: sessions[index].agentSource,
+            event: event,
+            transcriptPath: sessions[index].transcriptPath ?? event.transcriptPath
+        )
+        let isPaseo: Bool = if case .paseo = resolved { true } else { false }
+        guard current == .unknown || isPaseo, resolved != .unknown, resolved != current else { return }
+        PeachyLog.session.info("Session host: \(self.sessions[index].id) \(String(describing: current)) -> \(String(describing: resolved))")
+        sessions[index].host = resolved
+    }
+
+    /// Sessions saved before hosts existed: decide each from the facts still on disk.
+    private func resolveUnknownHosts() {
+        var changed = false
+        for i in sessions.indices where sessions[i].host == .unknown {
+            let hasTerminal = sessions[i].terminalPid != nil || sessions[i].itermSessionId != nil
+            let resolved = hostResolver.resolve(
+                sessionId: sessions[i].id,
+                engine: sessions[i].agentSource,
+                hasTerminal: hasTerminal,
+                rollout: nil,
+                transcriptPath: sessions[i].transcriptPath
+            )
+            if resolved != .unknown {
+                sessions[i].host = resolved
+                changed = true
+            }
+        }
+        if changed { persist() }
+    }
+
     // MARK: - Startup Migration
 
     func runStartupMigration() {
@@ -904,12 +966,9 @@ final class SessionStore {
                 sessions[index].lastToolName = toolName
             }
             if let source = event.source, !source.isEmpty {
-                let isGenericCodexUpdate = source.lowercased() == "codex"
-                if !(sessions[index].isCodexDesktop && isGenericCodexUpdate) {
-                    sessions[index].agentSource = AgentSource(rawSource: source)
-                    sessions[index].rawSource = source
-                }
+                sessions[index].rawSource = source
             }
+            upgradeHost(at: index, with: event)
             if let path = event.transcriptPath, sessions[index].transcriptPath == nil {
                 sessions[index].transcriptPath = path
             }
@@ -1083,7 +1142,7 @@ final class SessionStore {
                 id: sessionId,
                 projectDir: event.cwd,
                 projectName: event.projectName,
-                agentSource: AgentSource(rawSource: event.source),
+                agentSource: event.agentSource,
                 status: .active,
                 phase: phase,
                 eventCount: 1,
@@ -1092,6 +1151,9 @@ final class SessionStore {
             )
             session.terminalPid = event.terminalPid
             session.rawSource = event.source
+            session.host = resolveHost(
+                sessionId: sessionId, engine: event.agentSource, event: event, transcriptPath: event.transcriptPath
+            )
             if let pid = event.terminalPid {
                 session.terminalBundleId = Self.resolveBundleId(pid: pid)
             }

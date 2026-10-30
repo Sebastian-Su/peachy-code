@@ -10,22 +10,6 @@ struct CodexSessionContext {
     var isSubagent = false
     var subagentType: String?
 
-    var normalizedSource: String {
-        let sourceValue = source?.lowercased() ?? ""
-        let originatorValue = originator?.lowercased() ?? ""
-        if sourceValue.contains("vscode") || sourceValue.contains("desktop") || originatorValue.contains("desktop") {
-            return "codex-desktop"
-        }
-        if sourceValue == "cli"
-            || sourceValue == "exec"
-            || sourceValue.contains("codex-cli")
-            || originatorValue.contains("codex_cli")
-            || originatorValue.contains("codex_exec") {
-            return "codex-cli"
-        }
-        return "codex"
-    }
-
     func merged(with other: CodexSessionContext) -> CodexSessionContext {
         var mergedToolNames = toolNamesByCallId
         for (callId, toolName) in other.toolNamesByCallId {
@@ -106,11 +90,12 @@ enum CodexEventMapper {
                         hookEventName: HookEventType.sessionStart.rawValue,
                         sessionId: sessionId,
                         cwd: mergedContext.cwd,
-                        source: mergedContext.normalizedSource,
+                        source: mergedContext.source,
                         model: payload["cli_version"] as? String
                     ),
                 ]
             }
+            result.events = stamped(result.events, context: mergedContext)
             return result
 
         case "turn_context":
@@ -138,13 +123,15 @@ enum CodexEventMapper {
             workingContext = merged(existing: workingContext, update: update)
             result.context = workingContext
         }
-        let source = workingContext.normalizedSource
+        // The rollout's own session source ("cli", "vscode", "exec"); the host is decided from
+        // `originator` by the session layer, not from this string.
+        let source = workingContext.source
         let sessionId = workingContext.isSubagent
             ? (workingContext.rootSessionId ?? fileSessionId)
             : fileSessionId
         func finalized(_ value: CodexParseResult) -> CodexParseResult {
             var final = value
-            final.events = routeSubagentEvents(final.events, context: workingContext)
+            final.events = stamped(routeSubagentEvents(final.events, context: workingContext), context: workingContext)
             return final
         }
 
@@ -488,6 +475,16 @@ enum CodexEventMapper {
         return finalized(result)
     }
 
+    /// Every JSONL event names its producer and the rollout's originator.
+    private static func stamped(_ events: [AgentEvent], context: CodexSessionContext) -> [AgentEvent] {
+        events.map { event in
+            var event = event
+            event.client = AgentEvent.codexJSONLClient
+            event.originator = context.originator
+            return event
+        }
+    }
+
     private static func routeSubagentEvents(
         _ events: [AgentEvent],
         context: CodexSessionContext
@@ -554,7 +551,7 @@ enum CodexEventMapper {
         payload: [String: Any],
         sessionId: String,
         cwd: String?,
-        source: String,
+        source: String?,
         context: CodexSessionContext
     ) -> [AgentEvent] {
         guard let payloadType = payload["type"] as? String else { return [] }
@@ -697,7 +694,7 @@ enum CodexEventMapper {
         payload: [String: Any],
         sessionId: String,
         cwd: String?,
-        source: String
+        source: String?
     ) -> [AgentEvent] {
         let arguments = toolArguments(
             payload: payload,
@@ -754,7 +751,7 @@ enum CodexEventMapper {
         payload: [String: Any],
         sessionId: String,
         cwd: String?,
-        source: String,
+        source: String?,
         context: CodexSessionContext
     ) -> [AgentEvent] {
         let output = toolOutput(payload["output"])
@@ -1135,7 +1132,7 @@ enum CodexEventMapper {
         payload: [String: Any],
         sessionId: String,
         cwd: String?,
-        source: String
+        source: String?
     ) -> [AgentEvent] {
         let taskId = payload["turn_id"] as? String
         var subject: String?

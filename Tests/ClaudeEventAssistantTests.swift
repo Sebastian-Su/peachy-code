@@ -10,15 +10,18 @@ final class ClaudeEventAssistantTests: XCTestCase {
     func testAssistantDisplayNameDetectsCodexCLI() {
         let event = AgentEvent(
             hookEventName: HookEventType.sessionStart.rawValue,
-            source: "codex-cli"
+            client: "codex-cli"
         )
         XCTAssertEqual(event.assistantDisplayName, "Codex")
     }
 
+    /// A Codex Desktop rollout says source "vscode"; the engine comes from the poller's tag.
     func testAssistantDisplayNameDetectsCodexDesktop() {
         let event = AgentEvent(
             hookEventName: HookEventType.sessionStart.rawValue,
-            source: "vscode"
+            source: "vscode",
+            client: AgentEvent.codexJSONLClient,
+            originator: "Codex Desktop"
         )
         XCTAssertEqual(event.assistantDisplayName, "Codex")
     }

@@ -44,21 +44,21 @@ final class ClaudeCodeAdapter: AgentAdapter {
 
     func start() throws {
         localServer.onEventReceived = { [weak self] event in
-            if event.assistantClientKind != .claude, let sid = event.sessionId {
+            if event.agentSource == .codex, let sid = event.sessionId {
                 Task { @MainActor in CodexHookLiveness.shared.markLive(sessionId: sid) }
             }
             self?.onEvent?(event)
         }
         localServer.onPermissionRequest = { [weak self] event, connection in
-            if event.assistantClientKind != .claude, let sid = event.sessionId {
+            if event.agentSource == .codex, let sid = event.sessionId {
                 Task { @MainActor in CodexHookLiveness.shared.markLive(sessionId: sid) }
             }
             let transport: ResponseTransport
-            if event.assistantClientKind == .claude {
-                transport = HookConnectionTransport(connection: connection)
-            } else {
-                // Codex (and other non-Claude) hooks POST to the same /hook endpoint.
+            if event.agentSource == .codex {
+                // Codex hooks POST to the same /hook endpoint.
                 transport = CodexHookTransport(connection: connection)
+            } else {
+                transport = HookConnectionTransport(connection: connection)
             }
             self?.onPermissionRequest?(event, transport)
         }

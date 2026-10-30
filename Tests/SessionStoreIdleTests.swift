@@ -16,7 +16,8 @@ final class SessionStoreIdleTests: XCTestCase {
         type: HookEventType,
         sessionId: String,
         taskId: String? = nil,
-        source: String = "codex-cli",
+        client: String = "codex-cli",
+        originator: String? = nil,
         notificationType: String? = nil
     ) -> AgentEvent {
         AgentEvent(
@@ -24,8 +25,9 @@ final class SessionStoreIdleTests: XCTestCase {
             sessionId: sessionId,
             cwd: "/tmp",
             notificationType: notificationType,
-            source: source,
-            taskId: taskId
+            taskId: taskId,
+            client: client,
+            originator: originator
         )
     }
 
@@ -44,18 +46,45 @@ final class SessionStoreIdleTests: XCTestCase {
         XCTAssertGreaterThan(session!.idleUntil!, Date(), "idleUntil must be in the future")
     }
 
-    func testGenericCodexStopDoesNotDowngradeDesktopSessionIdentity() {
+    /// The JSONL poller sees a Desktop rollout; a later Codex hook event must not demote it.
+    func testLaterHookEventDoesNotDemoteDesktopHost() {
         let store = makeStore(idleRetention: 300)
         defer { store.stopTimers() }
         let sid = "desktop-source-\(UUID().uuidString)"
 
-        store.recordEvent(event(type: .sessionStart, sessionId: sid, source: "codex-desktop"))
-        store.recordEvent(event(type: .stop, sessionId: sid, source: "codex"))
+        store.recordEvent(event(type: .sessionStart, sessionId: sid, client: AgentEvent.codexJSONLClient, originator: "Codex Desktop"))
+        store.recordEvent(event(type: .stop, sessionId: sid, client: "codex-cli"))
 
         let session = store.sessions.first(where: { $0.id == sid })
-        XCTAssertEqual(session?.rawSource, "codex-desktop")
-        XCTAssertTrue(session?.isCodexDesktop == true)
+        XCTAssertEqual(session?.agentSource, .codex)
+        XCTAssertEqual(session?.host, .codexDesktop)
         XCTAssertEqual(session?.focusAppBundleId, "com.openai.codex")
+    }
+
+    /// A session first seen without host facts is upgraded once the rollout's originator arrives.
+    func testUnknownHostUpgradesWhenOriginatorArrives() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "upgrade-\(UUID().uuidString)"
+
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid, client: "codex-cli"))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.host, .unknown)
+
+        store.recordEvent(event(type: .stop, sessionId: sid, client: AgentEvent.codexJSONLClient, originator: "baocut"))
+        XCTAssertEqual(store.sessions.first(where: { $0.id == sid })?.host, .other(originator: "baocut"))
+    }
+
+    /// Claude's SessionStart reason ("fork", "startup") is not an engine.
+    func testClaudeSessionStartReasonDoesNotMakeEngineUnknown() {
+        let store = makeStore(idleRetention: 300)
+        defer { store.stopTimers() }
+        let sid = "claude-\(UUID().uuidString)"
+
+        store.recordEvent(AgentEvent(hookEventName: HookEventType.sessionStart.rawValue, sessionId: sid, cwd: "/tmp", source: "fork"))
+
+        let session = store.sessions.first(where: { $0.id == sid })
+        XCTAssertEqual(session?.agentSource, .claudeCode)
+        XCTAssertEqual(session?.rawSource, "fork")
     }
 
     /// A machine that has never touched the setting must still expire stale sessions,
@@ -174,7 +203,7 @@ final class SessionStoreIdleTests: XCTestCase {
         let store = makeStore(idleRetention: 0.05)
         defer { store.stopTimers() }
         let sid = "headless-timer-\(UUID().uuidString)"
-        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid, source: "codex-cli"))
+        store.recordEvent(event(type: .userPromptSubmit, sessionId: sid))
         let expired = expectation(description: "headless Codex session expired")
         store.onPhasesChanged = {
             if store.sessions.first(where: { $0.id == sid })?.status == .ended {

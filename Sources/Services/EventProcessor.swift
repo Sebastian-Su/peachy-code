@@ -144,7 +144,7 @@ final class EventProcessor {
 
     private func isCodexBackgroundStartup(_ event: AgentEvent) -> Bool {
         guard event.eventType == .sessionStart,
-              event.source?.lowercased() == "startup",
+              event.startReason?.lowercased() == "startup",
               event.permissionMode == "bypassPermissions",
               event.terminalPid == nil,
               event.shellPid == nil,

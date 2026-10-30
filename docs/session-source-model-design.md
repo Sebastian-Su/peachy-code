@@ -1,6 +1,6 @@
 # 会话来源模型：把「引擎」和「宿主」拆开
 
-- 状态：草案，待确认
+- 状态：已实现（2026-10-30）。三项决定：按两个字段、宿主只升不降；第二步（事件层）一起做；`other` 宿主点击不做任何事
 - 日期：2026-10-30
 - 仓库：peachy-code（PeachyPet），基于 main `b86c821`
 - 范围：会话的来源识别、图标、点击跳转和事件去重。不涉及动画、通知文案和 hook 安装流程。
@@ -186,3 +186,24 @@ flowchart LR
 1. 是否按「两个字段、只升不降」的方向做。
 2. 第二步要不要做，还是第一步完成后先观察。
 3. 宿主为 `other` 的会话点击后什么都不做，你能否接受。另一个选择是：仍然尝试按终端 PID 去跳转。
+
+## 实现记录（2026-10-30）
+
+与草案的差异：
+
+- 事件层的投递方标记命名为 `client`（JSON 键 `peachy_client`），没有单独的 `channel`。hook 脚本升到 v19、Copilot 脚本升到 v2，改为写 `peachy_client`，不再覆盖 `source`。`events.json` 里旧事件的 `source` 若是 `codex-cli` 等标记，解码时仍按投递方读取。
+- 宿主解析顺序把「终端 PID」放在 rollout 之前：hook 报告了终端，就不必读文件。
+- rollout 查找用 `CodexRolloutIndex`：一次遍历约 12ms，只在未命中时最多每 5 秒重扫一次。最初的实现每个事件都遍历，导致测试套件从 4.2 秒涨到 12.7 秒，已修正。
+- `CodexInteractiveBridge` 去掉了「桌面版会话在无 cwd 匹配时聚焦最新终端进程」的分支。那个进程属于别的会话；桌面版会话现在按宿主打开 Codex 应用。`TerminalFallbackTransport` 同样先按宿主处理。
+
+真实数据回放（206 个会话）：
+
+| 指标 | 改前 | 改后 |
+|---|---|---|
+| 引擎为 unknown | 79 | 0 |
+| rollout 为 `Codex Desktop` 的会话被识别为桌面版 | 10 / 15 | 15 / 15 |
+| Paseo 会话 | 靠图标、跳转处临时查询 | 77 个宿主为 paseo |
+| `baocut` 驱动的会话 | 当作桌面版 | 2 个宿主为 other |
+| 宿主仍为 unknown | — | 85 个，其中 83 个已结束；均缺少终端信息，且 rollout 已被删除或不是 Codex 会话 |
+
+顺带修复：后台 startup 会话过滤依赖 `source == "startup"`，自 462de5e 起被 hook 脚本覆盖成 `codex-cli` 而失效，Codex 的记忆整理后台任务（`~/.codex/memories`）因此显示为会话。现在过滤读 `startReason`。

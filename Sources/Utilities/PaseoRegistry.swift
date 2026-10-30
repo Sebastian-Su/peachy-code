@@ -41,6 +41,17 @@ final class PaseoRegistry {
         self.root = root
     }
 
+    /// The deep link for an agent, read against the current server id.
+    func deepLink(agentId: String) -> URL? {
+        readServerId().flatMap { Agent(serverId: $0, agentId: agentId).deepLink }
+    }
+
+    private func readServerId() -> String? {
+        guard let id = try? String(contentsOf: root.appendingPathComponent("server-id"), encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty else { return nil }
+        return id
+    }
+
     func agent(forSession sessionId: String) -> Agent? {
         if let agent = agentsBySession[sessionId] { return agent }
         if let lastScan, Date().timeIntervalSince(lastScan) < rescanInterval { return nil }
@@ -51,9 +62,7 @@ final class PaseoRegistry {
     private func scan() {
         lastScan = Date()
         let fm = FileManager.default
-        guard let serverId = try? String(contentsOf: root.appendingPathComponent("server-id"), encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !serverId.isEmpty,
+        guard let serverId = readServerId(),
             let projects = try? fm.contentsOfDirectory(at: root.appendingPathComponent("agents"), includingPropertiesForKeys: nil)
         else {
             records = [:]

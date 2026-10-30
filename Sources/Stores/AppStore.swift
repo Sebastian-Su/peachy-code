@@ -390,7 +390,7 @@ final class AppStore {
             let reversed = Array(self.pendingPermissionStore.pending.reversed())
             if let topPerm = reversed.first {
                 let session = self.sessionStore.sessions.first(where: { $0.id == topPerm.event.sessionId })
-                if topPerm.event.assistantClientKind == .codexDesktop, let session {
+                if let session, session.host.isApp {
                     IDETerminalFocus.focusSession(session)
                     return
                 }

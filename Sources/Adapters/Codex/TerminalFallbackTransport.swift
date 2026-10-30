@@ -43,6 +43,18 @@ final class TerminalFallbackTransport: ResponseTransport {
     }
 
     private func openTerminal() {
+        if let sessionId = event.sessionId {
+            let host = SessionHostResolver().resolve(
+                sessionId: sessionId,
+                engine: event.agentSource,
+                hasTerminal: event.terminalPid != nil || event.shellPid != nil,
+                rollout: event.originator.map { .init(originator: $0, source: event.source) },
+                transcriptPath: event.transcriptPath
+            )
+            if IDETerminalFocus.focusApp(host: host, sessionId: sessionId) {
+                return
+            }
+        }
         if event.terminalPid != nil || event.shellPid != nil {
             IDETerminalFocus.focus(
                 terminalPid: event.terminalPid,

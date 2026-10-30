@@ -11,24 +11,7 @@ enum IDETerminalFocus {
         paseo: PaseoRegistry = .shared,
         urlOpener: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     ) {
-        // Started from Paseo: open that agent in Paseo, not the Codex thread it drives.
-        if let agent = paseo.agent(forSession: session.id) {
-            if let url = agent.deepLink, urlOpener(url) {
-                return
-            }
-            activateApp(bundleId: PaseoRegistry.bundleId)
-            return
-        }
-
-        // Codex Desktop (ChatGPT.app) is a GUI app with no terminal — activate it
-        // with its registered thread deep link instead of resolving a terminal
-        // (which falls through to the wrong app, e.g. Cursor on the same project).
-        if session.isCodexDesktop {
-            if let url = URL(string: "codex://threads/\(session.id)"),
-               urlOpener(url) {
-                return
-            }
-            activateApp(bundleId: "com.openai.codex")
+        if focusApp(host: session.host, sessionId: session.id, paseo: paseo, urlOpener: urlOpener) {
             return
         }
 
@@ -50,6 +33,41 @@ enum IDETerminalFocus {
             projectDir: session.projectDir,
             savedBundleId: session.terminalBundleId
         )
+    }
+
+    /// Focus a session hosted by an app. Returns false for terminal and unknown hosts, which
+    /// the caller resolves through terminal lookup instead.
+    @discardableResult
+    static func focusApp(
+        host: SessionHost,
+        sessionId: String,
+        paseo: PaseoRegistry = .shared,
+        urlOpener: (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    ) -> Bool {
+        switch host {
+        case .paseo(let agentId):
+            // Open that agent in Paseo, not the Codex thread it drives.
+            if let url = paseo.deepLink(agentId: agentId), urlOpener(url) {
+                return true
+            }
+            activateApp(bundleId: PaseoRegistry.bundleId)
+            return true
+        case .codexDesktop:
+            // Codex Desktop (ChatGPT.app) is a GUI app with no terminal — activate it
+            // with its registered thread deep link instead of resolving a terminal
+            // (which falls through to the wrong app, e.g. Cursor on the same project).
+            if let url = URL(string: "codex://threads/\(sessionId)"),
+               urlOpener(url) {
+                return true
+            }
+            activateApp(bundleId: "com.openai.codex")
+            return true
+        case .other:
+            // A known client with no focus target: do nothing rather than open the wrong app.
+            return true
+        case .terminal, .unknown:
+            return false
+        }
     }
 
     /// Focus a terminal by PID.

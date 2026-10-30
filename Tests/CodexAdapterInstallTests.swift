@@ -2,25 +2,29 @@ import XCTest
 @testable import PeachyPet
 
 final class CodexAdapterInstallTests: XCTestCase {
-    // assistantClientKind 是分发依据 — 固化其对 codex-cli / claude 的判定
-    func testAssistantClientKindClassifiesCodexCLI() {
-        let e = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s1",
-                           cwd: nil, source: "codex-cli")
-        XCTAssertEqual(e.assistantClientKind, .codexCLI)
+    // 引擎由投递方（peachy_client）决定，是分发依据 — 不再从 source 字符串推断
+    func testEngineComesFromClientTag() {
+        let codex = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s1", cwd: nil, client: "codex-cli")
+        let claude = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s1", cwd: nil, source: "startup")
+        let copilot = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s1", cwd: nil, client: "copilot")
+        XCTAssertEqual(codex.agentSource, .codex)
+        XCTAssertEqual(claude.agentSource, .claudeCode)
+        XCTAssertEqual(copilot.agentSource, .copilot)
     }
 
-    func testAssistantClientKindClassifiesClaude() {
-        let e = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s1",
-                           cwd: nil, source: "startup")
-        XCTAssertEqual(e.assistantClientKind, .claude)
+    /// The hook script now writes peachy_client and leaves Codex's own source untouched.
+    func testDecodedHookPayloadKeepsSourceAndReadsClient() throws {
+        let json = #"{"hook_event_name":"SessionStart","session_id":"s","source":"startup","peachy_client":"codex-cli"}"#
+        let event = try JSONDecoder().decode(AgentEvent.self, from: Data(json.utf8))
+        XCTAssertEqual(event.agentSource, .codex)
+        XCTAssertEqual(event.startReason, "startup")
     }
 
-    func testCodexEventIsRoutedToCodexTransportKind() {
-        // 分发判据：非 .claude 即用 CodexHookTransport
-        let codex = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s", cwd: nil, source: "codex-cli")
-        let claude = AgentEvent(hookEventName: "PermissionRequest", sessionId: "s", cwd: nil, source: "startup")
-        XCTAssertTrue(codex.assistantClientKind != .claude)
-        XCTAssertTrue(claude.assistantClientKind == .claude)
+    /// events.json and not-yet-rewritten scripts carry the tag in source.
+    func testDecodedLegacyPayloadReadsClientFromSource() throws {
+        let json = #"{"hook_event_name":"Stop","session_id":"s","source":"codex-cli"}"#
+        let event = try JSONDecoder().decode(AgentEvent.self, from: Data(json.utf8))
+        XCTAssertEqual(event.agentSource, .codex)
     }
 
     func testPermissionRequestRoutesToPermissionAndSessionPipelines() {
@@ -29,7 +33,7 @@ final class CodexAdapterInstallTests: XCTestCase {
             hookEventName: HookEventType.permissionRequest.rawValue,
             sessionId: "waiting-session",
             cwd: "/tmp",
-            source: "codex-desktop"
+            client: "codex-desktop"
         )
         var permissionEvent: AgentEvent?
         var sessionEvent: AgentEvent?

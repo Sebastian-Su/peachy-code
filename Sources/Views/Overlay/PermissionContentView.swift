@@ -326,7 +326,7 @@ struct PermissionContentView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     if questions.count > 1 { state.currentQuestionIndex = questionIndex }
-                    focusTerminal(pid: permission.event.terminalPid, shellPid: permission.event.shellPid, projectDir: permission.event.cwd, sessionId: permission.event.sessionId, source: permission.event.source, sessions: sessionStore.sessions)
+                    focusTerminal(pid: permission.event.terminalPid, shellPid: permission.event.shellPid, projectDir: permission.event.cwd, sessionId: permission.event.sessionId, engine: permission.event.agentSource, sessions: sessionStore.sessions)
                 }
 
             VStack(alignment: .leading, spacing: isExpanded ? 4 : 2) {
@@ -836,7 +836,7 @@ struct PermissionContentView: View {
             shellPid: permission.event.shellPid,
             projectDir: permission.event.cwd,
             sessionId: permission.event.sessionId,
-            source: permission.event.source,
+            engine: permission.event.agentSource,
             sessions: sessionStore.sessions
         )
         store.dismissLocally(id: permission.id)

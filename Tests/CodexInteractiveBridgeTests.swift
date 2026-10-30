@@ -9,7 +9,7 @@ final class CodexInteractiveBridgeTests: XCTestCase {
             sessionId: "sid-1",
             cwd: "/Users/test/project",
             toolName: "exec_command",
-            source: "codex-cli"
+            client: "codex-cli"
         )
 
         let processes = [
@@ -33,7 +33,7 @@ final class CodexInteractiveBridgeTests: XCTestCase {
             sessionId: "sid-2",
             cwd: nil,
             toolName: "exec_command",
-            source: "codex-cli"
+            client: "codex-cli"
         )
 
         let processes = [
@@ -49,13 +49,15 @@ final class CodexInteractiveBridgeTests: XCTestCase {
         XCTAssertFalse(ok)
     }
 
-    func testFocusSelectsNewestTTYForCodexDesktopWhenNoCwdMatch() {
+    /// Desktop sessions route to the Codex app by host; with no cwd match the bridge must not
+    /// guess a terminal, since the newest TTY belongs to some other session.
+    func testFocusDoesNotGuessTerminalWithoutCwdMatch() {
         let event = AgentEvent(
             hookEventName: HookEventType.permissionRequest.rawValue,
             sessionId: "sid-2b",
             cwd: nil,
             toolName: "exec_command",
-            source: "codex-desktop"
+            client: "codex-desktop"
         )
 
         let processes = [
@@ -69,8 +71,8 @@ final class CodexInteractiveBridgeTests: XCTestCase {
             return true
         }
 
-        XCTAssertTrue(ok)
-        XCTAssertEqual(activatedPid, 125)
+        XCTAssertFalse(ok)
+        XCTAssertNil(activatedPid)
     }
 
     func testFocusRejectsClaudeEvents() {

@@ -125,7 +125,7 @@ enum CopilotCLIInstaller {
 
     // MARK: - Hook Script
 
-    private static let copilotScriptVersion = "# version: 1"
+    private static let copilotScriptVersion = "# version: 2"
 
     /// Ensure the copilot hook script exists and is up to date.
     /// Called on app startup when the plugin is registered.
@@ -150,9 +150,9 @@ enum CopilotCLIInstaller {
         # Exit early if Peachy server isn't running
         curl -s --connect-timeout 0.3 "http://localhost:\(port)/health" >/dev/null 2>&1 || exit 0
 
-        # Inject hook_event_name, source tag, and translate camelCase to snake_case
+        # Inject hook_event_name, the PeachyPet client tag, and translate camelCase to snake_case
         INPUT=$(echo "$INPUT" | sed \\
-            -e "s/^{/{\\\"hook_event_name\\\":\\\"$EVENT_TYPE\\\",\\\"source\\\":\\\"copilot\\\",/" \\
+            -e "s/^{/{\\\"hook_event_name\\\":\\\"$EVENT_TYPE\\\",\\\"peachy_client\\\":\\\"copilot\\\",/" \\
             -e 's/"sessionId"/"session_id"/g' \\
             -e 's/"toolName"/"tool_name"/g' \\
             -e 's/"toolArgs"/"tool_input"/g' \\

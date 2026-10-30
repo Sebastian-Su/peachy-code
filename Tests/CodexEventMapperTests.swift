@@ -99,7 +99,7 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(result.context?.rootSessionId, parentId)
         XCTAssertEqual(result.context?.sessionId, childId)
         XCTAssertEqual(result.context?.subagentType, "Popper")
-        XCTAssertEqual(result.context?.normalizedSource, "codex-desktop")
+        XCTAssertEqual(result.context?.originator, "Codex Desktop")
     }
 
     func testSessionMetaMapsToSessionStartForDesktop() throws {
@@ -113,50 +113,26 @@ final class CodexEventMapperTests: XCTestCase {
 
         XCTAssertEqual(result.context?.sessionId, sessionId)
         XCTAssertEqual(result.context?.cwd, "/Users/test/project")
-        XCTAssertEqual(result.context?.normalizedSource, "codex-desktop")
         XCTAssertEqual(result.events.count, 1)
         XCTAssertEqual(result.events.first?.hookEventName, HookEventType.sessionStart.rawValue)
         XCTAssertEqual(result.events.first?.sessionId, sessionId)
-        XCTAssertEqual(result.events.first?.source, "codex-desktop")
+        XCTAssertEqual(result.events.first?.client, AgentEvent.codexJSONLClient)
+        XCTAssertEqual(result.events.first?.agentSource, .codex)
+        XCTAssertEqual(result.events.first?.originator, "Codex Desktop")
+        XCTAssertEqual(result.events.first?.source, "vscode")
+        XCTAssertNil(result.events.first?.startReason)
     }
 
-    func testSessionMetaMapsToDesktopForExecSourceWhenOriginatorIsDesktop() throws {
-        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
-        let fileURL = URL(fileURLWithPath: "/tmp/rollout-2026-03-09T23-54-07-\(sessionId).jsonl")
-        let line = """
-        {"type":"session_meta","payload":{"id":"\(sessionId)","cwd":"/Users/test/project","source":"exec","originator":"Codex Desktop"}}
-        """
-
-        let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: nil)
-
-        XCTAssertEqual(result.events.count, 1)
-        XCTAssertEqual(result.events.first?.source, "codex-desktop")
-    }
-
-    func testSessionMetaMapsExecSourceToCliWhenOriginatorIsCodexExec() throws {
-        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
-        let fileURL = URL(fileURLWithPath: "/tmp/rollout-2026-03-09T23-54-07-\(sessionId).jsonl")
-        let line = """
-        {"type":"session_meta","payload":{"id":"\(sessionId)","cwd":"/Users/test/project","source":"exec","originator":"codex_exec"}}
-        """
-
-        let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: nil)
-
-        XCTAssertEqual(result.events.count, 1)
-        XCTAssertEqual(result.events.first?.source, "codex-cli")
-    }
-
-    func testSessionMetaMapsToDesktopForVscodeVariantSource() throws {
-        let sessionId = "019cd686-3b91-78a1-9356-21b475548352"
-        let fileURL = URL(fileURLWithPath: "/tmp/rollout-2026-03-09T23-54-07-\(sessionId).jsonl")
-        let line = """
-        {"type":"session_meta","payload":{"id":"\(sessionId)","cwd":"/Users/test/project","source":"vscode-insiders"}}
-        """
-
-        let result = CodexEventMapper.parse(line: line, fileURL: fileURL, context: nil)
-
-        XCTAssertEqual(result.events.count, 1)
-        XCTAssertEqual(result.events.first?.source, "codex-desktop")
+    /// Host is decided by the session layer from the rollout's originator and source.
+    func testRolloutMetaDecidesHost() {
+        typealias Meta = SessionHostResolver.RolloutMeta
+        XCTAssertEqual(SessionHostResolver.codexHost(for: Meta(originator: "Codex Desktop", source: "exec")), .codexDesktop)
+        XCTAssertEqual(SessionHostResolver.codexHost(for: Meta(originator: "Codex Desktop", source: "vscode")), .codexDesktop)
+        XCTAssertEqual(SessionHostResolver.codexHost(for: Meta(originator: "codex_exec", source: "exec")), .terminal)
+        XCTAssertEqual(SessionHostResolver.codexHost(for: Meta(originator: "codex-tui", source: "cli")), .terminal)
+        XCTAssertEqual(SessionHostResolver.codexHost(for: Meta(originator: "baocut", source: "vscode")), .other(originator: "baocut"))
+        XCTAssertEqual(SessionHostResolver.codexHost(for: Meta(originator: "codex_cli_rs", source: "vscode")), .other(originator: "codex_cli_rs"))
+        XCTAssertEqual(SessionHostResolver.codexHost(for: nil), .unknown)
     }
 
     func testTaskEventsMapToRunningAndStop() throws {
@@ -176,7 +152,7 @@ final class CodexEventMapperTests: XCTestCase {
         XCTAssertEqual(startResult.events.count, 1)
         XCTAssertEqual(startResult.events.first?.hookEventName, HookEventType.userPromptSubmit.rawValue)
         XCTAssertEqual(startResult.events.first?.taskId, "turn_123")
-        XCTAssertEqual(startResult.events.first?.source, "codex-cli")
+        XCTAssertEqual(startResult.events.first?.client, AgentEvent.codexJSONLClient)
 
         let stopLine = """
         {"type":"event_msg","payload":{"type":"task_complete","turn_id":"turn_123","last_agent_message":"Done"}}
@@ -380,7 +356,7 @@ final class CodexEventMapperTests: XCTestCase {
 
         XCTAssertEqual(result.events.count, 1)
         XCTAssertEqual(result.events.first?.hookEventName, HookEventType.preCompact.rawValue)
-        XCTAssertEqual(result.events.first?.source, "codex-cli")
+        XCTAssertEqual(result.events.first?.client, AgentEvent.codexJSONLClient)
         XCTAssertEqual(result.events.first?.reason, "context_compacted")
     }
 
@@ -937,7 +913,7 @@ final class CodexEventMapperTests: XCTestCase {
 
         XCTAssertEqual(result.events.count, 1)
         XCTAssertEqual(result.events.first?.sessionId, sessionId)
-        XCTAssertEqual(result.events.first?.source, "codex")
+        XCTAssertEqual(result.events.first?.client, AgentEvent.codexJSONLClient)
     }
 
     func testParsesLatestLocalCodexLogTailWhenAvailable() throws {

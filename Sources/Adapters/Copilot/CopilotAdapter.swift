@@ -2,7 +2,7 @@ import Foundation
 
 /// Copilot CLI adapter - manages plugin installation.
 /// Copilot events arrive at the shared /hook endpoint (same LocalServer as Claude Code)
-/// with `source: "copilot"` injected by copilot-hook.sh. No separate server needed.
+/// with `peachy_client: "copilot"` injected by copilot-hook.sh. No separate server needed.
 final class CopilotAdapter: AgentAdapter {
     let source: AgentSource = .copilot
 

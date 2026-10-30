@@ -24,7 +24,8 @@ struct AgentEvent: Identifiable, Codable {
     let title: String?
     let notificationType: String?
 
-    // Session events
+    // Session events. `source` is the agent's own field, kept as sent: for SessionStart it is
+    // the start reason (startup / resume / compact / fork). PeachyPet's own tag is `client`.
     let source: String?
     let reason: String?
     let model: String?
@@ -53,6 +54,15 @@ struct AgentEvent: Identifiable, Codable {
     // iTerm2 session unique ID (from $ITERM_SESSION_ID env var — injected by hook script)
     let itermSessionId: String?
 
+    /// Which PeachyPet producer delivered the event: the Codex hook ("codex-cli", set by the
+    /// `--source` argument hook-sender.sh receives), the Copilot hook ("copilot"), or the Codex
+    /// JSONL poller ("codex-jsonl"). Absent for Claude Code hooks.
+    var client: String?
+
+    /// Codex rollout `session_meta.originator` (e.g. "Codex Desktop", "codex-tui"); set by the
+    /// JSONL poller so the session layer can tell which app hosts the session.
+    var originator: String?
+
     // Timestamp (set locally when received)
     let receivedAt: Date
 
@@ -64,38 +74,29 @@ struct AgentEvent: Identifiable, Codable {
         cwd.flatMap { URL(fileURLWithPath: $0).lastPathComponent }
     }
 
-    enum AssistantClientKind {
-        case claude
-        case codexCLI
-        case codexDesktop
-        case codex
+    static let codexJSONLClient = "codex-jsonl"
+
+    /// The agent engine, from the producer that delivered the event. Never parsed from `source`.
+    var agentSource: AgentSource {
+        guard let client else { return .claudeCode }
+        if client.hasPrefix("codex") { return .codex }
+        if client == "copilot" { return .copilot }
+        return .unknown
     }
 
-    var assistantClientKind: AssistantClientKind {
-        let value = source?.lowercased() ?? ""
-        if value.contains("codex-desktop") || value == "vscode" || value.contains("desktop") {
-            return .codexDesktop
-        }
-        if value.contains("codex-cli") || value == "cli" || value.contains("codex_cli") {
-            return .codexCLI
-        }
-        if value.contains("codex") {
-            return .codex
-        }
-        return .claude
+    /// Why a session started (startup / resume / compact / fork), as the agent's hook reports it.
+    /// JSONL SessionStart events carry the rollout's session source instead, so they have none.
+    var startReason: String? {
+        guard eventType == .sessionStart, client != Self.codexJSONLClient else { return nil }
+        return source
     }
 
     var assistantDisplayName: String {
-        switch assistantClientKind {
-        case .claude:
-            return "Claude Code"
-        case .codexCLI, .codexDesktop, .codex:
-            return "Codex"
-        }
+        agentSource.displayName
     }
 
     var isLikelyCodexQuestionPrompt: Bool {
-        guard assistantClientKind != .claude else { return false }
+        guard agentSource == .codex else { return false }
         return Self.looksLikeQuestionPrompt(message ?? lastAssistantMessage)
     }
 
@@ -134,8 +135,14 @@ struct AgentEvent: Identifiable, Codable {
         case terminalPid = "terminal_pid"
         case shellPid = "shell_pid"
         case itermSessionId = "iterm_session_id"
+        case client = "peachy_client"
+        case originator
         case receivedAt
     }
+
+    /// Tags older hook scripts wrote into `source` before `peachy_client` existed. Read only when
+    /// decoding (events.json history, a script not yet rewritten), never for new events.
+    private static let legacyClientTags: Set<String> = ["codex-cli", "codex-desktop", "codex", "copilot"]
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -166,6 +173,9 @@ struct AgentEvent: Identifiable, Codable {
         self.terminalPid = try container.decodeIfPresent(Int.self, forKey: .terminalPid)
         self.shellPid = try container.decodeIfPresent(Int.self, forKey: .shellPid)
         self.itermSessionId = try container.decodeIfPresent(String.self, forKey: .itermSessionId)
+        self.client = try container.decodeIfPresent(String.self, forKey: .client)
+            ?? source.flatMap { Self.legacyClientTags.contains($0) ? $0 : nil }
+        self.originator = try container.decodeIfPresent(String.self, forKey: .originator)
         self.receivedAt = Date()
     }
 
@@ -195,7 +205,9 @@ struct AgentEvent: Identifiable, Codable {
         permissionSuggestions: [AnyCodable]? = nil,
         terminalPid: Int? = nil,
         shellPid: Int? = nil,
-        itermSessionId: String? = nil
+        itermSessionId: String? = nil,
+        client: String? = nil,
+        originator: String? = nil
     ) {
         self.id = UUID()
         self.hookEventName = hookEventName
@@ -224,6 +236,8 @@ struct AgentEvent: Identifiable, Codable {
         self.shellPid = shellPid
         self.itermSessionId = itermSessionId
         self.permissionSuggestions = permissionSuggestions
+        self.client = client
+        self.originator = originator
         self.receivedAt = Date()
     }
 }

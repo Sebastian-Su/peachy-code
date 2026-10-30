@@ -51,7 +51,7 @@ final class EventProcessorTests: XCTestCase {
             cwd: "/tmp/project",
             toolName: "exec_command",
             message: "Need network access to push",
-            source: "codex-cli"
+            client: "codex-cli"
         )
 
         await processor.process(event)
@@ -110,9 +110,9 @@ final class EventProcessorTests: XCTestCase {
             hookEventName: HookEventType.stop.rawValue,
             sessionId: sessionId,
             cwd: "/tmp/project",
-            source: "codex-cli",
             reason: "completed",
-            lastAssistantMessage: "Which remote should I use for the dry-run push?"
+            lastAssistantMessage: "Which remote should I use for the dry-run push?",
+            client: "codex-cli"
         )
 
         await processor.process(event)
@@ -140,8 +140,8 @@ final class EventProcessorTests: XCTestCase {
             hookEventName: HookEventType.taskCompleted.rawValue,
             sessionId: sessionId,
             cwd: "/tmp/project",
-            source: "codex-cli",
-            taskSubject: "Which remote should I use for the dry-run push?"
+            taskSubject: "Which remote should I use for the dry-run push?",
+            client: "codex-cli"
         )
 
         await processor.process(event)
@@ -209,7 +209,7 @@ final class EventProcessorTests: XCTestCase {
             hookEventName: HookEventType.sessionEnd.rawValue,
             sessionId: sessionId,
             cwd: "/tmp/project",
-            source: "codex-cli"
+            client: "codex-cli"
         )
 
         await processor.process(event)

@@ -25,8 +25,8 @@ final class EventProcessorDispositionTests: XCTestCase {
             hookEventName: HookEventType.internalResult.rawValue,
             sessionId: sessionId,
             cwd: "/tmp",
-            source: "codex-cli",
-            taskId: "t-internal"
+            taskId: "t-internal",
+            client: "codex-cli"
         )
         await proc.process(event)
         XCTAssertNil(ss.sessions.first(where: { $0.id == sessionId }),
@@ -52,8 +52,8 @@ final class EventProcessorDispositionTests: XCTestCase {
             hookEventName: HookEventType.internalResult.rawValue,
             sessionId: sessionId,
             cwd: "/tmp",
-            source: "codex-cli",
-            taskId: "t-feed"
+            taskId: "t-feed",
+            client: "codex-cli"
         )
         await proc.process(event)
         XCTAssertTrue(es.events.contains(where: { $0.hookEventName == "InternalResult" }),
@@ -70,8 +70,8 @@ final class EventProcessorDispositionTests: XCTestCase {
             hookEventName: HookEventType.stop.rawValue,
             sessionId: sessionId,
             cwd: "/tmp",
-            source: "codex-cli",
-            reason: "completed"
+            reason: "completed",
+            client: "codex-cli"
         )
         await proc.process(stopEvent)
         let countBefore = ns.notifications.filter { $0.sessionId == sessionId }.count
@@ -80,8 +80,8 @@ final class EventProcessorDispositionTests: XCTestCase {
             hookEventName: HookEventType.taskCompleted.rawValue,
             sessionId: sessionId,
             cwd: "/tmp",
-            source: "codex-cli",
-            taskSubject: "step done"
+            taskSubject: "step done",
+            client: "codex-cli"
         )
         await proc.process(event)
         let countAfter = ns.notifications.filter { $0.sessionId == sessionId }.count
@@ -98,9 +98,9 @@ final class EventProcessorDispositionTests: XCTestCase {
             hookEventName: HookEventType.stop.rawValue,
             sessionId: sessionId,
             cwd: "/tmp",
-            source: "codex-cli",
             reason: "completed",
-            lastAssistantMessage: "All done"
+            lastAssistantMessage: "All done",
+            client: "codex-cli"
         )
         await proc.process(event)
         let matches = ns.notifications.filter { $0.sessionId == sessionId }
@@ -206,8 +206,8 @@ final class EventProcessorDispositionTests: XCTestCase {
             sessionId: sessionId,
             cwd: "/tmp/project",
             prompt: "explain hyperpersonalized suggestions and what this user can do with Codex",
-            source: "codex-cli",
-            terminalPid: 4242
+            terminalPid: 4242,
+            client: "codex-cli"
         ))
 
         XCTAssertNotNil(ss.sessions.first(where: { $0.id == sessionId }))
@@ -263,15 +263,15 @@ final class EventProcessorDispositionTests: XCTestCase {
             sessionId: sessionId,
             cwd: "/",
             prompt: "You are an expert at upholding safety and compliance standards for Codex ambient suggestions.",
-            source: "codex-desktop"
+            client: "codex-desktop"
         ))
         await proc.process(AgentEvent(
             hookEventName: HookEventType.stop.rawValue,
             sessionId: sessionId,
             cwd: "/",
-            source: "codex-desktop",
             reason: "completed",
-            lastAssistantMessage: "{\"exclude\":[]}"
+            lastAssistantMessage: "{\"exclude\":[]}",
+            client: "codex-desktop"
         ))
 
         XCTAssertNil(ss.sessions.first(where: { $0.id == sessionId }),
@@ -290,9 +290,9 @@ final class EventProcessorDispositionTests: XCTestCase {
             hookEventName: HookEventType.stop.rawValue,
             sessionId: sessionId,
             cwd: "/tmp/project",
-            source: "codex-desktop",
             reason: "completed",
-            lastAssistantMessage: "已完成报告并同步飞书。"
+            lastAssistantMessage: "已完成报告并同步飞书。",
+            client: "codex-desktop"
         ))
 
         XCTAssertNotNil(ss.sessions.first(where: { $0.id == sessionId }))

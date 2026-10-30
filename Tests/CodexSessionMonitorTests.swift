@@ -111,7 +111,7 @@ final class CodexSessionMonitorTests: XCTestCase {
 
         XCTAssertEqual(events.count, 1)
         XCTAssertEqual(events[0].hookEventName, HookEventType.userPromptSubmit.rawValue)
-        XCTAssertEqual(events[0].source, "codex-desktop")
+        XCTAssertEqual(events[0].client, AgentEvent.codexJSONLClient)
         XCTAssertEqual(events[0].cwd, "/Users/test/project")
     }
 
@@ -186,7 +186,7 @@ final class CodexSessionMonitorTests: XCTestCase {
             HookEventType.stop.rawValue,
             HookEventType.taskCompleted.rawValue,
         ])
-        XCTAssertEqual(events.first?.source, "codex-cli")
+        XCTAssertEqual(events.first?.client, AgentEvent.codexJSONLClient)
         XCTAssertEqual(events[4].lastAssistantMessage, "Done")
     }
 
@@ -302,7 +302,7 @@ final class CodexSessionMonitorTests: XCTestCase {
             HookEventType.sessionStart.rawValue,
             HookEventType.userPromptSubmit.rawValue,
         ])
-        XCTAssertEqual(events.first?.source, "codex-cli")
+        XCTAssertEqual(events.first?.client, AgentEvent.codexJSONLClient)
     }
 
     func testForkedFileSuppressesInheritedHistoryButEmitsNewActivity() throws {
@@ -360,7 +360,7 @@ final class CodexSessionMonitorTests: XCTestCase {
         XCTAssertEqual(events[1].lastAssistantMessage, "Fresh work")
         // Context from the inherited prefix must survive even though it was silent.
         XCTAssertEqual(events[0].cwd, "/Users/test/project")
-        XCTAssertEqual(events[0].source, "codex-desktop")
+        XCTAssertEqual(events[0].client, AgentEvent.codexJSONLClient)
     }
 
     func testNonForkedFileStillReplaysFullContent() throws {

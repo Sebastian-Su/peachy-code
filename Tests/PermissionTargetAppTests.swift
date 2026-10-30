@@ -62,7 +62,7 @@ final class PermissionTargetAppTests: XCTestCase {
             startedAt: Date(),
             lastEventAt: Date()
         )
-        session.rawSource = "codex-desktop"
+        session.host = .codexDesktop
 
         XCTAssertEqual(
             permissionTargetBundleId(event: event, sessions: [session]),

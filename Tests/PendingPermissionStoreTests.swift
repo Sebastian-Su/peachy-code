@@ -230,7 +230,7 @@ final class PendingPermissionStoreTests: XCTestCase {
                     ]),
                 ],
                 toolUseId: "call_question_preview",
-                source: "codex-cli"
+                client: "codex-cli"
             ),
             transport: MockTransport(),
             receivedAt: Date(),
@@ -261,7 +261,7 @@ final class PendingPermissionStoreTests: XCTestCase {
                     ]),
                 ],
                 toolUseId: "call_question_full",
-                source: "codex-cli"
+                client: "codex-cli"
             ),
             transport: MockTransport(),
             receivedAt: Date(),
@@ -285,7 +285,7 @@ final class PendingPermissionStoreTests: XCTestCase {
                 "sandbox_permissions": AnyCodable("require_escalated"),
             ],
             toolUseId: toolUseId,
-            source: "codex-cli"
+            client: "codex-cli"
         )
     }
 }

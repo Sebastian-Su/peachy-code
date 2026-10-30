@@ -15,7 +15,7 @@ final class IDETerminalFocusTests: XCTestCase {
             startedAt: Date(),
             lastEventAt: Date()
         )
-        session.rawSource = "codex-desktop"
+        session.host = .codexDesktop
 
         var openedURL: URL?
         IDETerminalFocus.focusSession(session) { url in
@@ -37,7 +37,7 @@ final class IDETerminalFocusTests: XCTestCase {
             id: threadId, projectDir: "/Users/test/AIIG", projectName: "AIIG", agentSource: .codex,
             status: .active, eventCount: 1, startedAt: Date(), lastEventAt: Date()
         )
-        session.rawSource = "codex-desktop"
+        session.host = .paseo(agentId: "13f0af73-3bfc-4245-84c4-636f7eaa07d3")
 
         var openedURL: URL?
         IDETerminalFocus.focusSession(session, paseo: registry) { url in
@@ -46,6 +46,40 @@ final class IDETerminalFocusTests: XCTestCase {
         }
 
         XCTAssertEqual(openedURL?.absoluteString, "paseo://h/srv_test/agent/13f0af73-3bfc-4245-84c4-636f7eaa07d3")
+    }
+
+    /// A known client with no focus target does nothing rather than open the wrong app.
+    func testOtherHostOpensNothing() {
+        var session = AgentSession(
+            id: "019fbaoc-0000-7000-8000-000000000001", projectDir: "/Users/test/p", projectName: "p",
+            agentSource: .codex, status: .active, eventCount: 1, startedAt: Date(), lastEventAt: Date()
+        )
+        session.host = .other(originator: "baocut")
+
+        var opened = false
+        IDETerminalFocus.focusSession(session) { _ in
+            opened = true
+            return true
+        }
+
+        XCTAssertFalse(opened)
+        XCTAssertNil(session.focusAppBundleId)
+    }
+
+    /// The store gives a session found in Paseo's registry a Paseo host at creation.
+    func testStoreAssignsPaseoHostFromRegistry() throws {
+        let threadId = "01a144a2-7eee-7de0-a2c1-0cdfcae827ab"
+        let root = try makePaseoRoot(serverId: "srv_test", agents: ["agent-1": threadId])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = SessionStore(hostResolver: SessionHostResolver(paseo: PaseoRegistry(root: root)))
+        defer { store.stopTimers() }
+
+        store.recordEvent(AgentEvent(
+            hookEventName: HookEventType.sessionStart.rawValue, sessionId: threadId, cwd: "/Users/test/AIIG",
+            source: "vscode", client: AgentEvent.codexJSONLClient, originator: "codex_cli_rs"
+        ))
+
+        XCTAssertEqual(store.sessions.first(where: { $0.id == threadId })?.host, .paseo(agentId: "agent-1"))
     }
 
     func testRegistryMissesUnknownSessionAndMissingDirectory() throws {

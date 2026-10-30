@@ -85,7 +85,7 @@ path=os.path.expanduser('~/Library/Application Support/PeachyPet/sessions.json')
 sessions=json.load(open(path))
 for s in sessions:
     if s.get('status')=='active':
-        print(s.get('projectName'), s.get('phase'), s.get('rawSource'), s.get('terminalPid'))
+        print(s.get('projectName'), s.get('phase'), s.get('agentSource'), s.get('host'), s.get('terminalPid'))
 "
 
 # 查看最近100条事件
@@ -99,7 +99,7 @@ for e in events[-20:]:
 ```
 
 数据文件位置：`~/Library/Application Support/PeachyPet/`
-- `sessions.json` — session 列表（含 idleUntil、phase、rawSource 等）
+- `sessions.json` — session 列表（含 idleUntil、phase、agentSource、host 等）
 - `events.json` — 最近 1000 条事件（activity feed）
 - `notifications.json` — 通知历史
 
@@ -124,7 +124,7 @@ open ~/Library/Logs/DiagnosticReports/$(ls -t ~/Library/Logs/DiagnosticReports/ 
 
 | 症状 | 先查哪里 |
 |------|---------|
-| Session 不消失/一直显示 Running | `sessions.json` 里的 `phase`/`idleUntil`/`rawSource`；`log stream category==session` |
+| Session 不消失/一直显示 Running | `sessions.json` 里的 `phase`/`idleUntil`/`host`；`log stream category==session` |
 | 事件没有触发 UI 更新 | `log stream category==event`；确认 hookEventName 是否到达 |
 | Codex 任务状态异常 | `log stream category==codex`；看 JSONL 文件 `~/.codex/sessions/` |
 | 通知重复/不显示 | `notifications.json`；`log stream category==event` 看 disposition |
@@ -163,16 +163,18 @@ Sources/
 ### Codex 事件 → PeachyPet（双路径）
 
 1. **Hook 路径（实时）**：Codex 触发 `~/.codex/hooks.json` 里的 hook-sender.sh → POST `/hook` → `LocalServer` → `CodexAdapter`
-   - 注册的 `command` 必须是 `~/.peachypet/hooks/hook-sender.sh --source codex-cli`：Codex 忽略 `args` 字段，来源标记只能写在命令里；缺了它事件会被当成 Claude Code，去重失效。旧的「裸命令 + args」注册项在安装时自动迁移
+   - 注册的 `command` 必须是 `~/.peachypet/hooks/hook-sender.sh --source codex-cli`：Codex 忽略 `args` 字段，参数只能写在命令里。脚本把它写进事件的 `peachy_client` 字段，不改 Codex 自己的 `source`（SessionStart 的开始原因）。旧的「裸命令 + args」注册项在安装时自动迁移
 2. **JSONL 轮询（1秒）**：`CodexSessionMonitor` 轮询 `~/.codex/sessions/**/*.jsonl` → `CodexEventMapper` 解析 → `CodexAdapter`
 
 两路通过 `CodexHookLiveness` 去重（hook 到达后标记为 live，抑制 JSONL 轮询的重复事件）。JSONL 通常比 hook 的 SessionStart 早约 3 秒发现新会话，所以已激活会话再收到 SessionStart 只更新状态、不再发通知（`EventProcessor`）。
 
-### Paseo 启动的会话
+### 会话来源：引擎与宿主（`docs/session-source-model-design.md`）
 
-- Paseo 经 app-server 驱动 Codex/Claude，rollout 里是 `source: vscode`，看起来像 Codex Desktop
-- `PaseoRegistry` 用会话 ID 查 `~/.paseo/agents/*/<agentId>.json` 的 `runtimeInfo.sessionId` 识别；命中则图标为 Paseo，跳转打开 `paseo://h/<server-id>/agent/<agentId>`
-- 记录文件按修改时间缓存，未命中最多 5 秒重扫一次；Paseo 删除 agent 后对应会话退回 Codex 显示
+- 事件的 `client`（JSON 键 `peachy_client`）标明投递方：Codex hook `codex-cli`、Copilot hook `copilot`、JSONL 轮询 `codex-jsonl`，Claude Code 没有。引擎 `AgentEvent.agentSource` 只看它，不解析 `source`
+- `source` 保持代理原值：Claude/Codex hook 的 SessionStart 是开始原因（`startReason`）；JSONL 事件是 rollout 的 session source，另带 `originator`
+- 会话的 `agentSource`（引擎）创建时确定不再变；`host`（`SessionHost`）创建时由 `SessionHostResolver` 按顺序确定：Paseo 注册表 → 终端 PID → rollout `originator`（`Codex Desktop`→桌面版，`codex-tui`/`codex_exec`→终端，其他→`other`）
+- 宿主只能从 `unknown` 升级为已知值或升级为 `paseo`，后续事件不会降级。图标、跳转、权限卡跳转只读 `host`；`other` 宿主点击不做任何事。`rawSource` 只用于诊断
+- `CodexRolloutIndex` 按会话 ID 索引 rollout 文件，`PaseoRegistry` 索引 Paseo 记录，二者未命中都最多 5 秒重扫一次；测试中都指向空目录
 
 ### Subagent 状态追踪
 

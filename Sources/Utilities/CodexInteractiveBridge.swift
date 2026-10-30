@@ -67,7 +67,7 @@ enum CodexInteractiveBridge {
         processInfos: [ProcessInfo]? = nil,
         activator: ((Int) -> Bool)? = nil
     ) -> Bool {
-        guard AgentSource(rawSource: event.source) == .codex else { return false }
+        guard event.agentSource == .codex else { return false }
 
         let infos = processInfos ?? runningCodexProcesses()
         guard let target = selectProcess(for: event, from: infos) else {
@@ -105,13 +105,6 @@ enum CodexInteractiveBridge {
 
         if ttyInfos.count == 1 {
             return ttyInfos.first
-        }
-
-        // Desktop sessions are frequently launched without a reliable cwd match.
-        // Prefer the newest interactive TTY process so mascot "open terminal" still works.
-        if event.assistantClientKind == .codexDesktop,
-           let newestTTY = ttyInfos.max(by: { $0.pid < $1.pid }) {
-            return newestTTY
         }
 
         // No cwd match: only safe fallback is a single visible Codex process.
