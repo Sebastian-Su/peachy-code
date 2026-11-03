@@ -54,6 +54,14 @@ enum Constants {
     static var stage: Color { textPrimary.opacity(0.04) }                        // subtle hover
     static var orangePrimaryLight: Color { orangePrimary.opacity(0.10) }         // active item bg
     static var orangePrimarySubtle: Color { orangePrimary.opacity(0.08) }        // selected row bg
+
+    // Redesign tokens (sidebar, paper band, stage panels)
+    static var sidebarBackground: Color { Skin.color(skin.sidebar) }
+    static var surfaceSecondary: Color { Skin.color(skin.surface2) }
+    static var line: Color { Skin.color(skin.line) }
+    static var accentText: Color { Skin.color(skin.accentText) }
+    static var accentSecondary: Color { Skin.color(skin.accent2) }
+    static var stagePanel: Color { Skin.color(skin.stage) }
     static let destructiveRed = Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255)         // #dc2626
 
     // MARK: - Typography

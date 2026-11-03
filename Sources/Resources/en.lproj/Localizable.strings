@@ -272,3 +272,14 @@
 "skin.custom" = "Custom";
 "settings.skin_custom_color" = "Custom color";
 "settings.skin_custom_hint" = "Pick any color; text contrast is adjusted automatically.";
+
+/* Main window */
+"nav.inbox" = "Inbox";
+"nav.sessions" = "Sessions";
+"nav.agents" = "Agents";
+"nav.pets" = "Pets";
+"nav.settings" = "Settings";
+"inbox.tab.notifications" = "Notifications";
+"inbox.tab.activity" = "Activity";
+"inbox.tab.approvals" = "Approvals";
+"sidebar.watching" = "Watching %d active sessions";

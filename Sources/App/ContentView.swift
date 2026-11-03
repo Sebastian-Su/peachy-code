@@ -2,26 +2,34 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppStore.self) var appStore
-    @State private var selectedSection: SidebarSection = .activityFeed
+    @Environment(OverlayManager.self) var overlayManager
+    /// `-initialSection <name>` on the command line opens a given page (used for
+    /// screenshot checks); launch arguments are never persisted.
+    @State private var selectedSection: SidebarSection =
+        UserDefaults.standard.string(forKey: "initialSection").flatMap(SidebarSection.init(rawValue:)) ?? .inbox
+    @State private var inboxTab: InboxTab = .notifications
 
     enum SidebarSection: String, CaseIterable {
-        case activityFeed = "Activity"
-        case notifications = "Notifications"
-        case sessions = "Sessions"
-        case approvals = "Approvals"
-        case peachy = "Peachy"
-        case settings = "Settings"
+        case inbox, sessions, agents, pets, settings
+
+        var titleKey: String { "nav.\(rawValue)" }
+        var eyebrow: String { rawValue.uppercased() }
 
         var icon: String {
             switch self {
-            case .activityFeed: "list.bullet"
-            case .notifications: "bell"
+            case .inbox: "tray"
             case .sessions: "terminal"
-            case .approvals: "hand.raised"
-            case .peachy: "wand.and.stars"
+            case .agents: "point.3.connected.trianglepath.dotted"
+            case .pets: "wand.and.stars"
             case .settings: "gear"
             }
         }
+    }
+
+    /// Temporary tabs inside the inbox until the merged list lands.
+    enum InboxTab: String, CaseIterable {
+        case notifications, activity, approvals
+        var titleKey: String { "inbox.tab.\(rawValue)" }
     }
 
     var body: some View {
@@ -48,7 +56,8 @@ struct ContentView: View {
                             .frame(width: 24, height: 24)
                     }
                     Text("PeachyPet")
-                        .font(Constants.heading(size: 16, weight: .bold))
+                        .font(Constants.heading(size: 17, weight: .heavy))
+                        .tracking(-0.4)
                         .foregroundColor(Constants.textPrimary)
                 }
                 .padding(.horizontal, 16)
@@ -66,39 +75,170 @@ struct ContentView: View {
                 }
 
                 Spacer()
+
+                SidebarMascotCard(
+                    config: overlayManager.currentConfig,
+                    activeCount: appStore.sessionStore.sessions.filter { $0.status == .active }.count
+                ) {
+                    selectedSection = .pets
+                }
+                .padding(.bottom, 10)
             }
             .padding(.horizontal, 8)
-            .background(Constants.surfaceWhite)
+            .background(Constants.sidebarBackground)
             .navigationTitle("")
             .toolbar(.hidden, for: .automatic)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 216, max: 260)
         } detail: {
-            switch selectedSection {
-            case .activityFeed: ActivityFeedView()
-            case .notifications: NotificationCenterView()
-            case .sessions: SessionListView()
-            case .approvals: ApprovalRequestView()
-            case .peachy: PeachyDashboardView()
-            case .settings: SettingsView()
+            VStack(spacing: 0) {
+                PaperBand(eyebrow: selectedSection.eyebrow, title: t(selectedSection.titleKey))
+                detail(for: selectedSection)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .background(Constants.lightBackground)
         }
         .background(Constants.lightBackground)
         .onChange(of: appStore.navigateToMascotId) { _, newId in
             if newId != nil {
-                selectedSection = .peachy
+                selectedSection = .pets
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openConnectionDoctor)) { _ in
-            selectedSection = .settings
+            selectedSection = .agents
+        }
+    }
+
+    @ViewBuilder
+    private func detail(for section: SidebarSection) -> some View {
+        switch section {
+        case .inbox:
+            VStack(spacing: 0) {
+                Picker("", selection: $inboxTab) {
+                    ForEach(InboxTab.allCases, id: \.self) { tab in
+                        Text(t(tab.titleKey)).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 360)
+                .padding(.vertical, 8)
+                switch inboxTab {
+                case .notifications: NotificationCenterView()
+                case .activity: ActivityFeedView()
+                case .approvals: ApprovalRequestView()
+                }
+            }
+        case .sessions: SessionListView()
+        case .agents: ConnectionDoctorView()
+        case .pets: PeachyDashboardView()
+        case .settings: SettingsView()
         }
     }
 
     private func badgeCount(for section: SidebarSection) -> Int {
         switch section {
-        case .notifications: appStore.notificationStore.unreadCount
-        case .approvals: appStore.pendingPermissionStore.pending.count
+        case .inbox: appStore.notificationStore.unreadCount + appStore.pendingPermissionStore.pending.count
         default: 0
         }
+    }
+}
+
+// MARK: - Paper band
+
+/// Paper-cut sky across the top of the detail column, with the page title and
+/// a quick skin switcher.
+private struct PaperBand: View {
+    let eyebrow: String
+    let title: String
+
+    var body: some View {
+        let skin = SkinStore.shared.current
+        ZStack(alignment: .bottomLeading) {
+            SkyBand(skin: skin)
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(eyebrow)
+                        .font(Constants.body(size: 11, weight: .semibold))
+                        .tracking(1.2)
+                        .foregroundColor(Constants.textMuted)
+                    Text(title)
+                        .font(Constants.heading(size: 22, weight: .heavy))
+                        .tracking(-0.6)
+                        .foregroundColor(Constants.textPrimary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+            SkinQuickSwitcher()
+                .padding(.top, 10)
+                .padding(.trailing, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        }
+        .frame(height: 72)
+        .overlay(alignment: .bottom) { Rectangle().fill(Constants.line).frame(height: 1) }
+    }
+}
+
+/// Title-bar style skin menu: current skin's dot and name.
+private struct SkinQuickSwitcher: View {
+    var body: some View {
+        let store = SkinStore.shared
+        Menu {
+            ForEach(Skin.builtIn) { skin in
+                Button(t(skin.nameKey)) { store.select(skin) }
+            }
+            if let accent = store.customAccent {
+                Button(t("skin.custom")) { store.selectCustom(accent: accent) }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Circle().fill(Constants.orangePrimary).frame(width: 9, height: 9)
+                Text(t(store.current.nameKey))
+                    .font(Constants.body(size: 12, weight: .medium))
+                    .foregroundColor(Constants.textPrimary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Constants.surfaceWhite))
+            .overlay(Capsule().stroke(Constants.line, lineWidth: 1))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel(t("settings.skin"))
+    }
+}
+
+// MARK: - Sidebar mascot
+
+private struct SidebarMascotCard: View {
+    let config: PeachyAnimationConfig?
+    let activeCount: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                MascotPosterView(config: config)
+                    .frame(width: 92, height: 92)
+                Text(config?.name ?? "PeachyPet")
+                    .font(Constants.heading(size: 14, weight: .bold))
+                    .foregroundColor(Constants.textPrimary)
+                    .lineLimit(1)
+                Text(String(format: t("sidebar.watching"), activeCount))
+                    .font(Constants.body(size: 11))
+                    .foregroundColor(Constants.textMuted)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity)
+            .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
+            .overlay(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall).stroke(Constants.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -118,15 +258,16 @@ private struct SidebarNavItem: View {
                     .font(.system(size: 14))
                     .frame(width: 20)
 
-                Text(section.rawValue)
+                Text(t(section.titleKey))
                     .font(Constants.body(size: 14, weight: .medium))
+                    .lineLimit(1)
 
                 Spacer()
 
                 if badge > 0 {
                     Text("\(badge)")
                         .font(Constants.body(size: 11, weight: .semibold))
-                        .foregroundColor(Color(red: 180/255, green: 90/255, blue: 0))
+                        .foregroundColor(Constants.accentText)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 1)
                         .background(Constants.chip, in: Capsule())
@@ -134,7 +275,7 @@ private struct SidebarNavItem: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
-            .foregroundColor(isSelected ? Constants.orangePrimary : (isHovered ? Constants.textPrimary : Constants.textMuted))
+            .foregroundColor(isSelected ? Constants.accentText : (isHovered ? Constants.textPrimary : Constants.textMuted))
             .background(
                 RoundedRectangle(cornerRadius: Constants.cornerRadius)
                     .fill(isSelected ? Constants.orangePrimaryLight : (isHovered ? Constants.chip : Color.clear))

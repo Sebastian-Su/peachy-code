@@ -272,3 +272,14 @@
 "skin.custom" = "自定义";
 "settings.skin_custom_color" = "自定义主色";
 "settings.skin_custom_hint" = "随便挑一个颜色，文字对比度会自动调整。";
+
+/* Main window */
+"nav.inbox" = "收件箱";
+"nav.sessions" = "会话";
+"nav.agents" = "代理";
+"nav.pets" = "桌宠";
+"nav.settings" = "设置";
+"inbox.tab.notifications" = "通知";
+"inbox.tab.activity" = "活动";
+"inbox.tab.approvals" = "审批";
+"sidebar.watching" = "正在看着 %d 个活跃会话";
