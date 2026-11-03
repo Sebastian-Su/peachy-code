@@ -87,7 +87,7 @@ struct ExpandedPermissionView: View {
                     standardContent
                 }
             }
-            .background(Color(red: 250/255, green: 249/255, blue: 247/255))
+            .background(Constants.lightBackground)
 
             Divider()
 
@@ -105,9 +105,9 @@ struct ExpandedPermissionView: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
-            .background(Color.white)
+            .background(Constants.surfaceWhite)
         }
-        .background(Color.white)
+        .background(Constants.surfaceWhite)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 8)
     }
@@ -119,19 +119,19 @@ struct ExpandedPermissionView: View {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundStyle(Color(red: 249/255, green: 93/255, blue: 2/255))
+                    .foregroundStyle(Constants.orangePrimary)
                 Text(title)
                     .font(Constants.heading(size: 15, weight: .bold))
-                    .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                    .foregroundStyle(Constants.textPrimary)
             }
 
             if let project = projectName {
                 Text(project)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.4))
+                    .foregroundStyle(Constants.textPrimary.opacity(0.4))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.05))
+                    .background(Constants.textPrimary.opacity(0.05))
                     .clipShape(Capsule())
             }
 
@@ -150,7 +150,7 @@ struct ExpandedPermissionView: View {
                 } label: {
                     Image(systemName: "terminal.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.3))
+                        .foregroundStyle(Constants.textPrimary.opacity(0.3))
                 }
                 .buttonStyle(.plain)
                 .help("Open terminal")
@@ -163,7 +163,7 @@ struct ExpandedPermissionView: View {
                 Button { onLater() } label: {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.3))
+                        .foregroundStyle(Constants.textPrimary.opacity(0.3))
                 }
                 .buttonStyle(.plain)
                 .help("Handle later")
@@ -176,7 +176,7 @@ struct ExpandedPermissionView: View {
                 Button { onClose() } label: {
                     Image(systemName: "arrow.down.right.and.arrow.up.left")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.3))
+                        .foregroundStyle(Constants.textPrimary.opacity(0.3))
                 }
                 .buttonStyle(.plain)
                 .help("Close expanded view")
@@ -186,7 +186,7 @@ struct ExpandedPermissionView: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
-        .background(Color.white)
+        .background(Constants.surfaceWhite)
     }
 
     // MARK: - Content Views
@@ -195,7 +195,7 @@ struct ExpandedPermissionView: View {
         let content = permission.planFileContent ?? "Plan file not found"
         return markdownText(content)
             .font(.system(size: 14))
-            .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.85))
+            .foregroundStyle(Constants.textPrimary.opacity(0.85))
             .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,10 +215,10 @@ struct ExpandedPermissionView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(permission.event.message ?? "This agent requires a response in the terminal.")
                 .font(Constants.body(size: 14))
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                .foregroundStyle(Constants.textPrimary)
             Text(t("permission.terminal_only"))
                 .font(.system(size: 12))
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.6))
+                .foregroundStyle(Constants.textPrimary.opacity(0.6))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
@@ -239,7 +239,7 @@ struct ExpandedPermissionView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Color(red: 249/255, green: 93/255, blue: 2/255), in: RoundedRectangle(cornerRadius: 10))
+                .background(Constants.orangePrimary, in: RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
@@ -247,7 +247,7 @@ struct ExpandedPermissionView: View {
     private var standardContent: some View {
         Text(permission.fullToolInputText)
             .font(.system(size: 13, design: .monospaced))
-            .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.85))
+            .foregroundStyle(Constants.textPrimary.opacity(0.85))
             .lineSpacing(3)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -262,15 +262,15 @@ struct ExpandedPermissionView: View {
             if let header = question.header {
                 Text(header)
                     .font(Constants.heading(size: 11, weight: .bold))
-                    .foregroundStyle(Color(red: 249/255, green: 93/255, blue: 2/255))
+                    .foregroundStyle(Constants.orangePrimary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .overlay(Capsule().stroke(Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.25), lineWidth: 1))
+                    .overlay(Capsule().stroke(Constants.orangePrimary.opacity(0.25), lineWidth: 1))
             }
 
             markdownText(question.question)
                 .font(Constants.body(size: 14, weight: .medium))
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                .foregroundStyle(Constants.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -311,20 +311,20 @@ struct ExpandedPermissionView: View {
                     : (isSelected ? "checkmark.circle.fill" : "circle"))
                     .font(.system(size: 13))
                     .foregroundStyle(isSelected
-                        ? Color(red: 249/255, green: 93/255, blue: 2/255)
-                        : Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.2))
+                        ? Constants.orangePrimary
+                        : Constants.textPrimary.opacity(0.2))
                     .frame(width: 16)
 
                 VStack(alignment: .leading, spacing: 2) {
                     markdownText(option.label)
                         .font(Constants.body(size: 13, weight: .medium))
-                        .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                        .foregroundStyle(Constants.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     if let desc = option.description, !desc.isEmpty {
                         markdownText(desc)
                             .font(Constants.body(size: 11))
-                            .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.55))
+                            .foregroundStyle(Constants.textPrimary.opacity(0.55))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -338,7 +338,7 @@ struct ExpandedPermissionView: View {
             .padding(.vertical, 6)
             .padding(.horizontal, 10)
             .background(isSelected
-                ? Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.06)
+                ? Constants.orangePrimary.opacity(0.06)
                 : Color.clear)
             .contentShape(Rectangle())
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -362,13 +362,13 @@ struct ExpandedPermissionView: View {
                     Image(systemName: isCustom ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 13))
                         .foregroundStyle(isCustom
-                            ? Color(red: 249/255, green: 93/255, blue: 2/255)
-                            : Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.2))
+                            ? Constants.orangePrimary
+                            : Constants.textPrimary.opacity(0.2))
                         .frame(width: 16)
 
                     Text(t("permission.other"))
                         .font(Constants.body(size: 13, weight: .medium))
-                        .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.55))
+                        .foregroundStyle(Constants.textPrimary.opacity(0.55))
 
                     Spacer(minLength: 0)
 
@@ -379,7 +379,7 @@ struct ExpandedPermissionView: View {
                 .padding(.vertical, 6)
                 .padding(.horizontal, 10)
                 .background(isCustom
-                    ? Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.06)
+                    ? Constants.orangePrimary.opacity(0.06)
                     : Color.clear)
                 .contentShape(Rectangle())
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -394,9 +394,9 @@ struct ExpandedPermissionView: View {
                 .focused($otherFieldFocused, equals: question.question)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                .foregroundStyle(Constants.textPrimary)
                 .padding(8)
-                .background(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.04))
+                .background(Constants.textPrimary.opacity(0.04))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .padding(.leading, 28)
             }
@@ -432,7 +432,7 @@ struct ExpandedPermissionView: View {
         HStack(spacing: 10) {
             Text("⌘P close  ·  ⌘⎋ skip  ·  ⌘↵ submit")
                 .font(.system(size: 8, weight: .medium, design: .rounded))
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.35))
+                .foregroundStyle(Constants.textPrimary.opacity(0.35))
 
             Spacer()
 
@@ -445,12 +445,12 @@ struct ExpandedPermissionView: View {
                         .font(Constants.heading(size: 13, weight: .semibold))
                     if showShortcuts { ActionBadge(label: "⌘⎋") }
                 }
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.5))
+                .foregroundStyle(Constants.textPrimary.opacity(0.5))
                 .padding(.vertical, 8)
                 .padding(.horizontal, 20)
                 .contentShape(Rectangle())
                 .overlay(RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.12), lineWidth: 1))
+                    .stroke(Constants.textPrimary.opacity(0.12), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.escape, modifiers: .command)
@@ -465,7 +465,7 @@ struct ExpandedPermissionView: View {
                 .padding(.vertical, 8)
                 .padding(.horizontal, 20)
                 .background(allAnswered
-                    ? Color(red: 249/255, green: 93/255, blue: 2/255)
+                    ? Constants.orangePrimary
                     : Color.gray.opacity(0.3))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
@@ -490,18 +490,18 @@ struct ExpandedPermissionView: View {
                             Image(systemName: selectedOption == idx ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 12))
                                 .foregroundStyle(selectedOption == idx
-                                    ? Color(red: 249/255, green: 93/255, blue: 2/255)
-                                    : Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.2))
+                                    ? Constants.orangePrimary
+                                    : Constants.textPrimary.opacity(0.2))
                             Text(label)
                                 .font(Constants.body(size: 12, weight: .medium))
-                                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                                .foregroundStyle(Constants.textPrimary)
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                         .frame(maxWidth: .infinity)
                         .background(selectedOption == idx
-                            ? Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.06)
-                            : Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.02))
+                            ? Constants.orangePrimary.opacity(0.06)
+                            : Constants.textPrimary.opacity(0.02))
                         .contentShape(Rectangle())
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
@@ -517,21 +517,21 @@ struct ExpandedPermissionView: View {
                 TextEditor(text: $feedbackText)
                     .focused($feedbackFocused)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255))
+                    .foregroundStyle(Constants.textPrimary)
                     .scrollContentBackground(.hidden)
                     .padding(10)
                     .frame(minHeight: 60, maxHeight: 120)
-                    .background(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.03))
+                    .background(Constants.textPrimary.opacity(0.03))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.2), lineWidth: 1)
+                            .stroke(Constants.orangePrimary.opacity(0.2), lineWidth: 1)
                     )
                     .overlay(alignment: .topLeading) {
                         if feedbackText.isEmpty {
                             Text(t("permission.tell_claude"))
                                 .font(.system(size: 13))
-                                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.3))
+                                .foregroundStyle(Constants.textPrimary.opacity(0.3))
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 12)
                                 .allowsHitTesting(false)
@@ -556,13 +556,13 @@ struct ExpandedPermissionView: View {
                         } label: {
                             Text(suggestion.displayLabel)
                                 .font(Constants.body(size: 12, weight: .medium))
-                                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.5))
+                                .foregroundStyle(Constants.textPrimary.opacity(0.5))
                                 .padding(.vertical, 6)
                                 .padding(.horizontal, 12)
                                 .contentShape(Rectangle())
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .overlay(RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.12), lineWidth: 1))
+                                    .stroke(Constants.textPrimary.opacity(0.12), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                     }
@@ -598,7 +598,7 @@ struct ExpandedPermissionView: View {
         HStack(spacing: 10) {
             Text("⌘P close  ·  ⌘⎋ deny  ·  ⌘↵ approve")
                 .font(.system(size: 8, weight: .medium, design: .rounded))
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.35))
+                .foregroundStyle(Constants.textPrimary.opacity(0.35))
 
             Spacer()
 
@@ -611,12 +611,12 @@ struct ExpandedPermissionView: View {
                         .font(Constants.heading(size: 13, weight: .semibold))
                     if showShortcuts { ActionBadge(label: "⌘⎋") }
                 }
-                .foregroundStyle(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.5))
+                .foregroundStyle(Constants.textPrimary.opacity(0.5))
                 .padding(.vertical, 8)
                 .padding(.horizontal, 20)
                 .contentShape(Rectangle())
                 .overlay(RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.12), lineWidth: 1))
+                    .stroke(Constants.textPrimary.opacity(0.12), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.escape, modifiers: .command)
@@ -632,7 +632,7 @@ struct ExpandedPermissionView: View {
                 .padding(.horizontal, 20)
                 .background(isPlan && selectedOption == 3 && feedbackText.isEmpty
                     ? Color.gray.opacity(0.3)
-                    : Color(red: 249/255, green: 93/255, blue: 2/255))
+                    : Constants.orangePrimary)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)

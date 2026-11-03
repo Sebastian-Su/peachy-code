@@ -64,3 +64,20 @@ final class BuiltInSkinTests: XCTestCase {
         XCTAssertEqual(SkinStore(defaults: defaults).current.id, "dusk")
     }
 }
+
+/// Permission cards: allow (white label on accent) and deny (half-strength
+/// text on the card) must stay readable and distinct in every skin.
+final class PermissionCardSkinTests: XCTestCase {
+    func testAllowAndDenyStayReadableInEverySkin() {
+        for skin in Skin.builtIn {
+            XCTAssertGreaterThanOrEqual(Skin.contrastRatio("#ffffff", skin.accent), 3.0, "\(skin.id) allow")
+            let deny = Skin.blend(skin.text, alpha: 0.5, over: skin.surface)
+            XCTAssertGreaterThanOrEqual(Skin.contrastRatio(deny, skin.surface), 3.0, "\(skin.id) deny")
+            XCTAssertGreaterThanOrEqual(Skin.contrastRatio(skin.accent, skin.surface), 2.5, "\(skin.id) allow vs card")
+        }
+    }
+
+    func testBlendMixesChannels() {
+        XCTAssertEqual(Skin.blend("#000000", alpha: 0.5, over: "#ffffff"), "#808080")
+    }
+}

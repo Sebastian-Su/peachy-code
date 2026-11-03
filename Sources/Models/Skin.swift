@@ -113,6 +113,13 @@ struct Skin: Identifiable, Equatable {
         return Color(.sRGB, red: c.r, green: c.g, blue: c.b)
     }
 
+    /// Hex of `foreground` drawn at `alpha` over an opaque `background`.
+    static func blend(_ foreground: String, alpha: Double, over background: String) -> String {
+        let f = rgb(foreground), b = rgb(background)
+        func mix(_ x: Double, _ y: Double) -> Int { Int((x * alpha + y * (1 - alpha)) * 255 + 0.5) }
+        return String(format: "#%02x%02x%02x", mix(f.r, b.r), mix(f.g, b.g), mix(f.b, b.b))
+    }
+
     /// WCAG 2 contrast ratio between two sRGB colors.
     static func contrastRatio(_ a: String, _ b: String) -> Double {
         func luminance(_ hex: String) -> Double {

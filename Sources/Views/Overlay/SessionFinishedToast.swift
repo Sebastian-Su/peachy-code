@@ -31,7 +31,7 @@ struct SessionFinishedToastView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Color.white)
+            .background(Constants.surfaceWhite)
             .overlay(alignment: .bottom) {
                 GeometryReader { geo in
                     Constants.orangePrimary

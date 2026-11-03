@@ -347,7 +347,7 @@ struct OverlayContextMenuContent: View {
                         .frame(width: thumbX, height: trackHeight)
 
                     Circle()
-                        .fill(Color.white)
+                        .fill(Constants.surfaceWhite)
                         .overlay(Circle().stroke(Constants.orangePrimary, lineWidth: 2))
                         .frame(width: thumbSize, height: thumbSize)
                         .offset(x: thumbX - thumbSize / 2)
@@ -397,7 +397,7 @@ struct OverlayContextMenuContent: View {
 
                     // Thumb
                     Circle()
-                        .fill(Color.white)
+                        .fill(Constants.surfaceWhite)
                         .overlay(Circle().stroke(Constants.orangePrimary, lineWidth: 2))
                         .frame(width: thumbSize, height: thumbSize)
                         .offset(x: thumbX - thumbSize / 2)

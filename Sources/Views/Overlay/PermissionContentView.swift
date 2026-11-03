@@ -106,7 +106,7 @@ struct PermissionContentView: View {
             headerSection
                 .padding(.horizontal, outerPadding)
                 .padding(.vertical, 16)
-                .background(Color.white)
+                .background(Constants.surfaceWhite)
 
             Divider()
 
@@ -121,9 +121,9 @@ struct PermissionContentView: View {
             actionsSection
                 .padding(.horizontal, outerPadding)
                 .padding(.vertical, 16)
-                .background(Color.white)
+                .background(Constants.surfaceWhite)
         }
-        .background(Color.white)
+        .background(Constants.surfaceWhite)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 8)
     }
@@ -241,7 +241,7 @@ struct PermissionContentView: View {
                 Markdown(content)
                     .markdownTextStyle {
                         FontSize(bodyFont)
-                        ForegroundColor(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.85))
+                        ForegroundColor(Constants.textPrimary.opacity(0.85))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if state.isContentExpanded {
@@ -249,7 +249,7 @@ struct PermissionContentView: View {
                     Markdown(content)
                         .markdownTextStyle {
                             FontSize(codeFont)
-                            ForegroundColor(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.85))
+                            ForegroundColor(Constants.textPrimary.opacity(0.85))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -272,7 +272,7 @@ struct PermissionContentView: View {
                 Markdown(preview)
                     .markdownTextStyle {
                         FontSize(codeFont)
-                        ForegroundColor(Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.75))
+                        ForegroundColor(Constants.textPrimary.opacity(0.75))
                     }
                     .lineLimit(4)
                     .padding(5)

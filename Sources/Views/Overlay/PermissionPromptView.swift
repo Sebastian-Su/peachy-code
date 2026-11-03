@@ -4,20 +4,20 @@ import AppKit
 // MARK: - Overlay style constants (Speech Bubble + Tight Crisp Shadow)
 
 enum OverlayStyle {
-    static let cardBg = Color.white
-    static let cardShadow = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.22)
-    static let codeBg = Color(red: 250/255, green: 249/255, blue: 247/255)  // #faf9f7
-    static let codeBorder = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.06)
-    static let textPrimary = Color(red: 35/255, green: 17/255, blue: 60/255)
-    static let textMuted = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.55)
-    static let textHint = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.30)
-    static let orange = Color(red: 249/255, green: 93/255, blue: 2/255)
-    static let orangeBorder = Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.25)
-    static let selectedBg = Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.06)
-    static let denyBorder = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.12)
-    static let denyText = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.50)
-    static let radioBorder = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.20)
-    static let inputBg = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.04)
+    static var cardBg: Color { Constants.surfaceWhite }
+    static var cardShadow: Color { Constants.textPrimary.opacity(0.22) }
+    static var codeBg: Color { Constants.lightBackground }
+    static var codeBorder: Color { Constants.textPrimary.opacity(0.06) }
+    static var textPrimary: Color { Constants.textPrimary }
+    static var textMuted: Color { Constants.textPrimary.opacity(0.55) }
+    static var textHint: Color { Constants.textPrimary.opacity(0.30) }
+    static var orange: Color { Constants.orangePrimary }
+    static var orangeBorder: Color { Constants.orangePrimary.opacity(0.25) }
+    static var selectedBg: Color { Constants.orangePrimary.opacity(0.06) }
+    static var denyBorder: Color { Constants.textPrimary.opacity(0.12) }
+    static var denyText: Color { Constants.textPrimary.opacity(0.50) }
+    static var radioBorder: Color { Constants.textPrimary.opacity(0.20) }
+    static var inputBg: Color { Constants.textPrimary.opacity(0.04) }
 
     static let tailHeight: CGFloat = 8
 }
