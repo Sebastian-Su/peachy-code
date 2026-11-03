@@ -269,3 +269,6 @@
 "skin.peach" = "蜜桃";
 "skin.dusk" = "晚霞";
 "skin.night" = "夜";
+"skin.custom" = "自定义";
+"settings.skin_custom_color" = "自定义主色";
+"settings.skin_custom_hint" = "随便挑一个颜色，文字对比度会自动调整。";

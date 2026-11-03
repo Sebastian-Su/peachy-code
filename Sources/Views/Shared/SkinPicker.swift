@@ -3,17 +3,42 @@ import SwiftUI
 /// Preview cards for every skin. Each card draws with its own skin's tokens,
 /// not the active one, so all four skies are visible at once.
 struct SkinPicker: View {
-    var columns = 4
+    var columns = 5
+    @State private var customColor: Color = Skin.color(SkinStore.shared.customAccent ?? Self.defaultCustomAccent)
+
+    static let defaultCustomAccent = "#2f8a78"
 
     var body: some View {
         let store = SkinStore.shared
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), spacing: 10) {
-            ForEach(Skin.builtIn) { skin in
-                SkinCard(skin: skin, isSelected: store.current.id == skin.id) {
-                    store.select(skin)
+        let customSkin = Skin.custom(accent: store.customAccent ?? Self.defaultCustomAccent)
+        VStack(alignment: .leading, spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), spacing: 10) {
+                ForEach(Skin.builtIn) { skin in
+                    SkinCard(skin: skin, isSelected: store.current.id == skin.id) {
+                        store.select(skin)
+                    }
+                }
+                SkinCard(skin: customSkin, isSelected: store.current.id == Skin.customId) {
+                    store.selectCustom(accent: store.customAccent ?? Self.defaultCustomAccent)
                 }
             }
+            HStack(spacing: 8) {
+                ColorPicker(t("settings.skin_custom_color"), selection: $customColor, supportsOpacity: false)
+                    .foregroundColor(Constants.textPrimary)
+                Text(t("settings.skin_custom_hint"))
+                    .font(.system(size: 11))
+                    .foregroundColor(Constants.textMuted)
+            }
         }
+        .onChange(of: customColor) { _, color in
+            if let hex = Self.hex(of: color) { store.selectCustom(accent: hex) }
+        }
+    }
+
+    static func hex(of color: Color) -> String? {
+        guard let c = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        return String(format: "#%02x%02x%02x",
+                      Int(c.redComponent * 255 + 0.5), Int(c.greenComponent * 255 + 0.5), Int(c.blueComponent * 255 + 0.5))
     }
 }
 

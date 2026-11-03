@@ -269,3 +269,6 @@
 "skin.peach" = "Peach";
 "skin.dusk" = "Dusk";
 "skin.night" = "Night";
+"skin.custom" = "Custom";
+"settings.skin_custom_color" = "Custom color";
+"settings.skin_custom_hint" = "Pick any color; text contrast is adjusted automatically.";

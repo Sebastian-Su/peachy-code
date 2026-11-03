@@ -81,3 +81,36 @@ final class PermissionCardSkinTests: XCTestCase {
         XCTAssertEqual(Skin.blend("#000000", alpha: 0.5, over: "#ffffff"), "#808080")
     }
 }
+
+final class CustomSkinTests: XCTestCase {
+    private let samples = ["#ffffff", "#000000", "#ffff00", "#00ff00", "#0000ff", "#ff00ff", "#7f7f7f", "#f95d02", "#d4a843"]
+
+    func testDerivedSkinKeepsBodyTextReadableForAnyAccent() {
+        for accent in samples {
+            let skin = Skin.custom(accent: accent)
+            for text in [skin.text, skin.textMuted] {
+                for surface in [skin.background, skin.surface, skin.sidebar] {
+                    XCTAssertGreaterThanOrEqual(Skin.contrastRatio(text, surface), 4.5, "\(accent): \(text) on \(surface)")
+                }
+            }
+            XCTAssertGreaterThanOrEqual(Skin.contrastRatio("#ffffff", skin.accent), 3.0, "\(accent) allow label")
+            XCTAssertGreaterThanOrEqual(Skin.contrastRatio(skin.accentText, skin.background), 4.5, "\(accent) accent text")
+        }
+    }
+
+    func testCustomSelectionPersistsWithItsAccent() {
+        let suite = "CustomSkinTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        SkinStore(defaults: defaults).selectCustom(accent: "#2f8a78")
+        let reloaded = SkinStore(defaults: defaults).current
+        XCTAssertEqual(reloaded.id, "custom")
+        XCTAssertEqual(reloaded, Skin.custom(accent: "#2f8a78"))
+    }
+
+    func testCustomWithUnreadableAccentFallsBackToDefault() {
+        XCTAssertEqual(Skin.resolve(storedValue: "custom", customAccent: nil).id, "cream")
+        XCTAssertEqual(Skin.resolve(storedValue: "custom", customAccent: "zzz").id, "cream")
+    }
+}

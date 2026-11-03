@@ -89,11 +89,86 @@ struct Skin: Identifiable, Equatable {
     static let builtIn: [Skin] = [.cream, .peach, .dusk, .night]
     static let defaultSkin = cream
 
-    /// Maps whatever was saved under the skin key to a skin; anything unreadable
+    static let customId = "custom"
+
+    /// Maps whatever was saved under the skin keys to a skin; anything unreadable
     /// falls back to the default so a bad value can never break launch.
-    static func resolve(storedValue: Any?) -> Skin {
+    static func resolve(storedValue: Any?, customAccent: Any? = nil) -> Skin {
         guard let id = storedValue as? String else { return defaultSkin }
+        if id == customId {
+            guard let accent = customAccent as? String, isHex(accent) else { return defaultSkin }
+            return custom(accent: accent)
+        }
         return builtIn.first { $0.id == id } ?? defaultSkin
+    }
+
+    static func isHex(_ value: String) -> Bool {
+        let digits = value.hasPrefix("#") ? String(value.dropFirst()) : value
+        return digits.count == 6 && UInt32(digits, radix: 16) != nil
+    }
+
+    /// A light skin derived from one accent color. Surfaces and text use fixed
+    /// lightness tinted with the accent's hue, so body text stays readable no
+    /// matter which color is picked; the accent itself is darkened until a
+    /// white label on it reaches 3:1.
+    static func custom(accent input: String) -> Skin {
+        let (h, s, _) = hsl(input)
+        var accent = input.lowercased()
+        while contrastRatio("#ffffff", accent) < 3.0 { accent = adjust(accent, lightness: -0.02) }
+        let background = fromHSL(h, min(s, 0.5) * 0.6, 0.965)
+        var accentText = accent
+        while contrastRatio(accentText, background) < 4.5 { accentText = adjust(accentText, lightness: -0.02) }
+        return Skin(
+            id: customId, isDark: false,
+            accent: accent, accentHover: adjust(accent, lightness: 0.06), accentShadow: adjust(accent, lightness: -0.15),
+            accentText: accentText, onAccent: "#ffffff", accent2: fromHSL(h + 150, 0.5, 0.35),
+            text: fromHSL(h, min(s, 0.4), 0.13), textMuted: fromHSL(h, min(s, 0.25), 0.35),
+            background: background, sidebar: fromHSL(h, min(s, 0.5) * 0.6, 0.93),
+            surface: fromHSL(h, min(s, 0.5) * 0.6, 0.99), surface2: fromHSL(h, min(s, 0.5) * 0.6, 0.92),
+            line: fromHSL(h, min(s, 0.5) * 0.5, 0.86), chip: accent, gradientEnd: fromHSL(h + 150, 0.5, 0.35),
+            stage: fromHSL(h, 0.2, 0.08),
+            skyTop: fromHSL(h, 0.55, 0.85), skyBottom: fromHSL(h, 0.5, 0.95),
+            cloudFront: "#ffffff", cloudBack: fromHSL(h, 0.4, 0.93),
+            celestialColor: fromHSL(h + 30, 0.8, 0.65), celestial: .sun
+        )
+    }
+
+    static func hsl(_ hex: String) -> (h: Double, s: Double, l: Double) {
+        let c = rgb(hex)
+        let maxV = max(c.r, c.g, c.b), minV = min(c.r, c.g, c.b)
+        let l = (maxV + minV) / 2
+        guard maxV != minV else { return (0, 0, l) }
+        let d = maxV - minV
+        let s = l > 0.5 ? d / (2 - maxV - minV) : d / (maxV + minV)
+        var h: Double
+        switch maxV {
+        case c.r: h = (c.g - c.b) / d + (c.g < c.b ? 6 : 0)
+        case c.g: h = (c.b - c.r) / d + 2
+        default: h = (c.r - c.g) / d + 4
+        }
+        h *= 60
+        return (h, s, l)
+    }
+
+    static func fromHSL(_ h: Double, _ s: Double, _ l: Double) -> String {
+        let hue = (h.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360) / 360
+        func channel(_ t0: Double) -> Double {
+            let q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q
+            var t = t0
+            if t < 0 { t += 1 }
+            if t > 1 { t -= 1 }
+            if t < 1 / 6 { return p + (q - p) * 6 * t }
+            if t < 1 / 2 { return q }
+            if t < 2 / 3 { return p + (q - p) * (2 / 3 - t) * 6 }
+            return p
+        }
+        let r = channel(hue + 1 / 3), g = channel(hue), b = channel(hue - 1 / 3)
+        return String(format: "#%02x%02x%02x", Int(r * 255 + 0.5), Int(g * 255 + 0.5), Int(b * 255 + 0.5))
+    }
+
+    static func adjust(_ hex: String, lightness delta: Double) -> String {
+        let (h, s, l) = hsl(hex)
+        return fromHSL(h, s, min(1, max(0, l + delta)))
     }
 
     // MARK: - Color math
