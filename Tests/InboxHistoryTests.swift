@@ -2,8 +2,8 @@ import XCTest
 @testable import PeachyPet
 
 final class InboxHistoryTests: XCTestCase {
-    private func src(_ kind: InboxHistory.Kind, _ t: TimeInterval, _ project: String? = "p") -> InboxHistory.Source {
-        .init(id: UUID(), date: Date(timeIntervalSince1970: t), kind: kind, project: project)
+    private func src(_ kind: InboxHistory.Kind, _ t: TimeInterval, _ project: String? = "p", agent: AgentSource? = nil) -> InboxHistory.Source {
+        .init(id: UUID(), date: Date(timeIntervalSince1970: t), kind: kind, project: project, agent: agent)
     }
 
     func testNewestFirstAndActivityRunsCollapse() {
@@ -36,5 +36,11 @@ final class InboxHistoryTests: XCTestCase {
     func testProjectFilter() {
         let a = src(.notification, 3, "alpha"), b = src(.notification, 2, "beta"), c = src(.activity, 1, "alpha")
         XCTAssertEqual(InboxHistory.build([a, b, c], project: "alpha"), [.single(a), .activityRun([c])])
+    }
+
+    func testAgentFilterKeepsOnlyThatAgentAndOldItemsShowUnderAll() {
+        let codex = src(.notification, 3, agent: .codex), claude = src(.notification, 2, agent: .claudeCode), old = src(.notification, 1)
+        XCTAssertEqual(InboxHistory.build([codex, claude, old], agent: .codex), [.single(codex)])
+        XCTAssertEqual(InboxHistory.build([codex, claude, old]), [.single(codex), .single(claude), .single(old)])
     }
 }

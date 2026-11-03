@@ -11,6 +11,7 @@ enum InboxHistory {
         let date: Date
         let kind: Kind
         let project: String?
+        var agent: AgentSource? = nil
     }
 
     enum Entry: Equatable, Identifiable {
@@ -25,9 +26,12 @@ enum InboxHistory {
         }
     }
 
-    static func build(_ sources: [Source], project: String? = nil) -> [Entry] {
+    /// Items without a recorded agent (saved before agents were tracked) only
+    /// show when no agent filter is set.
+    static func build(_ sources: [Source], project: String? = nil, agent: AgentSource? = nil) -> [Entry] {
         let sorted = sources
             .filter { project == nil || $0.project == project }
+            .filter { agent == nil || $0.agent == agent }
             .sorted { $0.date > $1.date }
         var entries: [Entry] = []
         var run: [Source] = []

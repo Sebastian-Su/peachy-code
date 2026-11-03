@@ -43,6 +43,8 @@ struct AppNotification: Identifiable, Codable, Equatable {
     let actionUrl: String?
     let deviceName: String?
     let createdAt: Date
+    /// Agent that produced the notification; nil for notifications saved before it was recorded.
+    var agentSource: AgentSource?
 
     init(
         title: String,

@@ -6,6 +6,7 @@ struct InboxView: View {
     @Environment(AppStore.self) var appStore
     @Environment(ViewClock.self) var clock
     @State private var projectFilter: String?
+    @State private var agentFilter: AgentSource?
     @State private var selectedId: UUID?
     @State private var expandedRuns: Set<UUID> = []
     @State private var showClearAllConfirmation = false
@@ -14,7 +15,7 @@ struct InboxView: View {
     var body: some View {
         let _ = clock.tick
         let data = InboxData(appStore: appStore)
-        let entries = InboxHistory.build(data.sources, project: projectFilter)
+        let entries = InboxHistory.build(data.sources, project: projectFilter, agent: agentFilter)
 
         VStack(spacing: 0) {
             InboxPendingArea()
@@ -75,6 +76,13 @@ struct InboxView: View {
             Picker("", selection: $projectFilter) {
                 Text(t("inbox.all_projects")).tag(String?.none)
                 ForEach(projects, id: \.self) { Text($0).tag(String?.some($0)) }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .fixedSize()
+            Picker("", selection: $agentFilter) {
+                Text(t("inbox.all_agents")).tag(AgentSource?.none)
+                ForEach([AgentSource.claudeCode, .codex, .copilot]) { Text($0.displayName).tag(AgentSource?.some($0)) }
             }
             .pickerStyle(.menu)
             .labelsHidden()
@@ -228,13 +236,14 @@ private struct InboxData {
         var sources: [InboxHistory.Source] = []
         sources.reserveCapacity(notifications.count + approvals.count + events.count)
         for n in notifications {
-            sources.append(.init(id: n.id, date: n.createdAt, kind: .notification, project: n.sessionId.flatMap { projectBySession[$0] }))
+            sources.append(.init(id: n.id, date: n.createdAt, kind: .notification, project: n.sessionId.flatMap { projectBySession[$0] }, agent: n.agentSource))
         }
         for a in approvals {
-            sources.append(.init(id: a.id, date: a.createdAt, kind: .approval, project: a.projectName))
+            sources.append(.init(id: a.id, date: a.createdAt, kind: .approval, project: a.projectName,
+                                 agent: AgentSource.allCases.first { $0.displayName == a.assistantName }))
         }
         for e in events {
-            sources.append(.init(id: e.id, date: e.receivedAt, kind: .activity, project: e.projectName))
+            sources.append(.init(id: e.id, date: e.receivedAt, kind: .activity, project: e.projectName, agent: e.agentSource))
         }
         self.sources = sources
         self.projects = Array(Set(sources.compactMap(\.project))).sorted()

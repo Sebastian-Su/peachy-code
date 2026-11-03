@@ -113,7 +113,8 @@ final class EventProcessor {
                 CodexHookLiveness.shared.clear(sessionId: sessionId)
             }
 
-            if !isRepeatedStart, let notification = createNotification(from: event) {
+            if !isRepeatedStart, var notification = createNotification(from: event) {
+                notification.agentSource = event.agentSource
                 if notification.category != .permissionRequest {
                     notificationStore.append(notification)
                 }
@@ -127,7 +128,8 @@ final class EventProcessor {
             }
             sessionStore.recordEvent(event)
 
-            if let notification = createNotification(from: event) {
+            if var notification = createNotification(from: event) {
+                notification.agentSource = event.agentSource
                 if notification.category != .permissionRequest {
                     notificationStore.append(notification)
                 }
