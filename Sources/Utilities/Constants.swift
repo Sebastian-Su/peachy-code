@@ -14,6 +14,13 @@ enum Constants {
     static let peachyBaseURL = "https://github.com/Sebastian-Su/peachy-code"
     #endif
 
+    // Pet resource center: catalog in a public repo, packs as its Release assets.
+    // `petCatalogURL` in user defaults overrides it (local testing).
+    static var petCatalogURL: URL {
+        UserDefaults.standard.string(forKey: "petCatalogURL").flatMap(URL.init(string:))
+            ?? URL(string: "https://raw.githubusercontent.com/Sebastian-Su/peachy-mascots/main/catalog.json")!
+    }
+
     // Source code repository
     static let repoURL = "https://github.com/Sebastian-Su/peachy-code"
 

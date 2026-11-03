@@ -177,6 +177,7 @@ struct PeachyDashboardView: View {
 
     @State private var showingAddSheet = false
     @State private var showingCreationCenter = false
+    @State private var showingPetBrowser = false
     @State private var selectedMascotId: UUID?
     @State private var jsonText = ""
     @State private var parseError: String?
@@ -277,6 +278,11 @@ struct PeachyDashboardView: View {
                 }
                 .buttonStyle(.plain)
 
+                Button(action: { showingPetBrowser = true }) {
+                    Label(t("pets.browse"), systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(BrandSecondaryButton())
+
                 Button(action: { showingCreationCenter = true }) {
                     Label(t("pets.create"), systemImage: "paintbrush.pointed.fill")
                 }
@@ -341,6 +347,10 @@ struct PeachyDashboardView: View {
         }
         .sheet(isPresented: $showingCreationCenter) {
             MascotCreationCenterView()
+        }
+        .sheet(isPresented: $showingPetBrowser) {
+            PetBrowserView()
+                .environment(appStore)
         }
     }
 
@@ -571,7 +581,7 @@ struct MascotCard: View {
     let onActivate: () -> Void
     let onSaveConfig: (PeachyAnimationConfig) -> Void
     let onDelete: () -> Void
-    var communitySlug: String? { mascot.templateSlug }
+    var communitySlug: String? { mascot.templateSlug.flatMap { $0.hasPrefix("pack:") ? nil : $0 } }
     @State private var isHovered = false
     @State private var showingJSON = false
     @State private var menuTrigger = 0

@@ -326,3 +326,12 @@
 "pets.hide" = "Hide";
 "pets.create" = "Create";
 "pets.activate" = "Activate";
+"pets.error.checksum" = "Download did not match the published checksum; nothing was installed.";
+"pets.error.invalid" = "This pet pack is incomplete or damaged.";
+"pets.error.unsafe_path" = "The pack refers to a file outside itself: %@";
+"pets.browse" = "Browse more";
+"pets.close" = "Close";
+"pets.retry" = "Retry";
+"pets.installed" = "Installed";
+"pets.download" = "Download";
+"pets.catalog_unreachable" = "Could not load the pet list: %@";

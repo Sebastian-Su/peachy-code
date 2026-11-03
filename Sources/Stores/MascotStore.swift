@@ -212,6 +212,17 @@ final class MascotStore {
         persist()
     }
 
+    /// Adds a pet installed from the resource center; reinstalling the same pack replaces it.
+    func addOrReplacePack(config: PeachyAnimationConfig, packId: String) {
+        let slug = "pack:\(packId)"
+        if let index = mascots.firstIndex(where: { $0.templateSlug == slug }) {
+            mascots[index].config = config
+        } else {
+            mascots.insert(SavedMascot(id: UUID(), name: config.name, config: config, addedAt: Date(), templateSlug: slug), at: 0)
+        }
+        persist()
+    }
+
     func addOrUpdateFromProject(config: PeachyAnimationConfig, projectID: UUID) {
         if let index = mascots.firstIndex(where: { $0.projectID == projectID }) {
             mascots[index].config = config

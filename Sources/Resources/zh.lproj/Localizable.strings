@@ -326,3 +326,12 @@
 "pets.hide" = "隐藏";
 "pets.create" = "创作新角色";
 "pets.activate" = "启用";
+"pets.error.checksum" = "下载内容和发布的校验值不一致，没有安装。";
+"pets.error.invalid" = "这个桌宠包不完整或已损坏。";
+"pets.error.unsafe_path" = "包里引用了包外的文件：%@";
+"pets.browse" = "浏览更多";
+"pets.close" = "关闭";
+"pets.retry" = "重试";
+"pets.installed" = "已安装";
+"pets.download" = "下载";
+"pets.catalog_unreachable" = "无法读取桌宠列表：%@";
