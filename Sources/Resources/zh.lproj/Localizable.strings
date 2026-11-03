@@ -310,3 +310,9 @@
 "sessions.host.terminal" = "终端";
 "sessions.host.codex_desktop" = "Codex 桌面版";
 "sessions.host.unknown" = "未知";
+"agents.run_doctor" = "连接诊断";
+"agents.session_counts" = "%d 个会话 · %d 个活跃";
+"agents.no_sessions" = "还没有会话";
+"agents.installed" = "已安装 hook";
+"agents.not_installed" = "未安装";
+"agents.host.other" = "其他";

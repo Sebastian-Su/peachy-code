@@ -106,7 +106,7 @@ struct ContentView: View {
         switch section {
         case .inbox: InboxView()
         case .sessions: SessionListView()
-        case .agents: ConnectionDoctorView()
+        case .agents: AgentsView()
         case .pets: PeachyDashboardView()
         case .settings: SettingsView()
         }

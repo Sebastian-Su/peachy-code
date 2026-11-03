@@ -310,3 +310,9 @@
 "sessions.host.terminal" = "Terminal";
 "sessions.host.codex_desktop" = "Codex Desktop";
 "sessions.host.unknown" = "Unknown";
+"agents.run_doctor" = "Connection doctor";
+"agents.session_counts" = "%d sessions · %d active";
+"agents.no_sessions" = "No sessions yet";
+"agents.installed" = "Hooks installed";
+"agents.not_installed" = "Not installed";
+"agents.host.other" = "Other";
