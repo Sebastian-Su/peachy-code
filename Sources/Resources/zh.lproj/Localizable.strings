@@ -279,7 +279,7 @@
 "nav.agents" = "代理";
 "nav.pets" = "桌宠";
 "nav.settings" = "设置";
-"inbox.tab.notifications" = "通知";
-"inbox.tab.activity" = "活动";
-"inbox.tab.approvals" = "审批";
 "sidebar.watching" = "正在看着 %d 个活跃会话";
+"inbox.history" = "历史";
+"inbox.all_projects" = "全部项目";
+"inbox.activity_run" = "%d 条活动事件";

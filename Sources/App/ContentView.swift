@@ -7,7 +7,6 @@ struct ContentView: View {
     /// screenshot checks); launch arguments are never persisted.
     @State private var selectedSection: SidebarSection =
         UserDefaults.standard.string(forKey: "initialSection").flatMap(SidebarSection.init(rawValue:)) ?? .inbox
-    @State private var inboxTab: InboxTab = .notifications
 
     enum SidebarSection: String, CaseIterable {
         case inbox, sessions, agents, pets, settings
@@ -24,12 +23,6 @@ struct ContentView: View {
             case .settings: "gear"
             }
         }
-    }
-
-    /// Temporary tabs inside the inbox until the merged list lands.
-    enum InboxTab: String, CaseIterable {
-        case notifications, activity, approvals
-        var titleKey: String { "inbox.tab.\(rawValue)" }
     }
 
     var body: some View {
@@ -111,23 +104,7 @@ struct ContentView: View {
     @ViewBuilder
     private func detail(for section: SidebarSection) -> some View {
         switch section {
-        case .inbox:
-            VStack(spacing: 0) {
-                Picker("", selection: $inboxTab) {
-                    ForEach(InboxTab.allCases, id: \.self) { tab in
-                        Text(t(tab.titleKey)).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(maxWidth: 360)
-                .padding(.vertical, 8)
-                switch inboxTab {
-                case .notifications: NotificationCenterView()
-                case .activity: ActivityFeedView()
-                case .approvals: ApprovalRequestView()
-                }
-            }
+        case .inbox: InboxView()
         case .sessions: SessionListView()
         case .agents: ConnectionDoctorView()
         case .pets: PeachyDashboardView()

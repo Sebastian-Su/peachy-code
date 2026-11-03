@@ -84,7 +84,7 @@ struct NotificationCenterView: View {
 
 // MARK: - Clear All Confirmation Dialog
 
-private struct ClearAllConfirmationDialog: View {
+struct ClearAllConfirmationDialog: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
@@ -146,6 +146,7 @@ private struct ClearAllConfirmationDialog: View {
 struct NotificationRow: View {
     let notification: AppNotification
     var compact: Bool = false
+    var project: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -154,27 +155,28 @@ struct NotificationRow: View {
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(notification.title)
-                    .font(notification.isRead
-                        ? Constants.body(size: compact ? 11 : 14)
-                        : Constants.heading(size: compact ? 11 : 14, weight: .semibold))
-                    .foregroundColor(Constants.textPrimary)
+                HStack(spacing: 8) {
+                    Text(notification.title)
+                        .font(notification.isRead
+                            ? Constants.body(size: compact ? 11 : 14)
+                            : Constants.heading(size: compact ? 11 : 14, weight: .semibold))
+                        .foregroundColor(Constants.textPrimary)
+                        .lineLimit(1)
 
-                if let body = notification.body {
-                    Text(body)
-                        .font(Constants.body(size: compact ? 10 : 13))
-                        .foregroundColor(Constants.textMuted)
-                        .lineLimit(compact ? 1 : 2)
-                }
-
-                if !compact {
-                    HStack {
+                    if !compact {
                         Text(notification.category.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
                             .font(Constants.body(size: 11, weight: .medium))
-                            .foregroundColor(Color(red: 180/255, green: 90/255, blue: 0))
+                            .foregroundColor(Constants.accentText)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
                             .background(Constants.chip, in: Capsule())
+
+                        if let project {
+                            Text(project)
+                                .font(Constants.body(size: 11))
+                                .foregroundColor(Constants.textMuted)
+                                .lineLimit(1)
+                        }
 
                         Spacer()
 
@@ -182,6 +184,13 @@ struct NotificationRow: View {
                             .font(Constants.body(size: 11))
                             .foregroundColor(Constants.textMuted)
                     }
+                }
+
+                if let body = notification.body {
+                    Text(body)
+                        .font(Constants.body(size: compact ? 10 : 13))
+                        .foregroundColor(Constants.textMuted)
+                        .lineLimit(compact ? 1 : 2)
                 }
             }
         }

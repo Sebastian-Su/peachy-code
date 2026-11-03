@@ -130,7 +130,7 @@ private struct PendingApprovalRow: View {
 
 // MARK: - History Approval Row
 
-private struct HistoryApprovalRow: View {
+struct HistoryApprovalRow: View {
     let record: ApprovalRecord
 
     var body: some View {

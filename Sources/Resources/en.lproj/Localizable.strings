@@ -279,7 +279,7 @@
 "nav.agents" = "Agents";
 "nav.pets" = "Pets";
 "nav.settings" = "Settings";
-"inbox.tab.notifications" = "Notifications";
-"inbox.tab.activity" = "Activity";
-"inbox.tab.approvals" = "Approvals";
 "sidebar.watching" = "Watching %d active sessions";
+"inbox.history" = "History";
+"inbox.all_projects" = "All projects";
+"inbox.activity_run" = "%d activity events";
