@@ -317,3 +317,12 @@
 "agents.not_installed" = "未安装";
 "agents.host.other" = "其他";
 "pets.current" = "当前";
+"settings.tab.general" = "通用";
+"settings.tab.shortcuts" = "快捷键";
+"settings.tab.notifications" = "通知";
+"settings.tab.appearance" = "外观";
+"settings.uninstall_title" = "卸载 PeachyPet？";
+"pets.library" = "桌宠库";
+"pets.hide" = "隐藏";
+"pets.create" = "创作新角色";
+"pets.activate" = "启用";

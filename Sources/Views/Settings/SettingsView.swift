@@ -30,9 +30,27 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
     }
 
+    enum SettingsTab: String, CaseIterable {
+        case general, shortcuts, notifications, appearance
+        var titleKey: String { "settings.tab.\(rawValue)" }
+    }
+
+    /// `-initialSettingsTab <name>` opens a tab directly (screenshot checks); never persisted.
+    @State private var selectedTab: SettingsTab =
+        UserDefaults.standard.string(forKey: "initialSettingsTab").flatMap(SettingsTab.init(rawValue:)) ?? .general
+
     var body: some View {
+        VStack(spacing: 0) {
+        Picker("", selection: $selectedTab) {
+            ForEach(SettingsTab.allCases, id: \.self) { Text(t($0.titleKey)).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: 420)
+        .padding(.top, 12)
         Form {
             // MARK: – Appearance
+            if selectedTab == .appearance {
             Section {
                 HStack {
                     Text(t("settings.language"))
@@ -59,7 +77,9 @@ struct SettingsView: View {
                 Text(t("settings.appearance")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – General
+            if selectedTab == .general {
             Section {
                 HStack {
                     Text(t("settings.launch_at_login"))
@@ -78,7 +98,9 @@ struct SettingsView: View {
                 Text(t("settings.general")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – Overlay
+            if selectedTab == .notifications {
             Section {
                 // Auto-hide: toggle + delay in one row
                 HStack {
@@ -151,7 +173,9 @@ struct SettingsView: View {
                 Text(t("settings.overlay")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – Tools Integration (Claude Code + Codex + IDE Extensions unified)
+            if selectedTab == .general {
             Section {
                 // Claude Code hook row
                 HStack {
@@ -213,7 +237,9 @@ struct SettingsView: View {
             }
             .animation(.easeInOut(duration: 0.25), value: installingIDE)
 
+            }
             // MARK: – Keyboard Shortcuts
+            if selectedTab == .shortcuts {
             Section {
                 @Bindable var store = appStore
 
@@ -256,7 +282,9 @@ struct SettingsView: View {
                 Text(t("settings.keyboard_shortcuts")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – Connection
+            if selectedTab == .general {
             Section {
                 HStack {
                     Text(t("settings.local_server"))
@@ -299,7 +327,9 @@ struct SettingsView: View {
                 Text(t("settings.connection")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – Storage
+            if selectedTab == .general {
             Section {
                 HStack {
                     Text(t("settings.sessions")).foregroundColor(Constants.textPrimary)
@@ -335,7 +365,9 @@ struct SettingsView: View {
                 Text(t("settings.storage")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – Updates
+            if selectedTab == .general {
             Section {
                 if appUpdater.isAvailable {
                     @Bindable var updater = appUpdater
@@ -354,7 +386,9 @@ struct SettingsView: View {
                 Text(t("settings.updates")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – Troubleshooting
+            if selectedTab == .general {
             Section {
                 Button {
                     showConnectionDoctor = true
@@ -372,7 +406,9 @@ struct SettingsView: View {
                 Text(t("settings.troubleshooting")).font(Constants.heading(size: 13, weight: .semibold))
             }
 
+            }
             // MARK: – About
+            if selectedTab == .general {
             Section {
                 HStack {
                     Text(t("settings.version")).foregroundColor(Constants.textPrimary)
@@ -406,9 +442,11 @@ struct SettingsView: View {
             } header: {
                 Text(t("settings.about")).font(Constants.heading(size: 13, weight: .semibold))
             }
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        }
         .background(Constants.lightBackground)
         .navigationTitle("Settings")
         .task {
@@ -444,7 +482,7 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openConnectionDoctor)) { _ in
             showConnectionDoctor = true
         }
-        .alert("Uninstall Peachy?", isPresented: $showUninstallConfirm) {
+        .alert(t("settings.uninstall_title"), isPresented: $showUninstallConfirm) {
             Button(t("permission.cancel"), role: .cancel) {}
             Button(t("settings.uninstall_peachy"), role: .destructive) { performUninstall() }
         } message: {

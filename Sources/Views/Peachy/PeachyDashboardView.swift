@@ -217,7 +217,7 @@ struct PeachyDashboardView: View {
         VStack(spacing: 0) {
             // Inline header
             HStack(spacing: 10) {
-                Text("Masko Library")
+                Text(t("pets.library"))
                     .font(Constants.heading(size: 18, weight: .semibold))
                     .foregroundColor(Constants.textPrimary)
 
@@ -247,7 +247,7 @@ struct PeachyDashboardView: View {
                         HStack(spacing: 5) {
                             Image(systemName: "eye.slash")
                                 .font(.system(size: 12))
-                            Text("Hide")
+                            Text(t("pets.hide"))
                                 .font(Constants.body(size: 13, weight: .medium))
                         }
                         .foregroundColor(Constants.textMuted)
@@ -278,7 +278,7 @@ struct PeachyDashboardView: View {
                 .buttonStyle(.plain)
 
                 Button(action: { showingCreationCenter = true }) {
-                    Label("Create", systemImage: "paintbrush.pointed.fill")
+                    Label(t("pets.create"), systemImage: "paintbrush.pointed.fill")
                 }
                 .buttonStyle(BrandSecondaryButton())
             }
@@ -652,7 +652,7 @@ struct MascotCard: View {
                         HStack(spacing: 5) {
                             Image(systemName: "play.fill")
                                 .font(.system(size: 10))
-                            Text("Activate")
+                            Text(t("pets.activate"))
                         }
                         .font(Constants.heading(size: 13, weight: .medium))
                         .foregroundColor(.white)

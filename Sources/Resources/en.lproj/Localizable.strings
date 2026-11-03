@@ -317,3 +317,12 @@
 "agents.not_installed" = "Not installed";
 "agents.host.other" = "Other";
 "pets.current" = "Current";
+"settings.tab.general" = "General";
+"settings.tab.shortcuts" = "Shortcuts";
+"settings.tab.notifications" = "Notifications";
+"settings.tab.appearance" = "Appearance";
+"settings.uninstall_title" = "Uninstall Peachy?";
+"pets.library" = "Pet library";
+"pets.hide" = "Hide";
+"pets.create" = "Create";
+"pets.activate" = "Activate";
