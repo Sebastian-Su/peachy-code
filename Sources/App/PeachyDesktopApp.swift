@@ -183,13 +183,14 @@ struct PeachyDesktopApp: App {
                     overlayManager.restoreIfNeeded()
 
                     // First-run fallback: if onboarding is complete but no mascot was ever activated,
-                    // pick Clippy (or first available mascot) so activity is immediately visible.
+                    // show the default pet (downloaded on demand), else Clippy or the first mascot.
                     if appStore.hasCompletedOnboarding,
                        overlayManager.isOverlayEnabled,
                        !overlayManager.isOverlayActive,
-                       !overlayManager.hasEverActivatedMascot,
-                       let config = OverlayManager.startupMascotConfig(from: appStore.mascotStore.mascots) {
-                        overlayManager.showOverlayWithConfig(config)
+                       !overlayManager.hasEverActivatedMascot {
+                        let config = await DefaultPetLoader.shared.ensureInstalled(into: appStore.mascotStore)
+                            ?? OverlayManager.startupMascotConfig(from: appStore.mascotStore.mascots)
+                        if let config { overlayManager.showOverlayWithConfig(config) }
                     }
                 }
                 .onOpenURL { url in

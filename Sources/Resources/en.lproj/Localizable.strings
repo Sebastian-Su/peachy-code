@@ -335,3 +335,5 @@
 "pets.installed" = "Installed";
 "pets.download" = "Download";
 "pets.catalog_unreachable" = "Could not load the pet list: %@";
+"sidebar.pet_downloading" = "Downloading PeachMilky…";
+"sidebar.pet_download_failed" = "Download failed; the app still works.";

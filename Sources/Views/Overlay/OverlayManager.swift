@@ -44,6 +44,9 @@ final class OverlayManager {
     }
 
     static func startupMascotConfig(from mascots: [SavedMascot]) -> PeachyAnimationConfig? {
+        if let defaultPet = mascots.first(where: { $0.templateSlug == DefaultPet.slug }) {
+            return defaultPet.config
+        }
         if let clippy = mascots.first(where: { $0.templateSlug == "clippy" }) {
             return clippy.config
         }

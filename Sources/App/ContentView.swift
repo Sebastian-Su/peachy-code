@@ -191,6 +191,9 @@ private struct SkinQuickSwitcher: View {
 // MARK: - Sidebar mascot
 
 private struct SidebarMascotCard: View {
+    @Environment(AppStore.self) var appStore
+    @Environment(OverlayManager.self) var overlayManager
+    private let loader = DefaultPetLoader.shared
     let config: PeachyAnimationConfig?
     let activeCount: Int
     let action: () -> Void
@@ -198,17 +201,34 @@ private struct SidebarMascotCard: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                MascotPosterView(config: config)
-                    .frame(width: 92, height: 92)
-                Text(config?.name ?? "PeachyPet")
+                if config == nil, let poster = DefaultPet.poster {
+                    Image(nsImage: poster).resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 92, height: 92)
+                } else {
+                    MascotPosterView(config: config)
+                        .frame(width: 92, height: 92)
+                }
+                Text(config?.name ?? DefaultPet.name)
                     .font(Constants.heading(size: 14, weight: .bold))
                     .foregroundColor(Constants.textPrimary)
                     .lineLimit(1)
-                Text(String(format: t("sidebar.watching"), activeCount))
-                    .font(Constants.body(size: 11))
-                    .foregroundColor(Constants.textMuted)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+                switch (config, loader.state) {
+                case (nil, .downloading):
+                    caption(t("sidebar.pet_downloading"))
+                case (nil, .failed):
+                    caption(t("sidebar.pet_download_failed"))
+                    Button(t("pets.retry")) {
+                        Task { @MainActor in
+                            if let config = await loader.ensureInstalled(into: appStore.mascotStore),
+                               overlayManager.isOverlayEnabled {
+                                overlayManager.showOverlayWithConfig(config)
+                            }
+                        }
+                    }
+                    .buttonStyle(BrandGhostButton(color: Constants.accentText))
+                default:
+                    caption(String(format: t("sidebar.watching"), activeCount))
+                }
             }
             .padding(10)
             .frame(maxWidth: .infinity)
@@ -216,6 +236,14 @@ private struct SidebarMascotCard: View {
             .overlay(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall).stroke(Constants.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+
+    private func caption(_ text: String) -> some View {
+        Text(text)
+            .font(Constants.body(size: 11))
+            .foregroundColor(Constants.textMuted)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
     }
 }
 

@@ -335,3 +335,5 @@
 "pets.installed" = "已安装";
 "pets.download" = "下载";
 "pets.catalog_unreachable" = "无法读取桌宠列表：%@";
+"sidebar.pet_downloading" = "正在下载 PeachMilky…";
+"sidebar.pet_download_failed" = "下载失败，应用照常可用。";

@@ -14,7 +14,8 @@ struct OnboardingView: View {
     @State private var ideExtensionError: String?
     @State private var accessibilityGranted = false
     @State private var mascotActivated = false
-    @State private var selectedPresetSlug: String? = nil
+    @State private var selectedPresetSlug: String? = DefaultPet.slug
+    @State private var presetError: String?
     @State private var isLoadingPreset = false
 
     private let totalSteps = 7
@@ -324,6 +325,9 @@ struct OnboardingView: View {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 100, maximum: 130), spacing: 10)
             ], spacing: 10) {
+                DefaultPetPickerCard(isSelected: selectedPresetSlug == DefaultPet.slug) {
+                    selectedPresetSlug = DefaultPet.slug
+                }
                 ForEach(MascotStore.presets) { preset in
                     PresetPickerCard(
                         preset: preset,
@@ -353,6 +357,14 @@ struct OnboardingView: View {
                 }
                 .opacity(selectedPresetSlug == nil ? 0.5 : 1)
                 .allowsHitTesting(selectedPresetSlug != nil && !isLoadingPreset)
+
+                if let presetError {
+                    Text(presetError)
+                        .font(Constants.body(size: 12))
+                        .foregroundStyle(Constants.destructiveRed)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
 
                 skipButton { nextStep(after: 5) }
             }
@@ -471,6 +483,21 @@ struct OnboardingView: View {
     private func activateSelectedPreset() {
         guard let slug = selectedPresetSlug else { return }
         isLoadingPreset = true
+        presetError = nil
+
+        if slug == DefaultPet.slug {
+            Task { @MainActor in
+                let config = await DefaultPetLoader.shared.ensureInstalled(into: appStore.mascotStore)
+                isLoadingPreset = false
+                if let config {
+                    overlayManager.showOverlayWithConfig(config)
+                    mascotActivated = true
+                } else if case .failed(let message) = DefaultPetLoader.shared.state {
+                    presetError = message
+                }
+            }
+            return
+        }
 
         Task {
             await appStore.mascotStore.addPreset(slug: slug)
@@ -483,6 +510,38 @@ struct OnboardingView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Default Pet Card
+
+/// The default pet: its still poster ships with the app, the pack downloads on activate.
+struct DefaultPetPickerCard: View {
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall)
+                        .fill(Constants.stage)
+                    if let poster = DefaultPet.poster {
+                        Image(nsImage: poster).resizable().aspectRatio(contentMode: .fit).padding(6)
+                    }
+                }
+                .frame(height: 90)
+                Text(DefaultPet.name)
+                    .font(Constants.heading(size: 12, weight: .semibold))
+                    .foregroundStyle(Constants.textPrimary)
+            }
+            .padding(6)
+            .background(
+                RoundedRectangle(cornerRadius: Constants.cornerRadius)
+                    .stroke(isSelected ? Constants.orangePrimary : Constants.border, lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
