@@ -283,3 +283,9 @@
 "inbox.history" = "历史";
 "inbox.all_projects" = "全部项目";
 "inbox.activity_run" = "%d 条活动事件";
+"inbox.pending_count" = "待处理 · %d";
+"inbox.nothing_waiting" = "没有谁在等你";
+"inbox.watching_note" = "它在盯着，你可以去忙别的。";
+"inbox.answer_in_overlay" = "在桌宠上回答";
+"inbox.waiting_input" = "在等你回复";
+"inbox.jump" = "跳转";

@@ -3,6 +3,22 @@ import XCTest
 @testable import PeachyPet
 
 final class PendingPermissionStoreTests: XCTestCase {
+    /// The inbox answers through the same store as the overlay card, so a
+    /// second answer (from either place) must be a no-op.
+    func testAnsweringTwiceSendsOneDecisionAndRemovesTheRequest() throws {
+        let store = PendingPermissionStore()
+        defer { store.stopTimers() }
+        let transport = MockTransport()
+        store.add(event: makeCodexPermissionEvent(toolUseId: "once", cmd: "git status"), transport: transport)
+        let id = try XCTUnwrap(store.pending.first?.id)
+
+        store.resolve(id: id, decision: .deny)
+        store.resolve(id: id, decision: .allow)
+
+        XCTAssertEqual(transport.decisions, [.deny])
+        XCTAssertTrue(store.pending.isEmpty)
+    }
+
     func testTopVisiblePermissionUsesNewestNonCollapsedPermission() throws {
         let store = PendingPermissionStore()
         defer { store.stopTimers() }

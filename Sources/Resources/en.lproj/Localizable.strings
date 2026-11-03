@@ -283,3 +283,9 @@
 "inbox.history" = "History";
 "inbox.all_projects" = "All projects";
 "inbox.activity_run" = "%d activity events";
+"inbox.pending_count" = "PENDING · %d";
+"inbox.nothing_waiting" = "Nobody is waiting on you";
+"inbox.watching_note" = "It is keeping watch, go do something else.";
+"inbox.answer_in_overlay" = "Answer on the pet";
+"inbox.waiting_input" = "Waiting for your reply";
+"inbox.jump" = "Jump";

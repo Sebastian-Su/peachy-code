@@ -17,6 +17,7 @@ struct InboxView: View {
         let entries = InboxHistory.build(data.sources, project: projectFilter)
 
         VStack(spacing: 0) {
+            InboxPendingArea()
             header(projects: data.projects)
             Divider().overlay(Constants.border)
             if entries.isEmpty {
