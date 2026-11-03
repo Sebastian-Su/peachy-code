@@ -37,29 +37,30 @@ enum Constants {
         UserDefaults.standard.set(Int(port), forKey: serverPortKey)
     }
 
-    // Brand colors — matches masko.ai web design
-    static let orangePrimary = Color(red: 249/255, green: 93/255, blue: 2/255)     // #f95d02
-    static let orangeHover = Color(red: 251/255, green: 121/255, blue: 16/255)     // #fb7910
-    static let orangeShadow = Color(red: 201/255, green: 74/255, blue: 1/255)      // #c94a01
-    static let textPrimary = Color(red: 35/255, green: 17/255, blue: 60/255)       // #23113c
-    static let textMuted = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.65)
-    static let lightBackground = Color(red: 250/255, green: 249/255, blue: 247/255) // #faf9f7
-    static let surfaceWhite = Color.white
-    static let border = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.12)
-    static let borderHover = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.20)
+    // Brand colors — read from the active skin (see SkinStore)
+    private static var skin: Skin { SkinStore.shared.current }
+    static var orangePrimary: Color { Skin.color(skin.accent) }
+    static var orangeHover: Color { Skin.color(skin.accentHover) }
+    static var orangeShadow: Color { Skin.color(skin.accentShadow) }
+    static var textPrimary: Color { Skin.color(skin.text) }
+    static var textMuted: Color { Skin.color(skin.textMuted) }
+    static var lightBackground: Color { Skin.color(skin.background) }
+    static var surfaceWhite: Color { Skin.color(skin.surface) }
+    static var border: Color { textPrimary.opacity(0.12) }
+    static var borderHover: Color { textPrimary.opacity(0.20) }
 
     // Interactive state colors (matches website sidebar)
-    static let chip = Color(red: 231/255, green: 173/255, blue: 104/255).opacity(0.18)       // warm hover bg
-    static let stage = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.04)          // subtle hover
-    static let orangePrimaryLight = Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.10)  // active item bg
-    static let orangePrimarySubtle = Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.08) // selected row bg
+    static var chip: Color { Skin.color(skin.chip).opacity(0.18) }               // warm hover bg
+    static var stage: Color { textPrimary.opacity(0.04) }                        // subtle hover
+    static var orangePrimaryLight: Color { orangePrimary.opacity(0.10) }         // active item bg
+    static var orangePrimarySubtle: Color { orangePrimary.opacity(0.08) }        // selected row bg
     static let destructiveRed = Color(.sRGB, red: 220/255, green: 38/255, blue: 38/255)         // #dc2626
 
     // MARK: - Typography
 
-    /// Fredoka — headings, buttons, display text
+    /// Bricolage Grotesque — headings, buttons, display text
     static func heading(size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        .custom("Fredoka", size: size).weight(weight)
+        .custom("Bricolage Grotesque", size: size).weight(weight)
     }
 
     /// Rubik — body text, labels, metadata
@@ -75,24 +76,26 @@ enum Constants {
     // MARK: - Shadows
 
     /// Default card shadow
-    static let cardShadowColor = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.08)
+    static var cardShadowColor: Color { textPrimary.opacity(0.08) }
     static let cardShadowRadius: CGFloat = 1.5
     static let cardShadowY: CGFloat = 1
 
     /// Hover card shadow
-    static let cardHoverShadowColor = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.12)
+    static var cardHoverShadowColor: Color { textPrimary.opacity(0.12) }
     static let cardHoverShadowRadius: CGFloat = 6
     static let cardHoverShadowY: CGFloat = 4
 
     // MARK: - Gradients
 
-    /// Feature card orange tint gradient (matches web)
-    static let featureCardGradient = LinearGradient(
-        colors: [
-            Color(red: 249/255, green: 93/255, blue: 2/255).opacity(0.06),
-            Color(red: 252/255, green: 155/255, blue: 43/255).opacity(0.06)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    /// Feature card accent tint gradient (matches web)
+    static var featureCardGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                orangePrimary.opacity(0.06),
+                Skin.color(skin.gradientEnd).opacity(0.06)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 }

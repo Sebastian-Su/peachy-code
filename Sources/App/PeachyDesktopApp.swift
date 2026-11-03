@@ -16,7 +16,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func registerBundledFonts() {
         let fontNames = [
             "Fredoka-Regular", "Fredoka-Medium", "Fredoka-SemiBold", "Fredoka-Bold",
-            "Rubik-Regular", "Rubik-Medium", "Rubik-SemiBold"
+            "Rubik-Regular", "Rubik-Medium", "Rubik-SemiBold",
+            "BricolageGrotesque-Regular", "BricolageGrotesque-Medium", "BricolageGrotesque-SemiBold",
+            "BricolageGrotesque-Bold", "BricolageGrotesque-ExtraBold"
         ]
         for name in fontNames {
             if let url = PeachyResourceBundle.current.url(

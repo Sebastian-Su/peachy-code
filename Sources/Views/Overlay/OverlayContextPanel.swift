@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - Context Menu Panel
 
 /// A branded floating panel that replaces the native NSMenu on right-click.
-/// Styled to match the app's design system (Fredoka/Rubik fonts, orange accents, rounded corners).
+/// Styled to match the app's design system (Bricolage/Rubik fonts, skin accent colors, rounded corners).
 @MainActor
 final class ContextMenuPanel: NSPanel {
     var onDismiss: (() -> Void)?
