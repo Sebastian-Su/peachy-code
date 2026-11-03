@@ -72,6 +72,18 @@ final class MascotStore {
         }
     }
 
+    /// The saved mascot whose config is on screen. Name plus node ids identify a
+    /// config; copies with the same name differ in their node ids.
+    static func currentMascotId(in mascots: [SavedMascot], showing config: PeachyAnimationConfig?) -> UUID? {
+        guard let config else { return nil }
+        let nodeIds = config.nodes.map(\.id)
+        return mascots.first {
+            $0.config.name == config.name
+                && $0.config.initialNode == config.initialNode
+                && $0.config.nodes.map(\.id) == nodeIds
+        }?.id
+    }
+
     static func fetchRemoteConfig(slug: String, token: String? = nil) async -> PeachyAnimationConfig? {
         var urlString = "\(Constants.peachyBaseURL)/api/mascot-templates/\(slug)"
         if let token { urlString += "?token=\(token)" }

@@ -351,10 +351,13 @@ struct PeachyDashboardView: View {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 16)
             ], spacing: 16) {
-                ForEach(appStore.mascotStore.mascots) { mascot in
+                let currentId = overlayManager.isOverlayActive
+                    ? MascotStore.currentMascotId(in: appStore.mascotStore.mascots, showing: overlayManager.currentConfig)
+                    : nil
+                ForEach(appStore.mascotStore.mascots.sorted { ($0.id == currentId ? 0 : 1) < ($1.id == currentId ? 0 : 1) }) { mascot in
                     MascotCard(
                         mascot: mascot,
-                        isActive: overlayManager.isOverlayActive,
+                        isActive: mascot.id == currentId,
                         onTap: {
                             selectedMascotId = mascot.id
                         },
@@ -593,6 +596,9 @@ struct MascotCard: View {
                     if let url = thumbnailURL {
                         MascotVideoView(url: url)
                             .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
+                    } else if MascotPoster.source(for: mascot.config) != nil {
+                        MascotPosterView(config: mascot.config)
+                            .padding(8)
                     } else {
                         VStack(spacing: 4) {
                             Image(systemName: "wand.and.stars")
@@ -605,6 +611,17 @@ struct MascotCard: View {
                     }
                 }
                 .frame(height: 140)
+                .overlay(alignment: .topLeading) {
+                    if isActive {
+                        Text(t("pets.current"))
+                            .font(Constants.body(size: 11, weight: .semibold))
+                            .foregroundColor(Skin.color(SkinStore.shared.current.onAccent))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Constants.orangePrimary, in: Capsule())
+                            .padding(8)
+                    }
+                }
             }
             .buttonStyle(.plain)
             .padding(12)
@@ -669,7 +686,8 @@ struct MascotCard: View {
         .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Constants.cornerRadius)
-                .stroke(isHovered ? Constants.orangePrimary.opacity(0.5) : Constants.border, lineWidth: 1)
+                .stroke(isActive ? Constants.orangePrimary : (isHovered ? Constants.orangePrimary.opacity(0.5) : Constants.border),
+                        lineWidth: isActive ? 2 : 1)
         )
         .shadow(
             color: isHovered ? Constants.cardHoverShadowColor : Constants.cardShadowColor,

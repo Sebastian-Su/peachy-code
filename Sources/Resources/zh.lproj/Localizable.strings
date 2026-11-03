@@ -316,3 +316,4 @@
 "agents.installed" = "已安装 hook";
 "agents.not_installed" = "未安装";
 "agents.host.other" = "其他";
+"pets.current" = "当前";

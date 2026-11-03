@@ -32,3 +32,23 @@ final class MascotPosterTests: XCTestCase {
         XCTAssertNil(MascotPoster.source(for: c))
     }
 }
+
+final class CurrentMascotTests: XCTestCase {
+    private func saved(_ name: String, initial: String) -> SavedMascot {
+        let json = #"{"version":"2.0","name":"\#(name)","initialNode":"\#(initial)","autoPlay":true,"nodes":[{"id":"\#(initial)","name":"Idle"}],"edges":[]}"#
+        let config = try! JSONDecoder().decode(PeachyAnimationConfig.self, from: Data(json.utf8))
+        return SavedMascot(id: UUID(), name: name, config: config, addedAt: Date())
+    }
+
+    func testCurrentMascotMatchesTheConfigOnScreen() {
+        let a = saved("Peachy", initial: "n1"), b = saved("PeachMilky", initial: "n2")
+        XCTAssertEqual(MascotStore.currentMascotId(in: [a, b], showing: b.config), b.id)
+        XCTAssertNil(MascotStore.currentMascotId(in: [a, b], showing: nil))
+    }
+
+    /// Two mascots can share a name (e.g. an edited copy); the initial node tells them apart.
+    func testSameNameDifferentMascotIsNotCurrent() {
+        let a = saved("Peachy", initial: "n1"), copy = saved("Peachy", initial: "n9")
+        XCTAssertEqual(MascotStore.currentMascotId(in: [a, copy], showing: copy.config), copy.id)
+    }
+}
