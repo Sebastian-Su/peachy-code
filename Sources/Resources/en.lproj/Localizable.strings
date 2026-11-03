@@ -262,3 +262,10 @@
 "creator.error.project_not_ready" = "The Masko project is not ready to compile";
 "creator.error.unvalidated_asset" = "Asset has not passed validation: %@";
 "creator.error.runtime_checksum" = "Project asset checksum does not match: %@";
+
+/* Skins */
+"settings.skin" = "Skin";
+"skin.cream" = "Cream";
+"skin.peach" = "Peach";
+"skin.dusk" = "Dusk";
+"skin.night" = "Night";

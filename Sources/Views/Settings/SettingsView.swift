@@ -49,6 +49,12 @@ struct SettingsView: View {
                         LanguageManager.shared.setLanguage(lang)
                     }
                 }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(t("settings.skin"))
+                        .foregroundColor(Constants.textPrimary)
+                    SkinPicker()
+                }
+                .padding(.vertical, 4)
             } header: {
                 Text(t("settings.appearance")).font(Constants.heading(size: 13, weight: .semibold))
             }

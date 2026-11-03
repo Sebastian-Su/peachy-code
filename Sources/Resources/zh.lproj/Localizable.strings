@@ -262,3 +262,10 @@
 "creator.error.project_not_ready" = "Masko 项目尚未达到可编译状态";
 "creator.error.unvalidated_asset" = "素材尚未通过验证：%@";
 "creator.error.runtime_checksum" = "项目素材校验和不一致：%@";
+
+/* Skins */
+"settings.skin" = "皮肤";
+"skin.cream" = "奶油";
+"skin.peach" = "蜜桃";
+"skin.dusk" = "晚霞";
+"skin.night" = "夜";

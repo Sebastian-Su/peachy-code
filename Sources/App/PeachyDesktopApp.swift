@@ -146,7 +146,7 @@ struct PeachyDesktopApp: App {
                 .environment(appUpdater)
                 .environment(ViewClock.shared)
                 .frame(minWidth: 800, minHeight: 500)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(SkinStore.shared.current.isDark ? .dark : .light)
                 .task {
                     guard !appStore.isRunning else { return }
                     overlayManager.sessionStore = appStore.sessionStore

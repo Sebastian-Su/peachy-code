@@ -9,8 +9,15 @@ final class SkinStore {
     static let defaultsKey = "skinId"
 
     private(set) var current: Skin
+    @ObservationIgnored private let defaults: UserDefaults
 
-    private init() {
-        current = Skin.resolve(storedValue: UserDefaults.standard.object(forKey: Self.defaultsKey))
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        current = Skin.resolve(storedValue: defaults.object(forKey: Self.defaultsKey))
+    }
+
+    func select(_ skin: Skin) {
+        current = skin
+        defaults.set(skin.id, forKey: Self.defaultsKey)
     }
 }
