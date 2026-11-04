@@ -225,11 +225,26 @@ Sources/
 - 生成素材必须通过图片解码、HEVC Alpha 编码、首尾锚点和转场端点检查；失败项进入 Block
 - MVP 只自动创建 `Idle <-> 其他状态` 转场，并通过 Any State 路由经 Idle 完成跨状态切换
 
+**桌宠资源中心：公开仓库 `Sebastian-Su/peachy-mascots`。**
+- 清单是仓库里的 `catalog.json`（`Constants.petCatalogURL`），桌宠包是该仓库的 Release 附件，即 zip：`pet.json` 加上 `media/`，媒体路径相对于包
+- 桌宠页「浏览更多」先下载，用 `PetPackInstaller` 校验 SHA-256 并拒绝跳出包外的路径，再解压到 `Application Support/PeachyPet/Pets/<id>/`；`templateSlug` 记为 `pack:<id>`，重装会替换旧的
+- 发布：`scripts/publish-pet.sh "<桌宠名>" <pack-id> --version N --upload` 负责打包并上传 Release，再把打印出的条目写进 `catalog.json` 并提交
+- 新用户默认桌宠是 PeachMilky（`DefaultPetLoader`）：安装包里只放静态图 `Images/peachmilky-poster.png`，视频走首次下载，失败了可以重试
+
+## 主窗口与皮肤
+
+- 五个入口：收件箱、会话、代理、桌宠、设置。spec 见 `docs/main-window-redesign-spec.md`
+- 皮肤：`Skin` / `SkinStore`，选择存在 UserDefaults 的 `skinId`、`skinCustomAccent` 两个键。`Constants` 的颜色都是读当前皮肤的计算属性，新界面直接用 `Constants`，不要写死颜色
+- 字体：标题用 Bricolage Grotesque，正文用 Rubik，都放在 `Resources/Fonts`，启动时注册
+- 截图和走查用的启动参数（不会保存）：`-initialSection inbox|sessions|agents|pets|settings`、`-initialSettingsTab general|shortcuts|notifications|appearance`。`-appLanguage` 会被语言管理器写回设置，用完要恢复。`petCatalogURL` 写进 defaults 可以把清单临时指到本地文件
+
 ## 本地数据与存储位置
 
 - App 数据目录（JSON 持久化）：
   - `~/Library/Application Support/PeachyPet/`
   - 由 `LocalStorage` 管理（`Sources/Utilities/LocalStorage.swift`）
+  - 保存前由 `SecretRedactor` 把 Authorization 和 Bearer 后面的凭据替换成 `<redacted>`
+- 启动时会给已开启的集成重新注册 hook，配置内容没变就不写文件（`HookInstaller.fileHasSameJSON`）
 
 ## 国际化（i18n）
 

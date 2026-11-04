@@ -83,7 +83,8 @@ JSON
 echo "pack: $ZIP" >&2
 
 if [ "$UPLOAD" = 1 ]; then
-  gh release view "$TAG" -R "$REPO" >/dev/null 2>&1 || gh release create "$TAG" -R "$REPO" --title "$NAME v$VERSION" --notes "$NAME pet pack"
-  gh release upload "$TAG" "$ZIP" -R "$REPO" --clobber
+  # gh prints URLs on stdout; keep stdout for the catalog entry only.
+  gh release view "$TAG" -R "$REPO" >/dev/null 2>&1 || gh release create "$TAG" -R "$REPO" --title "$NAME v$VERSION" --notes "$NAME pet pack" >&2
+  gh release upload "$TAG" "$ZIP" -R "$REPO" --clobber >&2
   echo "uploaded to $DOWNLOAD" >&2
 fi
