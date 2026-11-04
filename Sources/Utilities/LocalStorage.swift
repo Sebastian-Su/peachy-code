@@ -18,11 +18,17 @@ enum LocalStorage {
     static func save<T: Encodable>(_ value: T, to filename: String) {
         let url = appSupportDir.appendingPathComponent(filename)
         do {
-            let data = try JSONEncoder().encode(value)
+            let data = try redacted(JSONEncoder().encode(value))
             try data.write(to: url, options: .atomic)
         } catch {
             print("[PeachyPet] Failed to save \(filename): \(error)")
         }
+    }
+
+    /// Credentials in saved commands and messages never reach disk.
+    private static func redacted(_ data: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+        return try JSONSerialization.data(withJSONObject: SecretRedactor.redactJSON(object), options: .fragmentsAllowed)
     }
 
     static func load<T: Decodable>(_ type: T.Type, from filename: String) -> T? {
