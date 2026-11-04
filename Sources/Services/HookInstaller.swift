@@ -275,7 +275,15 @@ enum HookInstaller {
         }
     }
 
+    /// True when the file already holds this JSON (formatting aside), so callers can skip rewriting it.
+    static func fileHasSameJSON(_ object: [String: Any], at path: String) -> Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let existing = try? JSONSerialization.jsonObject(with: data) as? NSDictionary else { return false }
+        return existing.isEqual(to: object)
+    }
+
     private static func writeSettings(_ settings: [String: Any], to path: String = claudeSettingsPath) throws {
+        if fileHasSameJSON(settings, at: path) { return }
         let claudeDir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(
             atPath: claudeDir,

@@ -159,6 +159,7 @@ enum CodexHookInstaller {
     }
 
     private static func writeJSON(_ obj: [String: Any], to path: String) throws {
+        if HookInstaller.fileHasSameJSON(obj, at: path) { return }
         let dir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
