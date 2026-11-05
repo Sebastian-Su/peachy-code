@@ -128,6 +128,21 @@ enum ServiceLog {
         try? handle.close()
         try? tail.write(to: url, options: .atomic)
     }
+
+    /// Last `lines` lines of the log for display, with credentials redacted.
+    /// Reads at most the final 256 KB so a big log never stalls the page.
+    static func tail(_ url: URL, lines: Int) -> String {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        let window: UInt64 = 256 * 1024
+        try? handle.seek(toOffset: size > window ? size - window : 0)
+        let text = String(decoding: handle.readDataToEndOfFile(), as: UTF8.self)
+        let kept = text.split(separator: "\n", omittingEmptySubsequences: false).suffix(lines + 1)
+            .joined(separator: "\n").trimmingCharacters(in: .newlines)
+        let last = kept.split(separator: "\n", omittingEmptySubsequences: false).suffix(lines).joined(separator: "\n")
+        return SecretRedactor.redact(last)
+    }
 }
 
 /// What the Services page shows for a registered service. Reading it never starts anything.

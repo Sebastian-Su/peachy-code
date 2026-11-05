@@ -73,6 +73,9 @@ struct ServiceRow: View {
         case stop(ServiceEntry)
     }
 
+    @State private var showLog = false
+    @State private var logText = ""
+
     let item: ServiceRegistryItem
     var runState: ServiceRunState? = nil
     var error: String? = nil
@@ -80,6 +83,34 @@ struct ServiceRow: View {
     var onAction: (Action) -> Void = { _ in }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            mainRow
+            if showLog {
+                ScrollView {
+                    Text(logText.isEmpty ? t("services.log.empty") : logText)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(Constants.textPrimary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 180)
+                .padding(8)
+                .background(Constants.surfaceSecondary, in: RoundedRectangle(cornerRadius: 6))
+            }
+        }
+        .padding(14)
+        .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
+        .overlay(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall).stroke(Constants.line, lineWidth: 1))
+        .task(id: showLog) {
+            guard showLog else { return }
+            while !Task.isCancelled && showLog {
+                logText = ServiceLog.tail(ServiceLauncher.logURL(for: item.id), lines: 200)
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+
+    private var mainRow: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 16))
@@ -118,13 +149,18 @@ struct ServiceRow: View {
                 }
             }
             Spacer()
-            if case .valid(let entry) = item.state, entry.kind == .service {
-                controls(for: entry)
+            if case .valid(let entry) = item.state {
+                HStack(spacing: 8) {
+                    if let url = entry.url {
+                        Button(t("services.open")) { NSWorkspace.shared.open(url) }
+                            .buttonStyle(BrandGhostButton(color: Constants.accentText))
+                    }
+                    Button(showLog ? t("services.log.hide") : t("services.log.show")) { showLog.toggle() }
+                        .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+                    if entry.kind == .service { controls(for: entry) }
+                }
             }
         }
-        .padding(14)
-        .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
-        .overlay(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall).stroke(Constants.line, lineWidth: 1))
     }
 
     @ViewBuilder

@@ -365,3 +365,7 @@
 "services.approve.modified" = "File last modified %@";
 "services.approve.changed" = "Changed";
 "services.approve.confirm" = "Confirm & start";
+"services.open" = "Open";
+"services.log.show" = "Log";
+"services.log.hide" = "Hide log";
+"services.log.empty" = "No output yet.";
