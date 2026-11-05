@@ -8,6 +8,8 @@ import Observation
 final class ServiceStore {
     private(set) var items: [ServiceRegistryItem] = []
     private(set) var statuses: [String: ServiceStatus] = [:]
+    /// Can each registration still run (directory and executable present)?
+    private(set) var validity: [String: ServiceValidity] = [:]
     /// Last run of each `task` registration.
     private(set) var taskRuns: [String: TaskRun] = [:]
     /// Last start error per service id, shown under the row.
@@ -151,6 +153,33 @@ final class ServiceStore {
         signature = currentSignature()
         items = ServiceRegistry.load(from: directory)
         loadTaskRuns()
+        checkValidity()
+    }
+
+    /// Spawns a login shell per command, so it runs only on page open and file changes.
+    private func checkValidity() {
+        let entries = items.compactMap { item -> ServiceEntry? in
+            if case .valid(let e) = item.state { return e }
+            return nil
+        }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let result = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, ServiceValidity.check($0)) })
+            DispatchQueue.main.async { self?.validity = result }
+        }
+    }
+
+    /// Moves the registration file to the Trash. Refused while the service runs.
+    @discardableResult
+    func delete(_ item: ServiceRegistryItem) -> Bool {
+        if statuses[item.id]?.isRunning == true { return false }
+        do {
+            try ServiceRegistry.moveToTrash(item.fileURL)
+        } catch {
+            errors[item.id] = error.localizedDescription
+            return false
+        }
+        reload()
+        return true
     }
 
     func reloadIfChanged() {

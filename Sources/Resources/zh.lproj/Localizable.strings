@@ -378,3 +378,12 @@
 "services.task.execute" = "执行";
 "services.task.running" = "执行中…";
 "services.task.result" = "退出码 %@ · 用时 %@ · %@";
+"services.invalid" = "已失效";
+"services.invalid.dir" = "工作目录 %@ 不存在";
+"services.invalid.command" = "找不到命令 %@";
+"services.delete" = "删除";
+"services.delete.title" = "删除这条注册？";
+"services.delete.message" = "%@ 会移到废纸篓，需要时可以从那里找回。";
+"services.delete.confirm" = "移到废纸篓";
+"services.delete.blocked" = "请先停止这个服务，再删除。";
+"services.delete.ok" = "好";

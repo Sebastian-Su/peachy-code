@@ -378,3 +378,12 @@
 "services.task.execute" = "Run";
 "services.task.running" = "Running…";
 "services.task.result" = "Exit %@ · took %@ · %@";
+"services.invalid" = "No longer valid";
+"services.invalid.dir" = "working directory %@ does not exist";
+"services.invalid.command" = "command %@ not found";
+"services.delete" = "Delete";
+"services.delete.title" = "Delete this registration?";
+"services.delete.message" = "%@ will be moved to the Trash; you can restore it from there.";
+"services.delete.confirm" = "Move to Trash";
+"services.delete.blocked" = "Stop the service before deleting it.";
+"services.delete.ok" = "OK";

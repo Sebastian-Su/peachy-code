@@ -20,7 +20,8 @@ struct ServicesView: View {
                 ForEach(store.items) { item in
                     ServiceRow(item: item, status: store.statuses[item.id], error: store.errors[item.id],
                                approval: approval(of: item, store: store),
-                               taskRun: store.taskRuns[item.id]) { action in
+                               taskRun: store.taskRuns[item.id],
+                               validity: store.validity[item.id] ?? .ok) { action in
                         handle(action, store: store)
                     }
                 }
@@ -30,6 +31,18 @@ struct ServicesView: View {
         .background(Constants.lightBackground)
         .onAppear { store.startWatching() }
         .onDisappear { store.stopWatching() }
+        .alert(t("services.delete.blocked"), isPresented: $deleteBlocked) {
+            Button(t("services.delete.ok"), role: .cancel) {}
+        }
+        .alert(t("services.delete.title"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
+            Button(t("permission.cancel"), role: .cancel) { pendingDelete = nil }
+            Button(t("services.delete.confirm"), role: .destructive) {
+                if let item = pendingDelete { store.delete(item) }
+                pendingDelete = nil
+            }
+        } message: {
+            Text(String(format: t("services.delete.message"), pendingDelete?.fileURL.lastPathComponent ?? ""))
+        }
         .sheet(item: $pendingExternalStop) { request in
             ExternalStopSheet(request: request) {
                 store.terminateExternal(pid: request.pid, expectedCommand: request.command,
@@ -49,6 +62,8 @@ struct ServicesView: View {
 
     @State private var pendingApproval: ServiceEntry?
     @State private var pendingExternalStop: ExternalStopRequest?
+    @State private var pendingDelete: ServiceRegistryItem?
+    @State private var deleteBlocked = false
 
     private func approval(of item: ServiceRegistryItem, store: ServiceStore) -> ServiceApproval.Status {
         if case .valid(let entry) = item.state { return store.approvalStatus(of: entry) }
@@ -69,6 +84,12 @@ struct ServicesView: View {
                 pendingExternalStop = ExternalStopRequest(entry: entry, pid: pid, command: command, restart: false)
             default:
                 store.stop(entry)
+            }
+        case .delete(let item):
+            if store.statuses[item.id]?.isRunning == true {
+                deleteBlocked = true
+            } else {
+                pendingDelete = item
             }
         case .restart(let entry):
             switch store.statuses[entry.id] {
@@ -100,6 +121,7 @@ struct ServiceRow: View {
         case start(ServiceEntry)
         case stop(ServiceEntry)
         case restart(ServiceEntry)
+        case delete(ServiceRegistryItem)
     }
 
     @State private var showLog = false
@@ -110,6 +132,7 @@ struct ServiceRow: View {
     var error: String? = nil
     var approval: ServiceApproval.Status = .approved
     var taskRun: TaskRun? = nil
+    var validity: ServiceValidity = .ok
     var onAction: (Action) -> Void = { _ in }
 
     var body: some View {
@@ -169,6 +192,11 @@ struct ServiceRow: View {
                         .foregroundColor(Constants.textMuted)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if let reason = validity.message {
+                        Text(t("services.invalid") + " · " + reason)
+                            .font(Constants.body(size: 12))
+                            .foregroundColor(Constants.destructiveRed)
+                    }
                     if entry.kind == .task, let run = taskRun, let finished = run.finishedAt {
                         let ok = run.exitCode == 0
                         Text(String(format: t("services.task.result"),
@@ -203,9 +231,17 @@ struct ServiceRow: View {
                     }
                     Button(showLog ? t("services.log.hide") : t("services.log.show")) { showLog.toggle() }
                         .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+                    if validity != .ok {
+                        Button(t("services.delete")) { onAction(.delete(item)) }
+                            .buttonStyle(BrandGhostButton(color: Constants.destructiveRed))
+                    }
                     if entry.kind == .service { controls(for: entry) } else { taskControls(for: entry) }
                 }
                 .fixedSize()
+            } else {
+                Button(t("services.delete")) { onAction(.delete(item)) }
+                    .buttonStyle(BrandGhostButton(color: Constants.destructiveRed))
+                    .fixedSize()
             }
         }
     }
@@ -223,6 +259,8 @@ struct ServiceRow: View {
             case .stopped:
                 Button(startTitle) { onAction(.start(entry)) }
                     .buttonStyle(BrandGhostButton(color: Constants.accentText))
+                    .disabled(validity != .ok)
+                    .opacity(validity != .ok ? 0.45 : 1)
             case .portBusy:
                 EmptyView()
             }
@@ -241,8 +279,8 @@ struct ServiceRow: View {
             }
             Button(approval == .approved ? t("services.task.execute") : t("services.confirm_and_start")) { onAction(.start(entry)) }
                 .buttonStyle(BrandGhostButton(color: Constants.accentText))
-                .disabled(!TaskRun.canExecute(status: status))
-                .opacity(running ? 0.45 : 1)
+                .disabled(!TaskRun.canExecute(status: status) || validity != .ok)
+                .opacity(running || validity != .ok ? 0.45 : 1)
         }
     }
 
@@ -279,6 +317,7 @@ struct ServiceRow: View {
 
     private var icon: String {
         switch item.state {
+        case .valid where validity != .ok: "exclamationmark.triangle.fill"
         case .valid(let entry): entry.kind == .service ? "server.rack" : "play.square"
         case .invalid: "exclamationmark.triangle.fill"
         }
@@ -286,6 +325,7 @@ struct ServiceRow: View {
 
     private var iconColor: Color {
         if case .invalid = item.state { return Constants.destructiveRed }
+        if validity != .ok { return Constants.destructiveRed }
         return Constants.accentText
     }
 }
