@@ -111,3 +111,52 @@ final class LaunchAgentCatalogTests: XCTestCase {
         XCTAssertTrue(p.runAtLoad)
     }
 }
+
+final class AutostartTests: XCTestCase {
+    private func svc(_ group: SystemService.Group, registered: Bool = true) -> SystemService {
+        SystemService(label: "ai.hermes.gateway", name: "hermes", group: group,
+                      plistPath: registered ? "/Users/u/Library/LaunchAgents/ai.hermes.gateway.plist" : "/opt/homebrew/opt/x.plist",
+                      program: nil, pid: 5, loaded: true, autostart: registered)
+    }
+
+    /// S28: turning autostart off only changes the next login, never stops the running process.
+    func testDisableOnlyAffectsLogin() {
+        let plan = SystemServiceActions.planAutostart(false, for: svc(.userAgent), uid: 501)
+        XCTAssertEqual(plan.commands, [["/bin/launchctl", "disable", "gui/501/ai.hermes.gateway"]])
+        XCTAssertFalse(plan.startsNow)
+        XCTAssertEqual(SystemServiceActions.planAutostart(true, for: svc(.userAgent), uid: 501).commands,
+                       [["/bin/launchctl", "enable", "gui/501/ai.hermes.gateway"]])
+    }
+
+    /// An unregistered brew service can only be registered by `brew services start`,
+    /// which also starts it now; the plan says so for the confirmation dialog.
+    func testUnregisteredBrewEnableStartsNow() {
+        let plan = SystemServiceActions.planAutostart(true, for: svc(.brew, registered: false), uid: 501)
+        XCTAssertEqual(plan.commands.first?.suffix(3), ["services", "start", "hermes"])
+        XCTAssertTrue(plan.startsNow)
+        XCTAssertEqual(SystemServiceActions.planAutostart(false, for: svc(.brew, registered: true), uid: 501).commands,
+                       [["/bin/launchctl", "disable", "gui/501/ai.hermes.gateway"]])
+    }
+
+    func testReadOnlyGroupsHaveNoAutostartControl() {
+        XCTAssertTrue(SystemServiceActions.planAutostart(false, for: svc(.appAgent), uid: 501).commands.isEmpty)
+        XCTAssertTrue(SystemServiceActions.planAutostart(false, for: svc(.daemon), uid: 501).commands.isEmpty)
+    }
+
+    func testParsesDisabledList() {
+        let out = "disabled services = {\n\t\"sh.brew.mihomo\" => enabled\n\t\"ai.hermes.gateway\" => disabled\n}\n"
+        XCTAssertEqual(LaunchdState.parseDisabled(out), ["ai.hermes.gateway"])
+    }
+
+    func testAutostartHonorsDisabled() {
+        let plists = [LaunchPlist(label: "ai.hermes.gateway", program: "/Users/u/.hermes/x", path: "/x", location: .userAgents, runAtLoad: true)]
+        let list = SystemServiceCatalog.build(brew: [], plists: plists, home: "/Users/u", disabled: ["ai.hermes.gateway"],
+                                              state: { _, _ in (true, 1) })
+        XCTAssertEqual(list.first?.autostart, false)
+    }
+
+    /// X4: registered PeachyPet services never write job files into LaunchAgents.
+    func testRegisteredServicesNeverUseLaunchAgents() {
+        XCTAssertFalse(ServiceLauncher.jobDirectory.path.contains("/LaunchAgents"))
+    }
+}

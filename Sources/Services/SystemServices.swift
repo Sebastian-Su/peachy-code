@@ -53,6 +53,32 @@ enum SystemServiceActions {
         }
     }
 
+    /// Login-start change for brew services and the user's own agents. Only
+    /// `launchctl enable/disable`, which affect the next login and leave the
+    /// running process alone; registering an unregistered brew service needs
+    /// `brew services start`, which also starts it now (`startsNow`).
+    static func planAutostart(_ enable: Bool, for service: SystemService, uid: uid_t) -> (commands: [[String]], startsNow: Bool) {
+        guard service.isOperable else { return ([], false) }
+        let target = "gui/\(uid)/\(service.label)"
+        // A brew service is registered for login once its plist sits in LaunchAgents.
+        let registered = service.group == .userAgent || service.plistPath.contains("/Library/LaunchAgents/")
+        if enable && service.group == .brew && !registered {
+            return ([[BrewServices.brewPath, "services", "start", service.name]], true)
+        }
+        if !enable && service.group == .brew && !registered { return ([], false) }
+        return ([["/bin/launchctl", enable ? "enable" : "disable", target]], false)
+    }
+
+    @discardableResult
+    static func setAutostart(_ enable: Bool, on service: SystemService) -> String? {
+        guard service.isOperable else { return "read-only" }
+        for command in planAutostart(enable, for: service, uid: getuid()).commands {
+            let (status, output) = run(command)
+            if status != 0 { return output.trimmingCharacters(in: .whitespacesAndNewlines) }
+        }
+        return nil
+    }
+
     /// Runs the planned commands; returns the first failure's output.
     @discardableResult
     static func perform(_ action: SystemServiceAction, on service: SystemService) -> String? {
@@ -115,6 +141,19 @@ enum BrewServices {
 
 /// launchd state of one job in the user's GUI domain, read-only.
 enum LaunchdState {
+    /// Labels turned off for login in the user's GUI domain.
+    static func disabledLabels(uid: uid_t = getuid()) -> Set<String> {
+        parseDisabled(SystemServiceActions.run(["/bin/launchctl", "print-disabled", "gui/\(uid)"]).1)
+    }
+
+    static func parseDisabled(_ output: String) -> Set<String> {
+        Set(output.split(separator: "\n").compactMap { line -> String? in
+            let parts = line.components(separatedBy: "=>")
+            guard parts.count == 2, parts[1].trimmingCharacters(in: .whitespaces) == "disabled" else { return nil }
+            return parts[0].trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        })
+    }
+
     static func read(label: String, system: Bool = false, uid: uid_t = getuid()) -> (loaded: Bool, pid: Int32?) {
         let domain = system ? "system" : "gui/\(uid)"
         let (status, output) = SystemServiceActions.run(["/bin/launchctl", "print", "\(domain)/\(label)"])
@@ -171,19 +210,22 @@ enum SystemServiceCatalog {
         brew: [BrewServices.Item],
         plists: [LaunchPlist] = defaultPlists(),
         home: String = NSHomeDirectory(),
+        disabled: Set<String> = LaunchdState.disabledLabels(),
         state: (String, Bool) -> (loaded: Bool, pid: Int32?) = { label, system in LaunchdState.read(label: label, system: system) }
     ) -> [SystemService] {
         var result = brew.map { item -> SystemService in
             let s = state(item.label, false)
             return SystemService(label: item.label, name: item.name, group: .brew, plistPath: item.file,
-                                 program: nil, pid: s.pid, loaded: s.loaded, autostart: item.registered)
+                                 program: nil, pid: s.pid, loaded: s.loaded,
+                                 autostart: item.registered && !disabled.contains(item.label))
         }
         let brewLabels = Set(brew.map(\.label))
         for plist in plists where !brewLabels.contains(plist.label) {
             guard let group = group(for: plist, home: home) else { continue }
             let s = state(plist.label, plist.location == .systemDaemons)
             result.append(SystemService(label: plist.label, name: plist.label, group: group, plistPath: plist.path,
-                                        program: plist.program, pid: s.pid, loaded: s.loaded, autostart: plist.runAtLoad))
+                                        program: plist.program, pid: s.pid, loaded: s.loaded,
+                                        autostart: plist.runAtLoad && !disabled.contains(plist.label)))
         }
         return result
     }

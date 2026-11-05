@@ -78,6 +78,19 @@ final class ServiceStore {
         }
     }
 
+    /// Only after the user confirmed in the autostart dialog.
+    func setAutostart(_ enable: Bool, on service: SystemService) {
+        errors[service.id] = nil
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let failure = SystemServiceActions.setAutostart(enable, on: service)
+            DispatchQueue.main.async {
+                self?.errors[service.id] = failure
+                self?.lastBrewRead = .distantPast
+                self?.refreshSystemServices()
+            }
+        }
+    }
+
     /// Reads launchd state off the main thread; read-only.
     func refreshStatus() {
         refreshSystemServices()

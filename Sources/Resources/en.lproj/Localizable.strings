@@ -392,3 +392,11 @@
 "services.section.app_agents" = "INSTALLED BY APPS";
 "services.copy_sudo" = "Copy sudo command";
 "services.read_only" = "Read-only";
+"services.autostart" = "Start at login";
+"services.autostart.on_title" = "Start “%@” at login?";
+"services.autostart.off_title" = "Stop “%@” starting at login?";
+"services.autostart.off_message" = "It keeps running now; it just won’t start at your next login.";
+"services.autostart.on_message" = "It will start at your next login. Nothing changes right now.";
+"services.autostart.on_message_starts" = "Homebrew registers it with “brew services start”, which also starts it right now.";
+"services.autostart.turn_on" = "Turn on";
+"services.autostart.turn_off" = "Turn off";

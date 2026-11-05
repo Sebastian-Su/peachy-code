@@ -392,3 +392,11 @@
 "services.section.app_agents" = "应用自带";
 "services.copy_sudo" = "复制 sudo 命令";
 "services.read_only" = "只读";
+"services.autostart" = "开机自启";
+"services.autostart.on_title" = "让「%@」开机自启？";
+"services.autostart.off_title" = "取消「%@」开机自启？";
+"services.autostart.off_message" = "现在的运行不受影响，只是下次登录时不再自动启动。";
+"services.autostart.on_message" = "下次登录时会自动启动，现在不会有任何变化。";
+"services.autostart.on_message_starts" = "Homebrew 只能用「brew services start」登记开机自启，这一步会同时立即启动它。";
+"services.autostart.turn_on" = "打开";
+"services.autostart.turn_off" = "关闭";

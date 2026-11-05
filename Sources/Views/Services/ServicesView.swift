@@ -29,6 +29,16 @@ struct ServicesView: View {
         .onDisappear { store.stopWatching() }
         .modifier(ServiceDialogs(store: store, pendingApproval: $pendingApproval, pendingExternalStop: $pendingExternalStop,
                                  pendingDelete: $pendingDelete, deleteBlocked: $deleteBlocked))
+        .alert(pendingAutostart?.title ?? "", isPresented: Binding(get: { pendingAutostart != nil }, set: { if !$0 { pendingAutostart = nil } })) {
+            Button(t("permission.cancel"), role: .cancel) { pendingAutostart = nil }
+            Button(pendingAutostart?.enable == true ? t("services.autostart.turn_on") : t("services.autostart.turn_off"),
+                   role: pendingAutostart?.enable == true ? nil : .destructive) {
+                if let request = pendingAutostart { store.setAutostart(request.enable, on: request.service) }
+                pendingAutostart = nil
+            }
+        } message: {
+            Text(pendingAutostart?.message ?? "")
+        }
     }
 
     @ViewBuilder
@@ -38,12 +48,15 @@ struct ServicesView: View {
             ForEach(services) { service in
                 SystemServiceRow(service: service, error: store.errors[service.id]) { action in
                     store.perform(action, on: service)
+                } onAutostart: { enable in
+                    pendingAutostart = AutostartRequest(service: service, enable: enable)
                 }
             }
         }
     }
 
     @State private var showAppAgents = false
+    @State private var pendingAutostart: AutostartRequest?
 
     @ViewBuilder
     private func appAgentsSection(_ services: [SystemService]) -> some View {
@@ -442,6 +455,7 @@ struct SystemServiceRow: View {
     let service: SystemService
     var error: String? = nil
     var onAction: (SystemServiceAction) -> Void = { _ in }
+    var onAutostart: (Bool) -> Void = { _ in }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -464,6 +478,20 @@ struct SystemServiceRow: View {
             }
             Spacer()
             HStack(spacing: 8) {
+                if service.isOperable, let autostart = service.autostart {
+                    Button { onAutostart(!autostart) } label: {
+                        HStack(spacing: 5) {
+                            Text(t("services.autostart")).font(Constants.body(size: 11)).foregroundColor(Constants.textMuted)
+                            ZStack(alignment: autostart ? .trailing : .leading) {
+                                Capsule().fill(autostart ? Constants.orangePrimary : Constants.line).frame(width: 26, height: 15)
+                                Circle().fill(Color.white).frame(width: 11, height: 11).padding(2)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(t("services.autostart"))
+                    .accessibilityValue(autostart ? "on" : "off")
+                }
                 statusBadge
                 if service.group == .daemon {
                     Button(t("services.copy_sudo")) {
@@ -512,5 +540,22 @@ struct SystemServiceRow: View {
             Circle().fill(color).frame(width: 7, height: 7)
             Text(text).font(Constants.body(size: 11, weight: .medium)).foregroundColor(color).lineLimit(1)
         }
+    }
+}
+
+/// Changing login start for a brew service or the user's own agent.
+struct AutostartRequest {
+    let service: SystemService
+    let enable: Bool
+
+    var startsNow: Bool { SystemServiceActions.planAutostart(enable, for: service, uid: getuid()).startsNow }
+
+    var title: String {
+        String(format: t(enable ? "services.autostart.on_title" : "services.autostart.off_title"), service.name)
+    }
+
+    var message: String {
+        if !enable { return t("services.autostart.off_message") }
+        return startsNow ? t("services.autostart.on_message_starts") : t("services.autostart.on_message")
     }
 }
