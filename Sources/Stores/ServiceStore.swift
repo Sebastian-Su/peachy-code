@@ -8,21 +8,26 @@ import Observation
 final class ServiceStore {
     private(set) var items: [ServiceRegistryItem] = []
     private(set) var statuses: [String: ServiceStatus] = [:]
+    /// Last run of each `task` registration.
+    private(set) var taskRuns: [String: TaskRun] = [:]
     /// Last start error per service id, shown under the row.
     private(set) var errors: [String: String] = [:]
     @ObservationIgnored let directory: URL
     @ObservationIgnored let launcher: ServiceLauncher
     @ObservationIgnored let approvals: ServiceApproval
+    @ObservationIgnored let runStore: TaskRunStore
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var statusTimer: Timer?
     @ObservationIgnored private var signature = ""
 
     init(directory: URL = ServiceRegistry.defaultDirectory,
          launcher: ServiceLauncher = .shared,
-         approvals: ServiceApproval = .shared) {
+         approvals: ServiceApproval = .shared,
+         runStore: TaskRunStore = .shared) {
         self.directory = directory
         self.launcher = launcher
         self.approvals = approvals
+        self.runStore = runStore
     }
 
     func startWatching() {
@@ -61,8 +66,31 @@ final class ServiceStore {
                 }
                 result[entry.id] = ServiceStatus.resolve(entry, managedPID: managed, listener: listener)
             }
-            DispatchQueue.main.async { self?.statuses = result }
+            // Finished tasks: record exit code once, then remove the exited job.
+            var finished: [String: Int32?] = [:]
+            for entry in entries where entry.kind == .task && !(result[entry.id]?.isRunning ?? false) {
+                finished[entry.id] = launcher.lastExitStatus(id: entry.id)
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.statuses = result
+                for (id, exit) in finished { self.observeTaskFinished(id: id, lastExit: exit) }
+            }
         }
+    }
+
+    private func observeTaskFinished(id: String, lastExit: Int32?) {
+        guard let run = taskRuns[id] ?? runStore.run(for: id) else { return }
+        let (next, cleanUp) = run.observe(running: false, lastExit: lastExit, now: Date())
+        taskRuns[id] = next
+        if cleanUp {
+            runStore.set(next, for: id)
+            launcher.stop(id: id)
+        }
+    }
+
+    func loadTaskRuns() {
+        for item in items { if let run = runStore.run(for: item.id) { taskRuns[item.id] = run } }
     }
 
     func approvalStatus(of entry: ServiceEntry) -> ServiceApproval.Status { approvals.status(of: entry) }
@@ -75,8 +103,17 @@ final class ServiceStore {
 
     func start(_ entry: ServiceEntry) {
         errors[entry.id] = nil
+        if entry.kind == .task {
+            guard TaskRun.canExecute(status: statuses[entry.id]) else { return }
+        }
         do {
             try launcher.start(entry)
+            if entry.kind == .task {
+                let run = TaskRun(startedAt: Date(), finishedAt: nil, exitCode: nil)
+                taskRuns[entry.id] = run
+                runStore.set(run, for: entry.id)
+                statuses[entry.id] = .running(pid: 0)
+            }
         } catch ServiceLauncher.LaunchError.launchctlFailed(let output) {
             errors[entry.id] = output.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
@@ -113,6 +150,7 @@ final class ServiceStore {
     func reload() {
         signature = currentSignature()
         items = ServiceRegistry.load(from: directory)
+        loadTaskRuns()
     }
 
     func reloadIfChanged() {

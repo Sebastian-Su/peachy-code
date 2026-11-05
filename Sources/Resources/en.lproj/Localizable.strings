@@ -375,3 +375,6 @@
 "services.external.stop_title" = "Stop “%@”?";
 "services.external.restart_title" = "Restart “%@”?";
 "services.external.intro" = "This process was not started by PeachyPet. It will be asked to quit, then forced after 10 seconds if it is still running.";
+"services.task.execute" = "Run";
+"services.task.running" = "Running…";
+"services.task.result" = "Exit %@ · took %@ · %@";

@@ -19,7 +19,8 @@ struct ServicesView: View {
                 }
                 ForEach(store.items) { item in
                     ServiceRow(item: item, status: store.statuses[item.id], error: store.errors[item.id],
-                               approval: approval(of: item, store: store)) { action in
+                               approval: approval(of: item, store: store),
+                               taskRun: store.taskRuns[item.id]) { action in
                         handle(action, store: store)
                     }
                 }
@@ -108,6 +109,7 @@ struct ServiceRow: View {
     var status: ServiceStatus? = nil
     var error: String? = nil
     var approval: ServiceApproval.Status = .approved
+    var taskRun: TaskRun? = nil
     var onAction: (Action) -> Void = { _ in }
 
     var body: some View {
@@ -167,6 +169,22 @@ struct ServiceRow: View {
                         .foregroundColor(Constants.textMuted)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if entry.kind == .task, let run = taskRun, let finished = run.finishedAt {
+                        let ok = run.exitCode == 0
+                        Text(String(format: t("services.task.result"),
+                                    run.exitCode.map(String.init) ?? "?",
+                                    Self.durationText(run.duration ?? 0),
+                                    relativeTimeString(from: finished)))
+                            .font(Constants.body(size: 11, weight: .medium))
+                            .foregroundColor(ok ? Color(.sRGB, red: 22/255, green: 140/255, blue: 70/255) : Constants.destructiveRed)
+                        let tail = ServiceLog.tail(ServiceLauncher.logURL(for: entry.id), lines: 3)
+                        if !tail.isEmpty {
+                            Text(tail)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(Constants.textMuted)
+                                .lineLimit(3)
+                        }
+                    }
                     if let error {
                         Text(error).font(Constants.body(size: 11)).foregroundColor(Constants.destructiveRed).lineLimit(2)
                     }
@@ -185,7 +203,7 @@ struct ServiceRow: View {
                     }
                     Button(showLog ? t("services.log.hide") : t("services.log.show")) { showLog.toggle() }
                         .buttonStyle(BrandGhostButton(color: Constants.textMuted))
-                    if entry.kind == .service { controls(for: entry) }
+                    if entry.kind == .service { controls(for: entry) } else { taskControls(for: entry) }
                 }
                 .fixedSize()
             }
@@ -211,6 +229,23 @@ struct ServiceRow: View {
         }
     }
 
+    @ViewBuilder
+    private func taskControls(for entry: ServiceEntry) -> some View {
+        let running = status?.isRunning ?? false
+        HStack(spacing: 8) {
+            if running {
+                HStack(spacing: 4) {
+                    Image(systemName: "hourglass").font(.system(size: 11)).foregroundColor(Constants.textMuted)
+                    Text(t("services.task.running")).font(Constants.body(size: 11, weight: .medium)).foregroundColor(Constants.textMuted)
+                }
+            }
+            Button(approval == .approved ? t("services.task.execute") : t("services.confirm_and_start")) { onAction(.start(entry)) }
+                .buttonStyle(BrandGhostButton(color: Constants.accentText))
+                .disabled(!TaskRun.canExecute(status: status))
+                .opacity(running ? 0.45 : 1)
+        }
+    }
+
     private var startTitle: String {
         approval == .approved ? t("services.start") : t("services.confirm_and_start")
     }
@@ -230,6 +265,11 @@ struct ServiceRow: View {
             Text(text).font(Constants.body(size: 11, weight: .medium)).foregroundColor(color)
                 .lineLimit(1).fixedSize()
         }
+    }
+
+    static func durationText(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds.rounded())
+        return s < 60 ? "\(s)s" : "\(s / 60)m \(s % 60)s"
     }
 
     private var title: String {
