@@ -388,3 +388,7 @@
 "services.delete.blocked" = "请先停止这个服务，再删除。";
 "services.delete.ok" = "好";
 "services.section.brew" = "BREW 服务";
+"services.section.agents" = "你的 LaunchAgent";
+"services.section.app_agents" = "应用自带";
+"services.copy_sudo" = "复制 sudo 命令";
+"services.read_only" = "只读";

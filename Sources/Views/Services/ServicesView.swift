@@ -19,6 +19,8 @@ struct ServicesView: View {
                 }
                 registeredList(store: store)
                 systemSection(t("services.section.brew"), store.systemServices.filter { $0.group == .brew }, store: store)
+                systemSection(t("services.section.agents"), store.systemServices.filter { $0.group == .userAgent || $0.group == .daemon }, store: store)
+                appAgentsSection(store.systemServices.filter { $0.group == .appAgent })
             }
             .padding(20)
         }
@@ -37,6 +39,30 @@ struct ServicesView: View {
                 SystemServiceRow(service: service, error: store.errors[service.id]) { action in
                     store.perform(action, on: service)
                 }
+            }
+        }
+    }
+
+    @State private var showAppAgents = false
+
+    @ViewBuilder
+    private func appAgentsSection(_ services: [SystemService]) -> some View {
+        if !services.isEmpty {
+            Button {
+                showAppAgents.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: showAppAgents ? "chevron.down" : "chevron.right").font(.system(size: 10, weight: .semibold))
+                    Text("\(t("services.section.app_agents")) · \(services.count)")
+                        .font(Constants.body(size: 11, weight: .semibold))
+                        .tracking(1)
+                }
+                .foregroundColor(Constants.textMuted)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 10)
+            if showAppAgents {
+                ForEach(services) { SystemServiceRow(service: $0) }
             }
         }
     }
@@ -439,6 +465,18 @@ struct SystemServiceRow: View {
             Spacer()
             HStack(spacing: 8) {
                 statusBadge
+                if service.group == .daemon {
+                    Button(t("services.copy_sudo")) {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(SystemServiceCatalog.sudoCommand(for: service), forType: .string)
+                    }
+                    .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+                    .help(SystemServiceCatalog.sudoCommand(for: service))
+                } else if !service.isOperable {
+                    Text(t("services.read_only"))
+                        .font(Constants.body(size: 11))
+                        .foregroundColor(Constants.textMuted)
+                }
                 if service.isOperable {
                     if service.isRunning {
                         Button(t("services.restart")) { onAction(.restart) }

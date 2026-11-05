@@ -51,3 +51,63 @@ final class BrewServiceTests: XCTestCase {
                        [["/bin/launchctl", "kickstart", "-k", "gui/501/sh.brew.mihomo"]])
     }
 }
+
+final class LaunchAgentCatalogTests: XCTestCase {
+    private let home = "/Users/u"
+
+    private func plist(_ label: String, _ program: String?, dir: LaunchPlist.Location) -> LaunchPlist {
+        LaunchPlist(label: label, program: program, path: "/x/\(label).plist", location: dir, runAtLoad: true)
+    }
+
+    /// S24, S25: the user's own agents are operable; app-installed ones are read-only.
+    func testClassifiesAgents() {
+        let cases: [(LaunchPlist, SystemService.Group?)] = [
+            (plist("ai.hermes.gateway", "\(home)/.hermes/hermes-agent/venv/bin/python", dir: .userAgents), .userAgent),
+            (plist("ai.hermes.gateway-all", "\(home)/.hermes/bin/gateway-all.sh", dir: .userAgents), .userAgent),
+            (plist("com.suzhou.paseo-daemon-start", "/opt/homebrew/bin/paseo", dir: .userAgents), .userAgent),
+            (plist("com.google.GoogleUpdater.wake", "\(home)/Library/Application Support/Google/GoogleUpdater/Current/GoogleUpdater.app/Contents/MacOS/GoogleUpdater", dir: .userAgents), .appAgent),
+            (plist("SwitchHosts", "/Applications/SwitchHosts.app/Contents/MacOS/switchhosts", dir: .userAgents), .appAgent),
+            (plist("com.citrolabs.keystone.agent", nil, dir: .userAgents), .appAgent),
+            (plist("com.tencent.LemonMonitor", "/Applications/Tencent Lemon.app/Contents/MacOS/LemonMonitor", dir: .systemAgents), .appAgent),
+            (plist("com.suzhou.utm-clash-bypass", "/usr/local/libexec/utm-clash-bypass", dir: .systemDaemons), .daemon),
+            (plist("com.docker.vmnetd", "/Library/PrivilegedHelperTools/com.docker.vmnetd", dir: .systemDaemons), nil),
+            (plist("com.qihoo.360safe.daemon", "/Library/Application Support/Qihoo/360Safe/x", dir: .systemDaemons), nil),
+        ]
+        for (p, expected) in cases {
+            XCTAssertEqual(SystemServiceCatalog.group(for: p, home: home), expected, p.label)
+        }
+    }
+
+    /// A brew service's plist in LaunchAgents is shown once, in the brew group.
+    func testBrewAgentIsNotListedTwice() {
+        let agents = [plist("sh.brew.mihomo", "/opt/homebrew/opt/mihomo/bin/mihomo", dir: .userAgents),
+                      plist("ai.hermes.gateway", "\(home)/.hermes/x", dir: .userAgents)]
+        let brew = [BrewServices.Item(name: "mihomo", status: "started", file: "/Users/u/Library/LaunchAgents/sh.brew.mihomo.plist", registered: true)]
+        let list = SystemServiceCatalog.build(brew: brew, plists: agents, home: home, state: { _, _ in (false, nil) })
+        XCTAssertEqual(list.filter { $0.label == "sh.brew.mihomo" }.map(\.group), [.brew])
+        XCTAssertEqual(list.filter { $0.label == "ai.hermes.gateway" }.map(\.group), [.userAgent])
+    }
+
+    /// X3: read-only groups never run anything, and no command is ever sudo.
+    func testReadOnlyGroupsRunNothing() {
+        for group in [SystemService.Group.appAgent, .daemon] {
+            let svc = SystemService(label: "x", name: "x", group: group, plistPath: "/x.plist", program: nil, pid: 1, loaded: true, autostart: true)
+            XCTAssertFalse(svc.isOperable)
+            XCTAssertEqual(SystemServiceActions.perform(.stop, on: svc), "read-only")
+        }
+        let daemon = SystemService(label: "com.suzhou.utm-clash-bypass", name: "utm", group: .daemon, plistPath: "/Library/LaunchDaemons/com.suzhou.utm-clash-bypass.plist",
+                                   program: nil, pid: nil, loaded: true, autostart: true)
+        XCTAssertEqual(SystemServiceCatalog.sudoCommand(for: daemon), "sudo launchctl kickstart -k system/com.suzhou.utm-clash-bypass")
+    }
+
+    func testParsesPlist() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("p-\(UUID().uuidString).plist")
+        let dict: [String: Any] = ["Label": "ai.hermes.gateway", "ProgramArguments": ["/Users/u/.hermes/venv/bin/python", "-m", "x"], "RunAtLoad": true, "KeepAlive": true]
+        try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let p = try XCTUnwrap(LaunchPlist.read(url, location: .userAgents))
+        XCTAssertEqual(p.label, "ai.hermes.gateway")
+        XCTAssertEqual(p.program, "/Users/u/.hermes/venv/bin/python")
+        XCTAssertTrue(p.runAtLoad)
+    }
+}

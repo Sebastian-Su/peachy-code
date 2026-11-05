@@ -388,3 +388,7 @@
 "services.delete.blocked" = "Stop the service before deleting it.";
 "services.delete.ok" = "OK";
 "services.section.brew" = "BREW";
+"services.section.agents" = "YOUR LAUNCHAGENTS";
+"services.section.app_agents" = "INSTALLED BY APPS";
+"services.copy_sudo" = "Copy sudo command";
+"services.read_only" = "Read-only";
