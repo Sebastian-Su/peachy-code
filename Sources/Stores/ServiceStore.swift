@@ -6,6 +6,8 @@ import Observation
 /// background otherwise.
 @Observable
 final class ServiceStore {
+    static let watchInterval: TimeInterval = 1.0
+
     private(set) var items: [ServiceRegistryItem] = []
     private(set) var statuses: [String: ServiceStatus] = [:]
     /// Can each registration still run (directory and executable present)?
@@ -39,7 +41,7 @@ final class ServiceStore {
     func startWatching() {
         reload()
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.reloadIfChanged() }
+        timer = Timer.scheduledTimer(withTimeInterval: Self.watchInterval, repeats: true) { [weak self] _ in self?.reloadIfChanged() }
         refreshStatus()
         statusTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in self?.refreshStatus() }
     }
