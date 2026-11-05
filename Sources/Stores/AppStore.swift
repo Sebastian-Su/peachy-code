@@ -12,6 +12,7 @@ final class AppStore {
     let claudeCodeAdapter = ClaudeCodeAdapter()
     let copilotAdapter = CopilotAdapter()
     let codexAdapter = CodexAdapter()
+    let serviceStore = ServiceStore()
     let eventStore = EventStore()
     let sessionStore = SessionStore()
     let notificationStore = NotificationStore()

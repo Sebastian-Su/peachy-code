@@ -9,7 +9,7 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "initialSection").flatMap(SidebarSection.init(rawValue:)) ?? .inbox
 
     enum SidebarSection: String, CaseIterable {
-        case inbox, sessions, agents, pets, settings
+        case inbox, sessions, agents, services, pets, settings
 
         var titleKey: String { "nav.\(rawValue)" }
         var eyebrow: String { rawValue.uppercased() }
@@ -19,6 +19,7 @@ struct ContentView: View {
             case .inbox: "tray"
             case .sessions: "terminal"
             case .agents: "point.3.connected.trianglepath.dotted"
+            case .services: "server.rack"
             case .pets: "wand.and.stars"
             case .settings: "gear"
             }
@@ -107,6 +108,7 @@ struct ContentView: View {
         case .inbox: InboxView()
         case .sessions: SessionListView()
         case .agents: AgentsView()
+        case .services: ServicesView()
         case .pets: PeachyDashboardView()
         case .settings: SettingsView()
         }

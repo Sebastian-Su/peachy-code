@@ -337,3 +337,16 @@
 "pets.catalog_unreachable" = "Could not load the pet list: %@";
 "sidebar.pet_downloading" = "Downloading PeachMilky…";
 "sidebar.pet_download_failed" = "Download failed; the app still works.";
+
+/* Services */
+"services.error.bad_id" = "File name "%@" must use lowercase letters, digits and hyphens.";
+"services.error.not_json" = "Not valid JSON.";
+"services.error.schema" = "Unknown format version %d.";
+"services.error.kind" = "Unknown kind "%@"; use service or task.";
+"services.error.missing" = "Missing required field "%@".";
+"nav.services" = "Services";
+"services.section.registered" = "REGISTERED";
+"services.empty" = "Nothing registered yet. Ask an agent to register a start command with PeachyPet.";
+"services.kind.service" = "Service";
+"services.kind.task" = "Task";
+"services.format_error" = "Format error";

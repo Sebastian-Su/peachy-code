@@ -337,3 +337,16 @@
 "pets.catalog_unreachable" = "无法读取桌宠列表：%@";
 "sidebar.pet_downloading" = "正在下载 PeachMilky…";
 "sidebar.pet_download_failed" = "下载失败，应用照常可用。";
+
+/* Services */
+"services.error.bad_id" = "文件名「%@」只能用小写字母、数字和连字符。";
+"services.error.not_json" = "不是合法的 JSON。";
+"services.error.schema" = "不认识的格式版本 %d。";
+"services.error.kind" = "未知类型「%@」，只能是 service 或 task。";
+"services.error.missing" = "缺少必填字段「%@」。";
+"nav.services" = "服务";
+"services.section.registered" = "已注册";
+"services.empty" = "还没有注册的服务。可以让 Agent 把启动命令注册到 PeachyPet。";
+"services.kind.service" = "常驻";
+"services.kind.task" = "任务";
+"services.format_error" = "格式错误";
