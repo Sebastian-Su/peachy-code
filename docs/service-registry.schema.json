@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Sebastian-Su/peachy-code/docs/service-registry.schema.json",
+  "title": "PeachyPet service registration",
+  "description": "One file per service in ~/.peachypet/services/<id>.json. The file name is the id: lowercase letters, digits and hyphens.",
+  "type": "object",
+  "required": ["schema", "name", "kind", "command"],
+  "properties": {
+    "schema": { "type": "integer", "const": 1, "description": "Format version. Always 1." },
+    "name": { "type": "string", "minLength": 1, "description": "Display name." },
+    "kind": { "type": "string", "enum": ["service", "task"], "description": "service: long-running, has start/stop/restart. task: runs to completion." },
+    "command": { "type": "string", "minLength": 1, "description": "One shell line, run with the user's login shell (zsh -lc)." },
+    "cwd": { "type": "string", "description": "Working directory. ~ is expanded." },
+    "url": { "type": "string", "description": "Opened by the Open button." },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Port the service listens on; used for running status." },
+    "env": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Extra environment variables." },
+    "note": { "type": "string", "description": "One-line note shown under the name." }
+  },
+  "additionalProperties": true
+}
