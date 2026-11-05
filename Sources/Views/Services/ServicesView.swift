@@ -18,7 +18,10 @@ struct ServicesView: View {
                         .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
                 }
                 ForEach(store.items) { item in
-                    ServiceRow(item: item)
+                    ServiceRow(item: item, runState: store.runStates[item.id], error: store.errors[item.id],
+                               approval: approval(of: item, store: store)) { action in
+                        handle(action, store: store)
+                    }
                 }
             }
             .padding(20)
@@ -26,6 +29,34 @@ struct ServicesView: View {
         .background(Constants.lightBackground)
         .onAppear { store.startWatching() }
         .onDisappear { store.stopWatching() }
+        .sheet(item: $pendingApproval) { entry in
+            ServiceApprovalSheet(entry: entry, status: store.approvalStatus(of: entry)) {
+                store.approveAndStart(entry)
+                pendingApproval = nil
+            } onCancel: {
+                pendingApproval = nil
+            }
+        }
+    }
+
+    @State private var pendingApproval: ServiceEntry?
+
+    private func approval(of item: ServiceRegistryItem, store: ServiceStore) -> ServiceApproval.Status {
+        if case .valid(let entry) = item.state { return store.approvalStatus(of: entry) }
+        return .approved
+    }
+
+    private func handle(_ action: ServiceRow.Action, store: ServiceStore) {
+        switch action {
+        case .start(let entry):
+            if store.approvalStatus(of: entry) == .approved {
+                store.start(entry)
+            } else {
+                pendingApproval = entry
+            }
+        case .stop(let entry):
+            store.stop(entry)
+        }
     }
 
     private func sectionHeader(_ title: String, count: Int) -> some View {
@@ -37,7 +68,16 @@ struct ServicesView: View {
 }
 
 struct ServiceRow: View {
+    enum Action {
+        case start(ServiceEntry)
+        case stop(ServiceEntry)
+    }
+
     let item: ServiceRegistryItem
+    var runState: ServiceRunState? = nil
+    var error: String? = nil
+    var approval: ServiceApproval.Status = .approved
+    var onAction: (Action) -> Void = { _ in }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -68,6 +108,9 @@ struct ServiceRow: View {
                         .foregroundColor(Constants.textMuted)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if let error {
+                        Text(error).font(Constants.body(size: 11)).foregroundColor(Constants.destructiveRed).lineLimit(2)
+                    }
                 case .invalid(let reason):
                     Text(t("services.format_error") + " · " + reason.message)
                         .font(Constants.body(size: 12))
@@ -75,10 +118,43 @@ struct ServiceRow: View {
                 }
             }
             Spacer()
+            if case .valid(let entry) = item.state, entry.kind == .service {
+                controls(for: entry)
+            }
         }
         .padding(14)
         .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
         .overlay(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall).stroke(Constants.line, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func controls(for entry: ServiceEntry) -> some View {
+        HStack(spacing: 8) {
+            statusBadge
+            switch runState ?? .stopped {
+            case .running:
+                Button(t("services.stop")) { onAction(.stop(entry)) }
+                    .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+            case .stopped:
+                Button(startTitle) { onAction(.start(entry)) }
+                    .buttonStyle(BrandGhostButton(color: Constants.accentText))
+            }
+        }
+    }
+
+    private var startTitle: String {
+        approval == .approved ? t("services.start") : t("services.confirm_and_start")
+    }
+
+    private var statusBadge: some View {
+        let running: Bool = { if case .running = runState { return true }; return false }()
+        let color = running ? Color(.sRGB, red: 22/255, green: 140/255, blue: 70/255) : Constants.textMuted
+        return HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(running ? t("services.running") : t("services.stopped"))
+                .font(Constants.body(size: 11, weight: .medium))
+                .foregroundColor(color)
+        }
     }
 
     private var title: String {
