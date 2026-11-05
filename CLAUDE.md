@@ -233,10 +233,22 @@ Sources/
 
 ## 主窗口与皮肤
 
-- 五个入口：收件箱、会话、代理、桌宠、设置。spec 见 `docs/main-window-redesign-spec.md`
+- 六个入口：收件箱、会话、代理、服务、桌宠、设置。spec 见 `docs/main-window-redesign-spec.md`
 - 皮肤：`Skin` / `SkinStore`，选择存在 UserDefaults 的 `skinId`、`skinCustomAccent` 两个键。`Constants` 的颜色都是读当前皮肤的计算属性，新界面直接用 `Constants`，不要写死颜色
 - 字体：标题用 Bricolage Grotesque，正文用 Rubik，都放在 `Resources/Fonts`，启动时注册
-- 截图和走查用的启动参数（不会保存）：`-initialSection inbox|sessions|agents|pets|settings`、`-initialSettingsTab general|shortcuts|notifications|appearance`。`-appLanguage` 会被语言管理器写回设置，用完要恢复。`petCatalogURL` 写进 defaults 可以把清单临时指到本地文件
+- 截图和走查用的启动参数（不会保存）：`-initialSection inbox|sessions|agents|services|pets|settings`、`-initialSettingsTab general|shortcuts|notifications|appearance`。`-appLanguage` 会被语言管理器写回设置，用完要恢复。`petCatalogURL` 写进 defaults 可以把清单临时指到本地文件
+
+## 服务页（服务控制台）
+
+- spec：`docs/service-console-spec.md`；注册格式：`docs/service-registry.md` 和 `docs/service-registry.schema.json`，这两份是格式的唯一来源
+- 注册：每个服务一个文件，放在 `~/.peachypet/services/<id>.json`；`ServiceStore` 只在页面打开时每秒检查一次目录。用户级 skill `peachypet-service` 的 references 软链接到上面两份文档
+- 启动：交给 launchd 临时托管，任务名 `com.peachypet.service.<id>`，任务文件放在 Application Support 的 `ServiceJobs/`，不写 LaunchAgents，所以不会开机自启；停止时用 `launchctl remove` 清理。日志在 `~/Library/Logs/PeachyPet/services/<id>.log`，上限 5 MB
+- 首次运行前确认：`ServiceApproval` 把命令、目录、环境变量的指纹存在 UserDefaults 的 `serviceApprovals` 里，三者任何一项变了都要重新确认
+- 外部启动识别：`ServiceStatus` 按「端口 + 进程工作目录或命令特征词」匹配；对不上就显示「端口被占用」，不提供停止。停止外部进程前要确认，并且在发信号前再核对一次命令行
+- 系统服务（`SystemServices.swift`）：
+  - brew 服务和自己的 LaunchAgent 可以操作，启停只用 `launchctl bootout/bootstrap/kickstart`，不调用 `brew services stop`
+  - 开机自启只用 `launchctl enable/disable`；未登记的 brew 服务打开开机自启时用 `brew services start`，会同时立即启动
+  - 应用自带的 agent 只读；系统 daemon 只显示程序在 `/usr/local` 下的，只读，只给出 sudo 命令供复制，PeachyPet 自己从不执行 sudo
 
 ## 本地数据与存储位置
 
