@@ -369,3 +369,9 @@
 "services.log.show" = "日志";
 "services.log.hide" = "收起日志";
 "services.log.empty" = "还没有输出。";
+"services.restart" = "重启";
+"services.running_external" = "运行中（外部启动）";
+"services.port_busy" = "端口被其他程序占用";
+"services.external.stop_title" = "停止「%@」？";
+"services.external.restart_title" = "重启「%@」？";
+"services.external.intro" = "这个进程不是 PeachyPet 启动的。会先请它正常退出，10 秒后还没退出就强制结束。";

@@ -18,7 +18,7 @@ struct ServicesView: View {
                         .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
                 }
                 ForEach(store.items) { item in
-                    ServiceRow(item: item, runState: store.runStates[item.id], error: store.errors[item.id],
+                    ServiceRow(item: item, status: store.statuses[item.id], error: store.errors[item.id],
                                approval: approval(of: item, store: store)) { action in
                         handle(action, store: store)
                     }
@@ -29,6 +29,13 @@ struct ServicesView: View {
         .background(Constants.lightBackground)
         .onAppear { store.startWatching() }
         .onDisappear { store.stopWatching() }
+        .sheet(item: $pendingExternalStop) { request in
+            ExternalStopSheet(request: request) {
+                store.terminateExternal(pid: request.pid, expectedCommand: request.command,
+                                        thenStart: request.restart ? request.entry : nil)
+                pendingExternalStop = nil
+            } onCancel: { pendingExternalStop = nil }
+        }
         .sheet(item: $pendingApproval) { entry in
             ServiceApprovalSheet(entry: entry, status: store.approvalStatus(of: entry)) {
                 store.approveAndStart(entry)
@@ -40,6 +47,7 @@ struct ServicesView: View {
     }
 
     @State private var pendingApproval: ServiceEntry?
+    @State private var pendingExternalStop: ExternalStopRequest?
 
     private func approval(of item: ServiceRegistryItem, store: ServiceStore) -> ServiceApproval.Status {
         if case .valid(let entry) = item.state { return store.approvalStatus(of: entry) }
@@ -55,7 +63,26 @@ struct ServicesView: View {
                 pendingApproval = entry
             }
         case .stop(let entry):
-            store.stop(entry)
+            switch store.statuses[entry.id] {
+            case .external(let pid, let command):
+                pendingExternalStop = ExternalStopRequest(entry: entry, pid: pid, command: command, restart: false)
+            default:
+                store.stop(entry)
+            }
+        case .restart(let entry):
+            switch store.statuses[entry.id] {
+            case .external(let pid, let command):
+                // Restarting hands the service to PeachyPet; an unapproved command
+                // still goes through the approval sheet afterwards.
+                if store.approvalStatus(of: entry) == .approved {
+                    pendingExternalStop = ExternalStopRequest(entry: entry, pid: pid, command: command, restart: true)
+                } else {
+                    pendingApproval = entry
+                }
+            default:
+                store.stop(entry)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { handle(.start(entry), store: store) }
+            }
         }
     }
 
@@ -71,13 +98,14 @@ struct ServiceRow: View {
     enum Action {
         case start(ServiceEntry)
         case stop(ServiceEntry)
+        case restart(ServiceEntry)
     }
 
     @State private var showLog = false
     @State private var logText = ""
 
     let item: ServiceRegistryItem
-    var runState: ServiceRunState? = nil
+    var status: ServiceStatus? = nil
     var error: String? = nil
     var approval: ServiceApproval.Status = .approved
     var onAction: (Action) -> Void = { _ in }
@@ -159,6 +187,7 @@ struct ServiceRow: View {
                         .buttonStyle(BrandGhostButton(color: Constants.textMuted))
                     if entry.kind == .service { controls(for: entry) }
                 }
+                .fixedSize()
             }
         }
     }
@@ -167,13 +196,17 @@ struct ServiceRow: View {
     private func controls(for entry: ServiceEntry) -> some View {
         HStack(spacing: 8) {
             statusBadge
-            switch runState ?? .stopped {
-            case .running:
+            switch status ?? .stopped {
+            case .running, .external:
+                Button(t("services.restart")) { onAction(.restart(entry)) }
+                    .buttonStyle(BrandGhostButton(color: Constants.textMuted))
                 Button(t("services.stop")) { onAction(.stop(entry)) }
                     .buttonStyle(BrandGhostButton(color: Constants.textMuted))
             case .stopped:
                 Button(startTitle) { onAction(.start(entry)) }
                     .buttonStyle(BrandGhostButton(color: Constants.accentText))
+            case .portBusy:
+                EmptyView()
             }
         }
     }
@@ -183,13 +216,19 @@ struct ServiceRow: View {
     }
 
     private var statusBadge: some View {
-        let running: Bool = { if case .running = runState { return true }; return false }()
-        let color = running ? Color(.sRGB, red: 22/255, green: 140/255, blue: 70/255) : Constants.textMuted
+        let (text, color): (String, Color) = {
+            let green = Color(.sRGB, red: 22/255, green: 140/255, blue: 70/255)
+            switch status ?? .stopped {
+            case .running: return (t("services.running"), green)
+            case .external: return (t("services.running_external"), green)
+            case .portBusy: return (t("services.port_busy"), Constants.destructiveRed)
+            case .stopped: return (t("services.stopped"), Constants.textMuted)
+            }
+        }()
         return HStack(spacing: 4) {
             Circle().fill(color).frame(width: 7, height: 7)
-            Text(running ? t("services.running") : t("services.stopped"))
-                .font(Constants.body(size: 11, weight: .medium))
-                .foregroundColor(color)
+            Text(text).font(Constants.body(size: 11, weight: .medium)).foregroundColor(color)
+                .lineLimit(1).fixedSize()
         }
     }
 
@@ -208,5 +247,53 @@ struct ServiceRow: View {
     private var iconColor: Color {
         if case .invalid = item.state { return Constants.destructiveRed }
         return Constants.accentText
+    }
+}
+
+struct ExternalStopRequest: Identifiable {
+    let entry: ServiceEntry
+    let pid: Int32
+    let command: String
+    let restart: Bool
+    var id: String { "\(entry.id)-\(pid)" }
+}
+
+/// Confirms ending a process PeachyPet did not start, naming it exactly.
+struct ExternalStopSheet: View {
+    let request: ExternalStopRequest
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(String(format: t(request.restart ? "services.external.restart_title" : "services.external.stop_title"), request.entry.name))
+                .font(Constants.heading(size: 18, weight: .heavy))
+                .foregroundColor(Constants.textPrimary)
+            Text(t("services.external.intro"))
+                .font(Constants.body(size: 13))
+                .foregroundColor(Constants.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(verbatim: "PID \(request.pid)")
+                .font(Constants.body(size: 12, weight: .semibold))
+                .foregroundColor(Constants.textPrimary)
+            Text(SecretRedactor.redact(request.command))
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(Constants.textPrimary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(Constants.surfaceSecondary, in: RoundedRectangle(cornerRadius: 6))
+            HStack {
+                Spacer()
+                Button(t("permission.cancel"), action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                    .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+                Button(t(request.restart ? "services.restart" : "services.stop"), action: onConfirm)
+                    .buttonStyle(BrandGhostButton(color: Constants.destructiveRed))
+            }
+        }
+        .padding(22)
+        .frame(width: 520)
+        .background(Constants.lightBackground)
     }
 }

@@ -7,7 +7,7 @@ import Observation
 @Observable
 final class ServiceStore {
     private(set) var items: [ServiceRegistryItem] = []
-    private(set) var runStates: [String: ServiceRunState] = [:]
+    private(set) var statuses: [String: ServiceStatus] = [:]
     /// Last start error per service id, shown under the row.
     private(set) var errors: [String: String] = [:]
     @ObservationIgnored let directory: URL
@@ -48,8 +48,20 @@ final class ServiceStore {
         }
         let launcher = self.launcher
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let states = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, ServiceRunState.read($0, launcher: launcher)) })
-            DispatchQueue.main.async { self?.runStates = states }
+            let ports = entries.contains { $0.port != nil } ? PortListener.listeningPorts() : [:]
+            var described: [Int32: PortListener] = [:]
+            var result: [String: ServiceStatus] = [:]
+            for entry in entries {
+                var managed: Int32?
+                if case .running(let pid) = ServiceRunState.read(entry, launcher: launcher) { managed = pid }
+                var listener: PortListener?
+                if managed == nil, let port = entry.port, let pid = ports[port] {
+                    listener = described[pid] ?? PortListener.describe(pid: pid)
+                    described[pid] = listener
+                }
+                result[entry.id] = ServiceStatus.resolve(entry, managedPID: managed, listener: listener)
+            }
+            DispatchQueue.main.async { self?.statuses = result }
         }
     }
 
@@ -76,6 +88,22 @@ final class ServiceStore {
     func stop(_ entry: ServiceEntry) {
         launcher.stop(id: entry.id)
         refreshSoon()
+    }
+
+    /// Only after the user confirmed the exact process (pid and command line).
+    /// Re-checks that the same pid still runs the same command before signalling.
+    func terminateExternal(pid: Int32, expectedCommand: String, thenStart entry: ServiceEntry? = nil) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let current = PortListener.describe(pid: pid).command
+            guard current == expectedCommand else {
+                DispatchQueue.main.async { self?.refreshSoon() }
+                return
+            }
+            ProcessTerminator.terminate(pid: pid)
+            DispatchQueue.main.async {
+                if let entry { self?.start(entry) } else { self?.refreshSoon() }
+            }
+        }
     }
 
     private func refreshSoon() {
