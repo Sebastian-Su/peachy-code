@@ -10,6 +10,10 @@ final class ServiceStore {
     private(set) var statuses: [String: ServiceStatus] = [:]
     /// Can each registration still run (directory and executable present)?
     private(set) var validity: [String: ServiceValidity] = [:]
+    /// brew services and LaunchAgents shown below the registered list.
+    private(set) var systemServices: [SystemService] = []
+    @ObservationIgnored private var brewItems: [BrewServices.Item] = []
+    @ObservationIgnored private var lastBrewRead = Date.distantPast
     /// Last run of each `task` registration.
     private(set) var taskRuns: [String: TaskRun] = [:]
     /// Last start error per service id, shown under the row.
@@ -47,8 +51,36 @@ final class ServiceStore {
         statusTimer = nil
     }
 
+    /// Reads brew (every 10 s) and launchd state (every refresh); read-only.
+    func refreshSystemServices() {
+        let readBrew = Date().timeIntervalSince(lastBrewRead) >= 10
+        if readBrew { lastBrewRead = Date() }
+        let cachedBrew = brewItems
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let brew = readBrew ? (BrewServices.list() ?? cachedBrew) : cachedBrew
+            let services = SystemServiceCatalog.build(brew: brew)
+            DispatchQueue.main.async {
+                self?.brewItems = brew
+                self?.systemServices = services
+            }
+        }
+    }
+
+    func perform(_ action: SystemServiceAction, on service: SystemService) {
+        errors[service.id] = nil
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let failure = SystemServiceActions.perform(action, on: service)
+            DispatchQueue.main.async {
+                self?.errors[service.id] = failure
+                self?.lastBrewRead = .distantPast
+                self?.refreshSystemServices()
+            }
+        }
+    }
+
     /// Reads launchd state off the main thread; read-only.
     func refreshStatus() {
+        refreshSystemServices()
         let entries = items.compactMap { item -> ServiceEntry? in
             if case .valid(let e) = item.state { return e }
             return nil

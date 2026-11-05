@@ -387,3 +387,4 @@
 "services.delete.confirm" = "Move to Trash";
 "services.delete.blocked" = "Stop the service before deleting it.";
 "services.delete.ok" = "OK";
+"services.section.brew" = "BREW";

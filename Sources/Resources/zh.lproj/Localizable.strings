@@ -387,3 +387,4 @@
 "services.delete.confirm" = "移到废纸篓";
 "services.delete.blocked" = "请先停止这个服务，再删除。";
 "services.delete.ok" = "好";
+"services.section.brew" = "BREW 服务";

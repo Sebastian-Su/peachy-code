@@ -17,45 +17,38 @@ struct ServicesView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
                 }
-                ForEach(store.items) { item in
-                    ServiceRow(item: item, status: store.statuses[item.id], error: store.errors[item.id],
-                               approval: approval(of: item, store: store),
-                               taskRun: store.taskRuns[item.id],
-                               validity: store.validity[item.id] ?? .ok) { action in
-                        handle(action, store: store)
-                    }
-                }
+                registeredList(store: store)
+                systemSection(t("services.section.brew"), store.systemServices.filter { $0.group == .brew }, store: store)
             }
             .padding(20)
         }
         .background(Constants.lightBackground)
         .onAppear { store.startWatching() }
         .onDisappear { store.stopWatching() }
-        .alert(t("services.delete.blocked"), isPresented: $deleteBlocked) {
-            Button(t("services.delete.ok"), role: .cancel) {}
-        }
-        .alert(t("services.delete.title"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-            Button(t("permission.cancel"), role: .cancel) { pendingDelete = nil }
-            Button(t("services.delete.confirm"), role: .destructive) {
-                if let item = pendingDelete { store.delete(item) }
-                pendingDelete = nil
+        .modifier(ServiceDialogs(store: store, pendingApproval: $pendingApproval, pendingExternalStop: $pendingExternalStop,
+                                 pendingDelete: $pendingDelete, deleteBlocked: $deleteBlocked))
+    }
+
+    @ViewBuilder
+    private func systemSection(_ title: String, _ services: [SystemService], store: ServiceStore) -> some View {
+        if !services.isEmpty {
+            sectionHeader(title, count: services.count).padding(.top, 10)
+            ForEach(services) { service in
+                SystemServiceRow(service: service, error: store.errors[service.id]) { action in
+                    store.perform(action, on: service)
+                }
             }
-        } message: {
-            Text(String(format: t("services.delete.message"), pendingDelete?.fileURL.lastPathComponent ?? ""))
         }
-        .sheet(item: $pendingExternalStop) { request in
-            ExternalStopSheet(request: request) {
-                store.terminateExternal(pid: request.pid, expectedCommand: request.command,
-                                        thenStart: request.restart ? request.entry : nil)
-                pendingExternalStop = nil
-            } onCancel: { pendingExternalStop = nil }
-        }
-        .sheet(item: $pendingApproval) { entry in
-            ServiceApprovalSheet(entry: entry, status: store.approvalStatus(of: entry)) {
-                store.approveAndStart(entry)
-                pendingApproval = nil
-            } onCancel: {
-                pendingApproval = nil
+    }
+
+    @ViewBuilder
+    private func registeredList(store: ServiceStore) -> some View {
+        ForEach(store.items) { item in
+            ServiceRow(item: item, status: store.statuses[item.id], error: store.errors[item.id],
+                       approval: approval(of: item, store: store),
+                       taskRun: store.taskRuns[item.id],
+                       validity: store.validity[item.id] ?? .ok) { action in
+                handle(action, store: store)
             }
         }
     }
@@ -375,5 +368,111 @@ struct ExternalStopSheet: View {
         .padding(22)
         .frame(width: 520)
         .background(Constants.lightBackground)
+    }
+}
+
+private struct ServiceDialogs: ViewModifier {
+    let store: ServiceStore
+    @Binding var pendingApproval: ServiceEntry?
+    @Binding var pendingExternalStop: ExternalStopRequest?
+    @Binding var pendingDelete: ServiceRegistryItem?
+    @Binding var deleteBlocked: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .alert(t("services.delete.blocked"), isPresented: $deleteBlocked) {
+                Button(t("services.delete.ok"), role: .cancel) {}
+            }
+            .alert(t("services.delete.title"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
+                Button(t("permission.cancel"), role: .cancel) { pendingDelete = nil }
+                Button(t("services.delete.confirm"), role: .destructive) {
+                    if let item = pendingDelete { store.delete(item) }
+                    pendingDelete = nil
+                }
+            } message: {
+                Text(String(format: t("services.delete.message"), pendingDelete?.fileURL.lastPathComponent ?? ""))
+            }
+            .sheet(item: $pendingExternalStop) { request in
+                ExternalStopSheet(request: request) {
+                    store.terminateExternal(pid: request.pid, expectedCommand: request.command,
+                                            thenStart: request.restart ? request.entry : nil)
+                    pendingExternalStop = nil
+                } onCancel: { pendingExternalStop = nil }
+            }
+            .sheet(item: $pendingApproval) { entry in
+                ServiceApprovalSheet(entry: entry, status: store.approvalStatus(of: entry)) {
+                    store.approveAndStart(entry)
+                    pendingApproval = nil
+                } onCancel: {
+                    pendingApproval = nil
+                }
+            }
+    }
+}
+
+/// A brew service or LaunchAgent row: status plus start / stop / restart for
+/// operable ones; read-only groups show status only.
+struct SystemServiceRow: View {
+    let service: SystemService
+    var error: String? = nil
+    var onAction: (SystemServiceAction) -> Void = { _ in }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15))
+                .foregroundColor(Constants.textMuted)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(service.name)
+                    .font(Constants.heading(size: 14, weight: .bold))
+                    .foregroundColor(Constants.textPrimary)
+                Text(service.program ?? service.label)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(Constants.textMuted)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let error {
+                    Text(error).font(Constants.body(size: 11)).foregroundColor(Constants.destructiveRed).lineLimit(2)
+                }
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                statusBadge
+                if service.isOperable {
+                    if service.isRunning {
+                        Button(t("services.restart")) { onAction(.restart) }
+                            .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+                        Button(t("services.stop")) { onAction(.stop) }
+                            .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+                    } else {
+                        Button(t("services.start")) { onAction(.start) }
+                            .buttonStyle(BrandGhostButton(color: Constants.accentText))
+                    }
+                }
+            }
+            .fixedSize()
+        }
+        .padding(12)
+        .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
+        .overlay(RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall).stroke(Constants.line, lineWidth: 1))
+    }
+
+    private var icon: String {
+        switch service.group {
+        case .brew: "mug"
+        case .userAgent: "gearshape.2"
+        case .appAgent: "app.badge"
+        case .daemon: "lock.shield"
+        }
+    }
+
+    private var statusBadge: some View {
+        let green = Color(.sRGB, red: 22/255, green: 140/255, blue: 70/255)
+        let (text, color) = service.isRunning ? (t("services.running"), green) : (t("services.stopped"), Constants.textMuted)
+        return HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(text).font(Constants.body(size: 11, weight: .medium)).foregroundColor(color).lineLimit(1)
+        }
     }
 }
