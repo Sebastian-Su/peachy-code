@@ -400,3 +400,6 @@
 "services.autostart.on_message_starts" = "Homebrew 只能用「brew services start」登记开机自启，这一步会同时立即启动它。";
 "services.autostart.turn_on" = "打开";
 "services.autostart.turn_off" = "关闭";
+"services.approve.replacing" = "会先结束这个正在运行的进程（PID %d）";
+"services.approve.confirm_replace" = "确认并重启";
+"services.error.process_changed" = "这个进程在你确认后变了，所以没有结束它，也没有启动新的。";

@@ -147,7 +147,36 @@ final class ServiceStore {
     /// Only called from the confirmation sheet: records the approval, then starts.
     func approveAndStart(_ entry: ServiceEntry) {
         approvals.approve(entry)
-        start(entry)
+        // A changed command can be confirmed while our old job still runs.
+        if launcher.runningPID(id: entry.id) != nil {
+            restartManaged(entry)
+        } else {
+            start(entry)
+        }
+    }
+
+    /// Only called from the confirmation sheet that named the running process:
+    /// records the approval, ends that process, then starts the service.
+    func approveAndReplace(_ entry: ServiceEntry, pid: Int32, command: String) {
+        approvals.approve(entry)
+        terminateExternal(pid: pid, expectedCommand: command, thenStart: entry)
+    }
+
+    /// Stops our own job and starts it again once the old process has exited,
+    /// so the new one never races it for the port.
+    func restartManaged(_ entry: ServiceEntry) {
+        errors[entry.id] = nil
+        let launcher = self.launcher
+        let oldPID = launcher.runningPID(id: entry.id)
+        launcher.stop(id: entry.id)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            if let oldPID {
+                // launchd sends SIGTERM on removal and SIGKILL after its 20 s exit timeout.
+                let deadline = Date().addingTimeInterval(25)
+                while kill(oldPID, 0) == 0 && Date() < deadline { Thread.sleep(forTimeInterval: 0.1) }
+            }
+            DispatchQueue.main.async { self?.start(entry) }
+        }
     }
 
     func start(_ entry: ServiceEntry) {
@@ -182,7 +211,10 @@ final class ServiceStore {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let current = PortListener.describe(pid: pid).command
             guard current == expectedCommand else {
-                DispatchQueue.main.async { self?.refreshSoon() }
+                DispatchQueue.main.async {
+                    if let entry { self?.errors[entry.id] = t("services.error.process_changed") }
+                    self?.refreshSoon()
+                }
                 return
             }
             ProcessTerminator.terminate(pid: pid)

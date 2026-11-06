@@ -121,3 +121,30 @@ enum ProcessTerminator {
         if isAlive(pid) { send(pid, SIGKILL) }
     }
 }
+
+/// What pressing Restart has to do, given who owns the process and whether the
+/// command has been confirmed. Every path that replaces a running process
+/// waits for it to exit before starting the new one.
+enum ServiceRestartFlow: Equatable {
+    case none
+    /// Our own job, command already confirmed.
+    case restartManaged
+    /// External process, command already confirmed: confirm ending the process.
+    case confirmStopThenStart(pid: Int32, command: String)
+    /// Our own job or stopped, command not confirmed yet.
+    case confirmCommand
+    /// External process and an unconfirmed command: one dialog covers both.
+    case confirmCommandAndReplace(pid: Int32, command: String)
+
+    static func next(status: ServiceStatus?, approval: ServiceApproval.Status) -> ServiceRestartFlow {
+        let approved = approval == .approved
+        switch status ?? .stopped {
+        case .portBusy: return .none
+        case .external(let pid, let command):
+            return approved ? .confirmStopThenStart(pid: pid, command: command)
+                : .confirmCommandAndReplace(pid: pid, command: command)
+        case .running, .stopped:
+            return approved ? .restartManaged : .confirmCommand
+        }
+    }
+}

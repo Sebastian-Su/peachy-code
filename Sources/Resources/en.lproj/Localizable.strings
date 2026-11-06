@@ -400,3 +400,6 @@
 "services.autostart.on_message_starts" = "Homebrew registers it with “brew services start”, which also starts it right now.";
 "services.autostart.turn_on" = "Turn on";
 "services.autostart.turn_off" = "Turn off";
+"services.approve.replacing" = "WILL END THIS RUNNING PROCESS FIRST (PID %d)";
+"services.approve.confirm_replace" = "Confirm & restart";
+"services.error.process_changed" = "That process changed since you confirmed, so nothing was ended or started.";

@@ -4,6 +4,8 @@ import SwiftUI
 struct ServiceApprovalSheet: View {
     let entry: ServiceEntry
     let status: ServiceApproval.Status
+    /// A running external process that confirming will end before starting.
+    var replacing: ExternalStopRequest? = nil
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
@@ -29,12 +31,16 @@ struct ServiceApprovalSheet: View {
                     .font(Constants.body(size: 11))
                     .foregroundColor(Constants.textMuted)
             }
+            if let replacing {
+                field(String(format: t("services.approve.replacing"), Int(replacing.pid)),
+                      SecretRedactor.redact(replacing.command), changed: false)
+            }
             HStack {
                 Spacer()
                 Button(t("permission.cancel"), action: onCancel)
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(BrandGhostButton(color: Constants.textMuted))
-                Button(t("services.approve.confirm"), action: onConfirm)
+                Button(t(replacing == nil ? "services.approve.confirm" : "services.approve.confirm_replace"), action: onConfirm)
                     .buttonStyle(BrandGhostButton(color: Constants.accentText))
             }
         }

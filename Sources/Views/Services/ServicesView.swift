@@ -28,7 +28,7 @@ struct ServicesView: View {
         .onAppear { store.startWatching() }
         .onDisappear { store.stopWatching() }
         .modifier(ServiceDialogs(store: store, pendingApproval: $pendingApproval, pendingExternalStop: $pendingExternalStop,
-                                 pendingDelete: $pendingDelete, deleteBlocked: $deleteBlocked))
+                                 pendingReplace: $pendingReplace, pendingDelete: $pendingDelete, deleteBlocked: $deleteBlocked))
         .alert(pendingAutostart?.title ?? "", isPresented: Binding(get: { pendingAutostart != nil }, set: { if !$0 { pendingAutostart = nil } })) {
             Button(t("permission.cancel"), role: .cancel) { pendingAutostart = nil }
             Button(pendingAutostart?.enable == true ? t("services.autostart.turn_on") : t("services.autostart.turn_off"),
@@ -94,6 +94,7 @@ struct ServicesView: View {
 
     @State private var pendingApproval: ServiceEntry?
     @State private var pendingExternalStop: ExternalStopRequest?
+    @State private var pendingReplace: ExternalStopRequest?
     @State private var pendingDelete: ServiceRegistryItem?
     @State private var deleteBlocked = false
 
@@ -124,18 +125,17 @@ struct ServicesView: View {
                 pendingDelete = item
             }
         case .restart(let entry):
-            switch store.statuses[entry.id] {
-            case .external(let pid, let command):
-                // Restarting hands the service to PeachyPet; an unapproved command
-                // still goes through the approval sheet afterwards.
-                if store.approvalStatus(of: entry) == .approved {
-                    pendingExternalStop = ExternalStopRequest(entry: entry, pid: pid, command: command, restart: true)
-                } else {
-                    pendingApproval = entry
-                }
-            default:
-                store.stop(entry)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { handle(.start(entry), store: store) }
+            switch ServiceRestartFlow.next(status: store.statuses[entry.id], approval: store.approvalStatus(of: entry)) {
+            case .none:
+                break
+            case .restartManaged:
+                store.restartManaged(entry)
+            case .confirmStopThenStart(let pid, let command):
+                pendingExternalStop = ExternalStopRequest(entry: entry, pid: pid, command: command, restart: true)
+            case .confirmCommand:
+                pendingApproval = entry
+            case .confirmCommandAndReplace(let pid, let command):
+                pendingReplace = ExternalStopRequest(entry: entry, pid: pid, command: command, restart: true)
             }
         }
     }
@@ -414,6 +414,7 @@ private struct ServiceDialogs: ViewModifier {
     let store: ServiceStore
     @Binding var pendingApproval: ServiceEntry?
     @Binding var pendingExternalStop: ExternalStopRequest?
+    @Binding var pendingReplace: ExternalStopRequest?
     @Binding var pendingDelete: ServiceRegistryItem?
     @Binding var deleteBlocked: Bool
 
@@ -437,6 +438,14 @@ private struct ServiceDialogs: ViewModifier {
                                             thenStart: request.restart ? request.entry : nil)
                     pendingExternalStop = nil
                 } onCancel: { pendingExternalStop = nil }
+            }
+            .sheet(item: $pendingReplace) { request in
+                ServiceApprovalSheet(entry: request.entry, status: store.approvalStatus(of: request.entry), replacing: request) {
+                    store.approveAndReplace(request.entry, pid: request.pid, command: request.command)
+                    pendingReplace = nil
+                } onCancel: {
+                    pendingReplace = nil
+                }
             }
             .sheet(item: $pendingApproval) { entry in
                 ServiceApprovalSheet(entry: entry, status: store.approvalStatus(of: entry)) {
