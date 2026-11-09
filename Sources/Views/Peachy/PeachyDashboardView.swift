@@ -542,13 +542,44 @@ struct PeachyDashboardView: View {
                 isDisabled: jsonText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ))
             .disabled(jsonText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+            Divider().overlay(Constants.border)
+
+            Button(action: importSpritePack) {
+                Label(t("pets.import_sprite"), systemImage: "square.grid.3x3")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(BrandSecondaryButton())
+            Text(t("pets.import_sprite_hint"))
+                .font(Constants.body(size: 11))
+                .foregroundColor(Constants.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(20)
-        .frame(width: 460, height: 320)
+        .frame(width: 460, height: 400)
         .background(Constants.lightBackground)
     }
 
     // MARK: - Actions
+
+    /// Pick a folder holding `pet.json` and its spritesheet, then install it as a local pet.
+    private func importSpritePack() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = t("pets.import_sprite")
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        do {
+            let root = LocalStorage.appSupportDir.appendingPathComponent("Pets", isDirectory: true)
+            let pet = try SpritePetInstaller.install(directory: folder, source: .local, into: root)
+            appStore.mascotStore.addOrReplaceSprite(config: pet.config, slug: pet.slug)
+            parseError = nil
+            showingAddSheet = false
+        } catch {
+            parseError = String(format: t("pets.import_sprite_failed"), error.localizedDescription)
+        }
+    }
 
     private func addMascot() {
         parseError = nil
@@ -581,7 +612,7 @@ struct MascotCard: View {
     let onActivate: () -> Void
     let onSaveConfig: (PeachyAnimationConfig) -> Void
     let onDelete: () -> Void
-    var communitySlug: String? { mascot.templateSlug.flatMap { $0.hasPrefix("pack:") ? nil : $0 } }
+    var communitySlug: String? { mascot.templateSlug.flatMap { $0.hasPrefix("pack:") || $0.hasPrefix("sprite:") ? nil : $0 } }
     @State private var isHovered = false
     @State private var showingJSON = false
     @State private var menuTrigger = 0

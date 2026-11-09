@@ -44,6 +44,24 @@ struct PeachyAnimationConfig: Codable {
     let nodes: [PeachyAnimationNode]
     var edges: [PeachyAnimationEdge]
     let inputs: [PeachyAnimationInput]?
+    /// Set for spritesheet pets, which keep the usual nodes and edges but no videos.
+    /// Builds that predate it ignore the key and still read the rest of the library.
+    var sprite: SpriteInfo? = nil
+}
+
+enum SpritePetSource: String, Codable {
+    case local, openpets, petdex
+}
+
+/// Where a spritesheet pet's frames come from.
+struct SpriteInfo: Codable, Equatable {
+    let source: SpritePetSource
+    let id: String
+    let description: String?
+    /// file:// URL of the installed sheet.
+    let sheet: String
+    /// Node id -> sheet rows it plays. Several rows: one is picked at random each loop.
+    let rows: [String: [Int]]
 }
 
 struct PeachyAnimationNode: Codable, Identifiable {

@@ -330,6 +330,9 @@
 "pets.error.invalid" = "这个桌宠包不完整或已损坏。";
 "pets.error.unsafe_path" = "包里引用了包外的文件：%@";
 "pets.browse" = "浏览更多";
+"pets.import_sprite" = "选择精灵图宠物包";
+"pets.import_sprite_hint" = "选一个文件夹，里面有 pet.json 和一张精灵图，比如 AgentPet、petdex、openpets 的宠物包。";
+"pets.import_sprite_failed" = "导入失败：%@";
 "pets.close" = "关闭";
 "pets.retry" = "重试";
 "pets.installed" = "已安装";

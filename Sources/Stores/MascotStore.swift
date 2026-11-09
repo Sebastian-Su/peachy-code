@@ -223,6 +223,17 @@ final class MascotStore {
         persist()
     }
 
+    /// A spritesheet pet keyed by `sprite:<source>:<id>`; installing it again replaces it.
+    func addOrReplaceSprite(config: PeachyAnimationConfig, slug: String) {
+        if let index = mascots.firstIndex(where: { $0.templateSlug == slug }) {
+            let old = mascots[index]
+            mascots[index] = SavedMascot(id: old.id, name: config.name, config: config, addedAt: old.addedAt, templateSlug: slug)
+        } else {
+            mascots.insert(SavedMascot(id: UUID(), name: config.name, config: config, addedAt: Date(), templateSlug: slug), at: 0)
+        }
+        persist()
+    }
+
     func addOrUpdateFromProject(config: PeachyAnimationConfig, projectID: UUID) {
         if let index = mascots.firstIndex(where: { $0.projectID == projectID }) {
             mascots[index].config = config

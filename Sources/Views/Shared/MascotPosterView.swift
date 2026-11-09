@@ -33,6 +33,15 @@ struct MascotPosterView: View {
     var body: some View {
         Group {
             switch config.flatMap(MascotPoster.source(for:)) {
+            case .image(let url) where url.isFileURL:
+                // Local posters load at once; sprite pets are pixel art, so no smoothing.
+                if let image = Self.localImage(url) {
+                    Image(nsImage: image)
+                        .interpolation(config?.sprite == nil ? .high : .none)
+                        .resizable().aspectRatio(contentMode: .fit)
+                } else {
+                    Color.clear
+                }
             case .image(let url):
                 AsyncImage(url: url) { image in
                     image.resizable().aspectRatio(contentMode: .fit)
@@ -49,6 +58,13 @@ struct MascotPosterView: View {
                 Color.clear
             }
         }
+    }
+
+    private static func localImage(_ url: URL) -> NSImage? {
+        if let cached = frameCache[url] { return cached }
+        let image = NSImage(contentsOf: url)
+        frameCache[url] = image
+        return image
     }
 
     private static func loadFrame(_ url: URL) async -> NSImage? {

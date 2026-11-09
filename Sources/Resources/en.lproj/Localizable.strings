@@ -330,6 +330,9 @@
 "pets.error.invalid" = "This pet pack is incomplete or damaged.";
 "pets.error.unsafe_path" = "The pack refers to a file outside itself: %@";
 "pets.browse" = "Browse more";
+"pets.import_sprite" = "Choose sprite pet pack";
+"pets.import_sprite_hint" = "Pick a folder with pet.json and a spritesheet, e.g. an AgentPet, petdex or openpets pet.";
+"pets.import_sprite_failed" = "Import failed: %@";
 "pets.close" = "Close";
 "pets.retry" = "Retry";
 "pets.installed" = "Installed";
