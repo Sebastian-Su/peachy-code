@@ -231,6 +231,14 @@ Sources/
 - 发布：`scripts/publish-pet.sh "<桌宠名>" <pack-id> --version N --upload` 负责打包并上传 Release，再把打印出的条目写进 `catalog.json` 并提交
 - 新用户默认桌宠是 PeachMilky（`DefaultPetLoader`）：安装包里只放静态图 `Images/peachmilky-poster.png`，视频走首次下载，失败了可以重试
 
+**精灵图桌宠（spec：`docs/sprite-pet-spec.md`）：一张透明大图加 `pet.json`，即 Codex/petdex 格式。**
+- 存成普通桌宠记录：4 个节点和 16 条边照常有，视频为空，另有可选的 `sprite` 字段（来源、标识、图片位置、每个节点播哪几行）。旧版本会忽略这个字段，所以库不会读失败
+- 标识是「来源 + 标识」，`templateSlug` 写成 `sprite:<local|openpets|petdex>:<id>`；装在 `Pets/sprites/<来源>/<id>/`，删除时连文件夹一起删。视频桌宠删除时文件保留
+- 切图（`SpriteSlicer`）按透明空隙切；标准 8×9 网格上空行不会让后面的行错位。状态对应：待机→第 1 行，工作→第 8、2、3 行每轮随机，求关注→第 7 行，思考→第 9 行；缺的行退回待机
+- 桌面播放（`SpriteSheetPlayer`）：每轮结束通知状态机，状态切换等这一轮播完再硬切；整只宠物共用一个整数倍缩放，底部居中，最近邻放大；帧率工作 8、求关注 4、其他 3
+- 「浏览更多」分 PeachyPet / OpenPets / Petdex 三个标签，直接读两站清单（`SpriteCatalog`，缓存在 `SpriteCatalogs/`），不镜像、不转存；只下载用户点的那一只。Petdex 没有缩略图，点「预览」才拉精灵图，存在 `SpritePreviews/`，上限 200 MB，按最久没用的先删
+- 切图、逐帧计时器、拉清单的写法复用自 AgentPet（MIT），版权声明在 `ThirdPartyNotices.md`
+
 ## 主窗口与皮肤
 
 - 六个入口：收件箱、会话、代理、服务、桌宠、设置。spec 见 `docs/main-window-redesign-spec.md`
