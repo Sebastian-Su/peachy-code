@@ -87,7 +87,7 @@ enum SpritePetInstaller {
         return available.keys.min().map { [$0] } ?? []
     }
 
-    private static func isSafeId(_ id: String) -> Bool {
+    static func isSafeId(_ id: String) -> Bool {
         id.range(of: #"^[A-Za-z0-9][A-Za-z0-9._-]*$"#, options: .regularExpression) != nil && !id.contains("..")
     }
 

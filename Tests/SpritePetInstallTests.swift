@@ -197,3 +197,59 @@ final class SpritePetInstallTests: XCTestCase {
         XCTAssertEqual(Set(sprite.rows.values), [[0]])
     }
 }
+
+final class SpritePetDeleteTests: XCTestCase {
+    // S23 + N2: deleting a sprite pet removes its folder and nothing else
+    func testDeletingSpritePetRemovesItsFilesOnly() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("spritedel-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let root = tmp.appendingPathComponent("Pets")
+        let video = root.appendingPathComponent("gothic-maid")
+        try FileManager.default.createDirectory(at: video, withIntermediateDirectories: true)
+        try Data("clip".utf8).write(to: video.appendingPathComponent("idle.mov"))
+        try writeSpritePack(in: tmp.appendingPathComponent("pack"))
+        let pet = try SpritePetInstaller.install(directory: tmp.appendingPathComponent("pack"), source: .local, into: root)
+        let store = MascotStore()
+        store.addOrReplaceSprite(config: pet.config, slug: pet.slug)
+        let id = try XCTUnwrap(store.mascots.first { $0.templateSlug == pet.slug }?.id)
+        let videoFiles = try FileManager.default.subpathsOfDirectory(atPath: video.path)
+
+        store.delete(id: id, petsRoot: root)
+
+        XCTAssertNil(store.mascots.first { $0.id == id })
+        XCTAssertFalse(FileManager.default.fileExists(atPath: pet.directory.path))
+        XCTAssertEqual(try FileManager.default.subpathsOfDirectory(atPath: video.path), videoFiles)
+    }
+
+    // Video pets keep today's behaviour: removed from the library, files left alone
+    func testDeletingVideoPetKeepsItsFiles() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("videodel-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let root = tmp.appendingPathComponent("Pets")
+        let dir = root.appendingPathComponent("tester")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("clip".utf8).write(to: dir.appendingPathComponent("idle.mov"))
+        let json = #"{"version":"2.0","name":"Tester","initialNode":"idle","autoPlay":true,"nodes":[{"id":"idle","name":"Idle"}],"edges":[]}"#
+        let store = MascotStore()
+        store.addOrReplacePack(config: try JSONDecoder().decode(PeachyAnimationConfig.self, from: Data(json.utf8)), packId: "tester")
+        let id = try XCTUnwrap(store.mascots.first { $0.templateSlug == "pack:tester" }?.id)
+        store.delete(id: id, petsRoot: root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("idle.mov").path))
+    }
+
+    // N2: a tampered record cannot point the delete outside the sprite folder
+    func testDeleteNeverLeavesTheSpriteFolder() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("spriteesc-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let root = tmp.appendingPathComponent("Pets")
+        let victim = root.appendingPathComponent("gothic-maid")
+        try FileManager.default.createDirectory(at: victim, withIntermediateDirectories: true)
+        try writeSpritePack(in: tmp.appendingPathComponent("pack"))
+        var config = try SpritePetInstaller.install(directory: tmp.appendingPathComponent("pack"), source: .local, into: root).config
+        config.sprite = SpriteInfo(source: .local, id: "../../gothic-maid", description: nil, sheet: "", rows: [:])
+        let store = MascotStore()
+        store.addOrReplaceSprite(config: config, slug: "sprite:local:evil")
+        store.delete(id: try XCTUnwrap(store.mascots.first { $0.templateSlug == "sprite:local:evil" }?.id), petsRoot: root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: victim.path))
+    }
+}

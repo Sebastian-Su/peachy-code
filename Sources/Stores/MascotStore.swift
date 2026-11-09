@@ -259,6 +259,17 @@ final class MascotStore {
         persist()
     }
 
+    /// Removes a mascot. Sprite pets can be downloaded again, so their installed
+    /// folder goes too; video pets keep their files (some cannot be made again).
+    func delete(id: UUID, petsRoot: URL = LocalStorage.appSupportDir.appendingPathComponent("Pets", isDirectory: true)) {
+        if let sprite = mascots.first(where: { $0.id == id })?.config.sprite,
+           SpritePetInstaller.isSafeId(sprite.id) {
+            let folder = SpritePetInstaller.directory(for: sprite.source, id: sprite.id, under: petsRoot)
+            try? FileManager.default.removeItem(at: folder)
+        }
+        remove(id: id)
+    }
+
     func updateConfig(mascotId: UUID, config: PeachyAnimationConfig) {
         guard let idx = mascots.firstIndex(where: { $0.id == mascotId }) else { return }
         mascots[idx].config = config

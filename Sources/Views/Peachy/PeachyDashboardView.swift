@@ -381,7 +381,7 @@ struct PeachyDashboardView: View {
                             appStore.mascotStore.updateConfig(mascotId: mascot.id, config: newConfig)
                         },
                         onDelete: {
-                            appStore.mascotStore.remove(id: mascot.id)
+                            appStore.mascotStore.delete(id: mascot.id)
                         }
                     )
                 }
