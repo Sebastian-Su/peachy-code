@@ -12,6 +12,8 @@ struct SpriteCatalogTab: View {
     @State private var kind: String?
     @State private var installing: String?
     @State private var errors: [String: String] = [:]
+    @State private var previews: [String: CGImage] = [:]
+    @State private var previewing: Set<String> = []
 
     private static let kinds = [("character", "pets.kind.character"), ("creature", "pets.kind.creature"), ("object", "pets.kind.object")]
 
@@ -61,6 +63,9 @@ struct SpriteCatalogTab: View {
                                              installed: appStore.mascotStore.installedSpriteSlugs.contains(pet.slug),
                                              installing: installing == pet.slug,
                                              error: errors[pet.slug],
+                                             preview: previews[pet.slug] ?? appStore.spritePreviews.cachedFrame(pet),
+                                             previewing: previewing.contains(pet.slug),
+                                             onPreview: pet.thumbnail == nil ? { Task { await preview(pet) } } : nil,
                                              onDownload: { Task { await install(pet) } })
                         }
                     }
@@ -82,8 +87,21 @@ struct SpriteCatalogTab: View {
         errors[pet.slug] = nil
         defer { installing = nil }
         do {
-            let installed = try await SpritePetDownloader().install(pet)
+            let installed = try await SpritePetDownloader().install(pet, sheetData: appStore.spritePreviews.cachedSheet(pet))
             appStore.mascotStore.addOrReplaceSprite(config: installed.config, slug: installed.slug)
+        } catch {
+            errors[pet.slug] = error.localizedDescription
+        }
+    }
+
+    /// Fetches this one pet's sheet and shows its first idle frame.
+    private func preview(_ pet: SpriteCatalogPet) async {
+        guard !previewing.contains(pet.slug) else { return }
+        previewing.insert(pet.slug)
+        errors[pet.slug] = nil
+        defer { previewing.remove(pet.slug) }
+        do {
+            previews[pet.slug] = try await appStore.spritePreviews.preview(pet)
         } catch {
             errors[pet.slug] = error.localizedDescription
         }
@@ -107,12 +125,20 @@ struct SpriteCatalogRow: View {
     var installed = false
     var installing = false
     var error: String?
+    var preview: CGImage?
+    var previewing = false
+    /// Set for pets without a thumbnail (petdex): fetches the sheet on request.
+    var onPreview: (() -> Void)?
     var onDownload: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 12) {
             Group {
-                if let thumb = pet.thumbnail {
+                if let preview {
+                    Image(decorative: preview, scale: 1).interpolation(.none).resizable().aspectRatio(contentMode: .fit).padding(4)
+                } else if previewing {
+                    ProgressView().controlSize(.small)
+                } else if let thumb = pet.thumbnail {
                     AsyncImage(url: thumb) { $0.interpolation(.none).resizable().aspectRatio(contentMode: .fit) } placeholder: { Color.clear }
                 } else {
                     Image(systemName: "square.grid.3x3").font(.system(size: 18)).foregroundColor(Constants.textMuted.opacity(0.6))
@@ -129,6 +155,10 @@ struct SpriteCatalogRow: View {
                 }
             }
             Spacer()
+            if let onPreview, preview == nil, !previewing, !installed {
+                Button(t("pets.preview"), action: onPreview)
+                    .buttonStyle(BrandGhostButton(color: Constants.textMuted))
+            }
             if installing {
                 ProgressView().controlSize(.small)
             } else if installed {

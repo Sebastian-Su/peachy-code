@@ -21,6 +21,8 @@ final class AppStore {
     let mascotStore = MascotStore()
     /// OpenPets and Petdex lists for "Browse more".
     let spriteCatalog = SpriteCatalog()
+    /// Petdex sheets fetched only to preview a pet.
+    let spritePreviews = SpritePreviewCache()
     let mascotProjectStore = MascotProjectStore()
     let mediaProviderSettings = MediaProviderSettingsStore()
     let hotkeyManager = GlobalHotkeyManager()

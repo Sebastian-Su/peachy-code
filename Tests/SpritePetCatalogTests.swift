@@ -214,3 +214,71 @@ final class SpritePetDownloadTests: XCTestCase {
         XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: root.path))?.filter { !$0.hasPrefix(".") } ?? [], [])
     }
 }
+
+final class SpritePreviewCacheTests: XCTestCase {
+    private var tmp: URL!
+
+    override func setUpWithError() throws {
+        tmp = FileManager.default.temporaryDirectory.appendingPathComponent("spriteprev-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tmp) }
+
+    private func momo() throws -> SpriteCatalogPet {
+        try XCTUnwrap(SpriteCatalog.decodePetdex(fixture("petdex-manifest.json")).first { $0.id == "momo" })
+    }
+
+    // S10: preview downloads just this sheet and gives back the first idle frame
+    func testPreviewFetchesOneSheetAndReturnsIdleFrame() async throws {
+        let transport = try FakeDownloadTransport()
+        let cache = SpritePreviewCache(directory: tmp.appendingPathComponent("previews"), transport: transport)
+        let pet = try momo()
+        let frame = try await cache.preview(pet)
+        XCTAssertEqual(frame.width, 20)
+        XCTAssertEqual(frame.height, 22)
+        XCTAssertEqual(transport.requested, [pet.sheet])
+    }
+
+    // S11: downloading after a preview reuses the cached sheet
+    func testDownloadAfterPreviewDoesNotFetchTheSheetAgain() async throws {
+        let transport = try FakeDownloadTransport()
+        let cache = SpritePreviewCache(directory: tmp.appendingPathComponent("previews"), transport: transport)
+        let pet = try momo()
+        _ = try await cache.preview(pet)
+        let downloader = SpritePetDownloader(transport: transport, petsRoot: tmp.appendingPathComponent("Pets"), workDirectory: tmp)
+        _ = try await downloader.install(pet, sheetData: cache.cachedSheet(pet))
+        XCTAssertEqual(transport.requested.filter { $0 == pet.sheet }.count, 1)
+    }
+
+    // S10: a preview survives closing and reopening (new cache instance, same folder)
+    func testPreviewIsKeptOnDisk() async throws {
+        let transport = try FakeDownloadTransport()
+        let dir = tmp.appendingPathComponent("previews")
+        let pet = try momo()
+        _ = try await SpritePreviewCache(directory: dir, transport: transport).preview(pet)
+        let reopened = SpritePreviewCache(directory: dir, transport: transport)
+        XCTAssertNotNil(reopened.cachedFrame(pet))
+        _ = try await reopened.preview(pet)
+        XCTAssertEqual(transport.requested.count, 1)
+    }
+
+    // S24: over the limit, the least recently used sheets go first
+    func testCacheEvictsLeastRecentlyUsedOverTheLimit() throws {
+        let dir = tmp.appendingPathComponent("previews")
+        let cache = SpritePreviewCache(directory: dir, transport: try FakeDownloadTransport(), limitBytes: 250)
+        let blob = Data(repeating: 1, count: 100)
+        try cache.store(blob, key: "a")
+        try cache.store(blob, key: "b")
+        _ = cache.data(key: "a") // a is now newer than b
+        try cache.store(blob, key: "c")
+        XCTAssertNotNil(cache.data(key: "a"))
+        XCTAssertNil(cache.data(key: "b"), "least recently used goes first")
+        XCTAssertNotNil(cache.data(key: "c"))
+        XCTAssertLessThanOrEqual(cache.totalBytes, 250)
+    }
+
+    func testDefaultLimitIs200MB() {
+        XCTAssertEqual(SpritePreviewCache.defaultLimitBytes, 200 * 1024 * 1024)
+    }
+}

@@ -340,6 +340,7 @@
 "pets.kind.object" = "Objects";
 "pets.source_unreachable" = "Can't reach this site right now.";
 "pets.count" = "%d pets";
+"pets.preview" = "Preview";
 "pets.close" = "Close";
 "pets.retry" = "Retry";
 "pets.installed" = "Installed";
