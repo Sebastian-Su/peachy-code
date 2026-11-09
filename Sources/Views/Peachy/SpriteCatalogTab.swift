@@ -10,6 +10,8 @@ struct SpriteCatalogTab: View {
     @State private var failed = false
     @State private var query = ""
     @State private var kind: String?
+    @State private var installing: String?
+    @State private var errors: [String: String] = [:]
 
     private static let kinds = [("character", "pets.kind.character"), ("creature", "pets.kind.creature"), ("object", "pets.kind.object")]
 
@@ -54,7 +56,13 @@ struct SpriteCatalogTab: View {
                 ScrollView {
                     // Lazy: only rows on screen load their thumbnails.
                     LazyVStack(spacing: 8) {
-                        ForEach(results) { SpriteCatalogRow(pet: $0) }
+                        ForEach(results) { pet in
+                            SpriteCatalogRow(pet: pet,
+                                             installed: appStore.mascotStore.installedSpriteSlugs.contains(pet.slug),
+                                             installing: installing == pet.slug,
+                                             error: errors[pet.slug],
+                                             onDownload: { Task { await install(pet) } })
+                        }
                     }
                     .padding(16)
                 }
@@ -64,6 +72,20 @@ struct SpriteCatalogTab: View {
         .task(id: source) {
             pets = appStore.spriteCatalog.cached(source) ?? []
             await refresh()
+        }
+    }
+
+    /// Only the clicked pet is downloaded; it then goes through the local import checks.
+    private func install(_ pet: SpriteCatalogPet) async {
+        guard installing == nil else { return }
+        installing = pet.slug
+        errors[pet.slug] = nil
+        defer { installing = nil }
+        do {
+            let installed = try await SpritePetDownloader().install(pet)
+            appStore.mascotStore.addOrReplaceSprite(config: installed.config, slug: installed.slug)
+        } catch {
+            errors[pet.slug] = error.localizedDescription
         }
     }
 
@@ -82,6 +104,10 @@ struct SpriteCatalogTab: View {
 
 struct SpriteCatalogRow: View {
     let pet: SpriteCatalogPet
+    var installed = false
+    var installing = false
+    var error: String?
+    var onDownload: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 12) {
@@ -98,8 +124,19 @@ struct SpriteCatalogRow: View {
                 Text(pet.name).font(Constants.heading(size: 14, weight: .bold)).foregroundColor(Constants.textPrimary).lineLimit(1)
                 Text([pet.author, pet.source == .petdex ? pet.kind.map { t("pets.kind.\($0)") } : nil].compactMap { $0 }.joined(separator: " · "))
                     .font(Constants.body(size: 12)).foregroundColor(Constants.textMuted).lineLimit(1)
+                if let error {
+                    Text(error).font(Constants.body(size: 11)).foregroundColor(Constants.destructiveRed).lineLimit(2)
+                }
             }
             Spacer()
+            if installing {
+                ProgressView().controlSize(.small)
+            } else if installed {
+                Text(t("pets.installed")).font(Constants.body(size: 12, weight: .semibold)).foregroundColor(Constants.accentText)
+            } else {
+                Button(t("pets.download"), action: onDownload)
+                    .buttonStyle(BrandGhostButton(color: Constants.accentText))
+            }
         }
         .padding(10)
         .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))

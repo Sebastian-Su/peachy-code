@@ -223,6 +223,11 @@ final class MascotStore {
         persist()
     }
 
+    /// `sprite:<source>:<id>` of every installed spritesheet pet.
+    var installedSpriteSlugs: Set<String> {
+        Set(mascots.compactMap(\.templateSlug).filter { $0.hasPrefix("sprite:") })
+    }
+
     /// A spritesheet pet keyed by `sprite:<source>:<id>`; installing it again replaces it.
     func addOrReplaceSprite(config: PeachyAnimationConfig, slug: String) {
         if let index = mascots.firstIndex(where: { $0.templateSlug == slug }) {

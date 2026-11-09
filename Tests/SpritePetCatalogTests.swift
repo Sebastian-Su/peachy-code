@@ -117,3 +117,100 @@ final class SpritePetCatalogTests: XCTestCase {
         XCTAssertNotNil(petdex.first { $0.id == "homelander" }, "fan art stays in the list")
     }
 }
+
+/// Serves a real spritesheet for any image URL and a pet.json for petdex manifests.
+final class FakeDownloadTransport: SpriteCatalogTransport, @unchecked Sendable {
+    private(set) var requested: [URL] = []
+    private let lock = NSLock()
+    let sheet: Data
+
+    init() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("sheet-\(UUID().uuidString).png")
+        try writeSpriteSheet(frames: [6, 8, 8, 4, 5, 8, 6, 6, 6], to: file)
+        sheet = try Data(contentsOf: file)
+        try? FileManager.default.removeItem(at: file)
+    }
+
+    func data(from url: URL) async throws -> Data {
+        lock.withLock { requested.append(url) }
+        if url.lastPathComponent == "petjson.json" {
+            return try JSONSerialization.data(withJSONObject: ["id": "momo", "displayName": "Momo from petdex", "description": "d", "spritesheetPath": "spritesheet.webp"])
+        }
+        return sheet
+    }
+}
+
+final class SpritePetDownloadTests: XCTestCase {
+    private var tmp: URL!
+
+    override func setUpWithError() throws {
+        tmp = FileManager.default.temporaryDirectory.appendingPathComponent("spritedl-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tmp) }
+
+    private func pets() throws -> (petdex: SpriteCatalogPet, openpets: SpriteCatalogPet) {
+        let petdex = try SpriteCatalog.decodePetdex(fixture("petdex-manifest.json"))
+        let openpets = try SpriteCatalog.decodeOpenpetsPage(fixture("openpets-page-000.json"))
+        return (try XCTUnwrap(petdex.first { $0.id == "momo" }), try XCTUnwrap(openpets.first { $0.id == "momo" }))
+    }
+
+    // S2, S11, S14: the same id from both sites installs as two pets, each marked with its source
+    func testDownloadingMomoFromBothSitesGivesTwoPets() async throws {
+        let transport = try FakeDownloadTransport()
+        let downloader = SpritePetDownloader(transport: transport, petsRoot: tmp.appendingPathComponent("Pets"), workDirectory: tmp)
+        let (a, b) = try pets()
+        let fromPetdex = try await downloader.install(a)
+        let fromOpenpets = try await downloader.install(b)
+        XCTAssertEqual(fromPetdex.slug, "sprite:petdex:momo")
+        XCTAssertEqual(fromOpenpets.slug, "sprite:openpets:momo")
+        XCTAssertEqual(fromPetdex.config.sprite?.source, .petdex)
+        XCTAssertEqual(fromOpenpets.config.sprite?.source, .openpets)
+        XCTAssertEqual(fromPetdex.config.name, "Momo from petdex", "petdex name comes from its pet.json")
+        XCTAssertNotEqual(fromPetdex.directory, fromOpenpets.directory)
+
+        let store = MascotStore()
+        store.addOrReplaceSprite(config: fromPetdex.config, slug: fromPetdex.slug)
+        store.addOrReplaceSprite(config: fromOpenpets.config, slug: fromOpenpets.slug)
+        let installed = store.installedSpriteSlugs
+        XCTAssertTrue(installed.contains(a.slug) && installed.contains(b.slug))
+        [a.slug, b.slug].forEach { slug in store.mascots.filter { $0.templateSlug == slug }.forEach { store.remove(id: $0.id) } }
+    }
+
+    // S14: installing on one site doesn't mark the other site's pet as installed
+    func testInstalledIsPerSource() async throws {
+        let transport = try FakeDownloadTransport()
+        let downloader = SpritePetDownloader(transport: transport, petsRoot: tmp.appendingPathComponent("Pets"), workDirectory: tmp)
+        let (a, b) = try pets()
+        let pet = try await downloader.install(a)
+        let store = MascotStore()
+        store.addOrReplaceSprite(config: pet.config, slug: pet.slug)
+        XCTAssertTrue(store.installedSpriteSlugs.contains(a.slug))
+        XCTAssertFalse(store.installedSpriteSlugs.contains(b.slug))
+        store.mascots.filter { $0.templateSlug == a.slug }.forEach { store.remove(id: $0.id) }
+    }
+
+    // N3: only the pet that was clicked is downloaded
+    func testOnlyTheClickedPetIsRequested() async throws {
+        let transport = try FakeDownloadTransport()
+        let downloader = SpritePetDownloader(transport: transport, petsRoot: tmp.appendingPathComponent("Pets"), workDirectory: tmp)
+        let (a, _) = try pets()
+        _ = try await downloader.install(a)
+        XCTAssertEqual(Set(transport.requested), Set([a.sheet, try XCTUnwrap(a.manifest)]))
+    }
+
+    // N4 over the network: a manifest whose sheet path climbs out is still rejected, nothing left behind
+    func testDownloadedManifestCannotEscape() async throws {
+        final class Evil: SpriteCatalogTransport, @unchecked Sendable {
+            func data(from url: URL) async throws -> Data {
+                try JSONSerialization.data(withJSONObject: ["id": "momo", "displayName": "x", "spritesheetPath": "../../x.webp"])
+            }
+        }
+        let root = tmp.appendingPathComponent("Pets")
+        let downloader = SpritePetDownloader(transport: Evil(), petsRoot: root, workDirectory: tmp)
+        let (a, _) = try pets()
+        do { _ = try await downloader.install(a); XCTFail("should be rejected") } catch {}
+        XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: root.path))?.filter { !$0.hasPrefix(".") } ?? [], [])
+    }
+}
