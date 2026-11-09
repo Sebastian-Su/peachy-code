@@ -23,13 +23,19 @@ struct OverlayStateMachineView: View {
         let _ = PerfMonitor.shared.track(.viewBodyStateMachine)
         #endif
         ZStack(alignment: .bottomTrailing) {
-            StateMachineVideoPlayer(
-                url: stateMachine.currentVideoURL,
-                isLoop: stateMachine.isLoopVideo,
-                rate: stateMachine.currentPlaybackRate,
-                upcoming: stateMachine.upcomingVideoURL,
-                stateMachine: stateMachine
-            )
+            Group {
+                if stateMachine.config.sprite != nil {
+                    SpriteSheetPlayer(stateMachine: stateMachine)
+                } else {
+                    StateMachineVideoPlayer(
+                        url: stateMachine.currentVideoURL,
+                        isLoop: stateMachine.isLoopVideo,
+                        rate: stateMachine.currentPlaybackRate,
+                        upcoming: stateMachine.upcomingVideoURL,
+                        stateMachine: stateMachine
+                    )
+                }
+            }
             .onTapGesture {
                 stateMachine.handleClick()
             }

@@ -22,6 +22,10 @@ final class OverlayStateMachine {
     private(set) var currentPlaybackRate: Float = 1.0
     /// The transition clip that starts at the next loop end, so the view can decode it ahead.
     private(set) var upcomingVideoURL: URL?
+    /// Spritesheet pets: the sheet row the current node is looping. Nil for video pets.
+    private(set) var currentSpriteRow: Int?
+    /// Source of randomness for picking among a node's sheet rows (injectable for tests).
+    @ObservationIgnored private let random: () -> UInt64
 
     let config: PeachyAnimationConfig
 
@@ -87,8 +91,9 @@ final class OverlayStateMachine {
 
     // MARK: - Init
 
-    init(config: PeachyAnimationConfig) {
+    init(config: PeachyAnimationConfig, random: @escaping () -> UInt64 = { UInt64.random(in: .min ... .max) }) {
         self.config = config
+        self.random = random
         self.currentNodeId = config.initialNode
         self.anyStateEdges = config.edges
             .filter { $0.source == "*" }
@@ -221,8 +226,18 @@ final class OverlayStateMachine {
         }
         // A loop end is a boundary: whatever matches now starts without another loop.
         startsNow = true
-        defer { startsNow = false }
         setInput("loopCount", .number(Double(loopCount)))
+        startsNow = false
+        // Still on this node (arrival resets loopCount): a node with several rows re-picks one.
+        if phase == .looping, loopCount > 0, config.sprite != nil {
+            currentSpriteRow = pickSpriteRow(for: currentNodeId)
+        }
+    }
+
+    /// One of the node's sheet rows, at random when it has several.
+    private func pickSpriteRow(for nodeId: String) -> Int? {
+        guard let rows = config.sprite?.rows[nodeId], !rows.isEmpty else { return nil }
+        return rows[Int(random() % UInt64(rows.count))]
     }
 
     /// Called by the view when a non-looping (transition) video finishes
@@ -469,7 +484,14 @@ final class OverlayStateMachine {
         // Find loop edge for this node
         let loopEdge = config.edges.first { $0.source == nodeId && $0.target == nodeId && $0.isLoop }
 
-        if let loopEdge, let hevc = loopEdge.videos.hevc, let url = URL(string: hevc) {
+        if config.sprite != nil, let row = pickSpriteRow(for: nodeId) {
+            // Spritesheet pets loop a sheet row; transitions are hard cuts at the loop end.
+            currentSpriteRow = row
+            currentVideoURL = nil
+            isLoopVideo = true
+            phase = .looping
+            print("[PeachyPet] Arrived at \(nodeName) — looping sheet row \(row)")
+        } else if let loopEdge, let hevc = loopEdge.videos.hevc, let url = URL(string: hevc) {
             let resolved = VideoCache.shared.resolve(url)
             currentVideoURL = resolved
             currentPlaybackRate = playbackRate(for: loopEdge)

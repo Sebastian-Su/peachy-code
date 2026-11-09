@@ -2,7 +2,8 @@
 
 ## AgentPet
 
-Parts of the spritesheet pet support (frame slicing and its tests) are adapted from
+Parts of the spritesheet pet support (frame slicing and its tests, the frame timer,
+and the bottom-centred whole-number scaling) are adapted from
 AgentPet, https://github.com/ntd4996/agentpet.
 
 MIT License
