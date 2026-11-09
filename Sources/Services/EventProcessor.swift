@@ -62,8 +62,11 @@ final class EventProcessor {
         if isCodexBackgroundStartup(event) || isCodexAmbientTask(event) {
             if let sessionId = event.sessionId {
                 suppressedSessions[sessionId] = now
+                // A suggestion fork can send SessionStart before its identifying prompt.
+                // Reuse the internal-turn snapshot to undo that provisional session.
+                sessionStore.rollbackInternalTurn(taskId: event.taskId ?? sessionId, sessionId: sessionId)
             }
-            PeachyLog.event.debug("Ignoring Codex background startup sid=\(event.sessionId ?? "-")")
+            PeachyLog.event.debug("Ignoring Codex background task sid=\(event.sessionId ?? "-")")
             return false
         }
 
@@ -158,13 +161,12 @@ final class EventProcessor {
         return (uuid.uuid.6 >> 4) == 7
     }
 
-    /// Codex Desktop runs ambient housekeeping turns (suggestion generation and the
-    /// safety review of those suggestions) with no cwd, no terminal and no transcript.
+    /// Codex runs housekeeping turns (suggestion generation and safety review)
+    /// with no terminal or transcript. Next-message suggestions inherit the project cwd.
     /// They also never emit Stop, so they must be recognised at the prompt itself.
     private func isCodexAmbientTask(_ event: AgentEvent) -> Bool {
         guard event.eventType == .userPromptSubmit,
               event.permissionMode == "bypassPermissions",
-              event.cwd == "/",
               event.terminalPid == nil,
               event.shellPid == nil,
               event.transcriptPath == nil,
@@ -174,6 +176,11 @@ final class EventProcessor {
               let prompt = event.prompt else {
             return false
         }
+        if event.agentSource == .codex,
+           prompt.hasPrefix("This is an app-generated request for a suggested next user message. The user did not write this message.") {
+            return true
+        }
+        guard event.cwd == "/" else { return false }
         let ambientMarkers = [
             "Codex ambient suggestions",
             "hyperpersonalized suggestions",
