@@ -1,0 +1,33 @@
+{
+ "version": 3,
+ "page": 1,
+ "pageSize": 100,
+ "pets": [
+  {
+   "id": "halloween-spellbook",
+   "displayName": "Spellbook",
+   "description": "Spellbook, a little Halloween companion.",
+   "thumbnail": "https://openpets.dev/pets/content/930f4f91e4bbf1b7733648a369003afe4a18ca5f87dbccfbc4a6af61dfd829d7/halloween-spellbook-openpets/thumb.webp",
+   "spritesheet": "https://openpets.dev/pets/content/ee822a2121fde035989fdf439bb37cb72b37363af79b4ee13e37fe615fc95483/halloween-spellbook-openpets/spritesheet.webp",
+   "zip": "https://zip.openpets.dev/pets/halloween-spellbook-openpets/halloween-spellbook.zip",
+   "category": "western",
+   "subcategory": "halloween",
+   "featured": true,
+   "original": true,
+   "spriteVersionNumber": 2
+  },
+  {
+   "id": "halloween-skull",
+   "displayName": "Skull",
+   "description": "Skull, a little Halloween companion.",
+   "thumbnail": "https://openpets.dev/pets/content/447eca67426dde4a42f8c0f872f51b3781f352542412351882a8f46cf7b4fbe2/halloween-skull-openpets/thumb.webp",
+   "spritesheet": "https://openpets.dev/pets/content/e7f8ed555673622428c353a9823dcade0d1f74c964e1c5c582737c342dd227d7/halloween-skull-openpets/spritesheet.webp",
+   "zip": "https://zip.openpets.dev/pets/halloween-skull-openpets/halloween-skull.zip",
+   "category": "western",
+   "subcategory": "halloween",
+   "featured": true,
+   "original": true,
+   "spriteVersionNumber": 2
+  }
+ ]
+}

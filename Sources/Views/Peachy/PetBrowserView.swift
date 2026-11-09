@@ -3,8 +3,21 @@ import SwiftUI
 /// Lists pets from the online catalog; picking one downloads, verifies and
 /// imports it, after which it can be activated like any other pet.
 struct PetBrowserView: View {
+    enum Tab: String, CaseIterable, Identifiable {
+        case peachy, openpets, petdex
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .peachy: "PeachyPet"
+            case .openpets: "OpenPets"
+            case .petdex: "Petdex"
+            }
+        }
+    }
+
     @Environment(AppStore.self) var appStore
     @Environment(\.dismiss) private var dismiss
+    @State private var tab: Tab = .peachy
     @State private var catalog: PetCatalog?
     @State private var loadError: String?
     @State private var installing: String?
@@ -22,8 +35,28 @@ struct PetBrowserView: View {
                     .buttonStyle(BrandGhostButton(color: Constants.textMuted))
             }
             .padding(16)
+            Picker("", selection: $tab) {
+                ForEach(Tab.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
             Divider().overlay(Constants.border)
 
+            switch tab {
+            case .peachy: peachyTab
+            case .openpets: SpriteCatalogTab(source: .openpets).environment(appStore)
+            case .petdex: SpriteCatalogTab(source: .petdex).environment(appStore)
+            }
+        }
+        // Same size on every tab; each list scrolls inside it.
+        .frame(width: 640, height: 560)
+        .background(Constants.lightBackground)
+        .task { await load() }
+    }
+
+    private var peachyTab: some View {
             Group {
                 if let catalog {
                     ScrollView {
@@ -47,10 +80,7 @@ struct PetBrowserView: View {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-        }
-        .frame(minWidth: 480, minHeight: 420)
-        .background(Constants.lightBackground)
-        .task { await load() }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func row(_ entry: PetCatalog.Entry) -> some View {

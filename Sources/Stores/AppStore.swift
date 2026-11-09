@@ -19,6 +19,8 @@ final class AppStore {
     let notificationService = NotificationService.shared
     let pendingPermissionStore = PendingPermissionStore()
     let mascotStore = MascotStore()
+    /// OpenPets and Petdex lists for "Browse more".
+    let spriteCatalog = SpriteCatalog()
     let mascotProjectStore = MascotProjectStore()
     let mediaProviderSettings = MediaProviderSettingsStore()
     let hotkeyManager = GlobalHotkeyManager()

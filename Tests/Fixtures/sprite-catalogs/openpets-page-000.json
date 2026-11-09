@@ -1,0 +1,60 @@
+{
+ "version": 3,
+ "page": 0,
+ "pageSize": 100,
+ "pets": [
+  {
+   "id": "halloween-witch-hat",
+   "displayName": "Witch Hat",
+   "description": "Witch Hat, a little Halloween companion.",
+   "thumbnail": "https://openpets.dev/pets/content/d0dc193a6d7eb12be003bd2906bb5493ac079c774867e3956006247e22f83e30/halloween-witch-hat-openpets/thumb.webp",
+   "spritesheet": "https://openpets.dev/pets/content/aae71d1906d0db036e9fde26558d2d37b1f94afc40177002a5158748ec03b2ee/halloween-witch-hat-openpets/spritesheet.webp",
+   "zip": "https://zip.openpets.dev/pets/halloween-witch-hat-openpets/halloween-witch-hat.zip",
+   "category": "western",
+   "subcategory": "halloween",
+   "featured": true,
+   "original": true,
+   "spriteVersionNumber": 2
+  },
+  {
+   "id": "halloween-vampire",
+   "displayName": "Vampire",
+   "description": "Vampire, a little Halloween companion.",
+   "thumbnail": "https://openpets.dev/pets/content/d0ad72418b48ee71faf2c54c5cf8ac521cd2a704739f371b391b930f4a91c8f6/halloween-vampire-openpets/thumb.webp",
+   "spritesheet": "https://openpets.dev/pets/content/68a6366820a8fda60bbea5f4050a4ede430c302e197c40a7c4eae9b9704679b2/halloween-vampire-openpets/spritesheet.webp",
+   "zip": "https://zip.openpets.dev/pets/halloween-vampire-openpets/halloween-vampire.zip",
+   "category": "western",
+   "subcategory": "halloween",
+   "featured": true,
+   "original": true,
+   "spriteVersionNumber": 2
+  },
+  {
+   "id": "halloween-spider",
+   "displayName": "Spider",
+   "description": "Spider, a little Halloween companion.",
+   "thumbnail": "https://openpets.dev/pets/content/ac3f49926c32b9cd6700ed5df14be2a43906d1f27fc171a15192b25316a3b9af/halloween-spider-openpets/thumb.webp",
+   "spritesheet": "https://openpets.dev/pets/content/800f97a175c3599d3130a2e91007de6b19eb66f380c0981ac1f762b18cde7b6b/halloween-spider-openpets/spritesheet.webp",
+   "zip": "https://zip.openpets.dev/pets/halloween-spider-openpets/halloween-spider.zip",
+   "category": "western",
+   "subcategory": "halloween",
+   "featured": true,
+   "original": true,
+   "spriteVersionNumber": 2
+  },
+  {
+   "id": "momo",
+   "displayName": "Momo",
+   "description": "A soft plush-realistic Codex Pet inspired by a shy juvenile monkey holding a bright green fruit.",
+   "thumbnail": "https://openpets.dev/pets/content/8df38903d215931ec1c3b1767f9352ce6c018a2b18eca0343282cec703126253/momo-cf2fd837/thumb.webp",
+   "spritesheet": "https://openpets.dev/pets/content/77f28cefdf0b7d9e3fe43b1c717b218762447067bca29f08b4f364ac6c26a0ad/momo-cf2fd837/spritesheet.webp",
+   "zip": "https://zip.openpets.dev/pets/momo-cf2fd837/momo.zip",
+   "category": "asian",
+   "subcategory": "anime",
+   "featured": true
+  },
+  {
+   "id": "broken"
+  }
+ ]
+}

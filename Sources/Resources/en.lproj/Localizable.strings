@@ -333,6 +333,13 @@
 "pets.import_sprite" = "Choose sprite pet pack";
 "pets.import_sprite_hint" = "Pick a folder with pet.json and a spritesheet, e.g. an AgentPet, petdex or openpets pet.";
 "pets.import_sprite_failed" = "Import failed: %@";
+"pets.search" = "Search by name";
+"pets.kind.all" = "All";
+"pets.kind.character" = "Characters";
+"pets.kind.creature" = "Creatures";
+"pets.kind.object" = "Objects";
+"pets.source_unreachable" = "Can't reach this site right now.";
+"pets.count" = "%d pets";
 "pets.close" = "Close";
 "pets.retry" = "Retry";
 "pets.installed" = "Installed";

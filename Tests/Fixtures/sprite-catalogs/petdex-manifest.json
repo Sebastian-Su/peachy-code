@@ -1,0 +1,69 @@
+{
+ "generatedAt": "2026-11-08T12:31:54.561Z",
+ "total": 6,
+ "pets": [
+  {
+   "slug": "homelander",
+   "displayName": "Homelander",
+   "kind": "character",
+   "submittedBy": "Serhat",
+   "spritesheetUrl": "https://assets.petdex.dev/pets/homelander-dbbb6a60a484/sprite.webp",
+   "petJsonUrl": "https://assets.petdex.dev/pets/homelander-dbbb6a60a484/petjson.json",
+   "zipUrl": "https://assets.petdex.dev/pets/homelander-dbbb6a60a484/zip.zip",
+   "spriteVersionNumber": 1
+  },
+  {
+   "slug": "peashooter",
+   "displayName": "Peashooter",
+   "kind": "character",
+   "submittedBy": "josephhu04",
+   "spritesheetUrl": "https://assets.petdex.dev/pets/peashooter-286f7acd384b/sprite.webp",
+   "petJsonUrl": "https://assets.petdex.dev/pets/peashooter-286f7acd384b/petjson.json",
+   "zipUrl": "https://assets.petdex.dev/pets/peashooter-286f7acd384b/zip.zip",
+   "spriteVersionNumber": 1
+  },
+  {
+   "slug": "momo",
+   "displayName": "Momo",
+   "kind": "character",
+   "submittedBy": "Ccgh G.",
+   "spritesheetUrl": "https://assets.petdex.dev/pets/momo-7ec3215e1d3a/sprite.webp",
+   "petJsonUrl": "https://assets.petdex.dev/pets/momo-7ec3215e1d3a/petjson.json",
+   "zipUrl": "https://assets.petdex.dev/pets/momo-7ec3215e1d3a/zip.zip",
+   "spriteVersionNumber": 1
+  },
+  {
+   "slug": "mecha-xiaobai",
+   "displayName": "机甲小白",
+   "kind": "character",
+   "submittedBy": "369772958",
+   "spritesheetUrl": "https://assets.petdex.dev/pets/mecha-xiaobai-d9c53c86fadc/sprite.webp",
+   "petJsonUrl": "https://assets.petdex.dev/pets/mecha-xiaobai-d9c53c86fadc/petjson.json",
+   "zipUrl": "https://assets.petdex.dev/pets/mecha-xiaobai-d9c53c86fadc/zip.zip",
+   "spriteVersionNumber": 1
+  },
+  {
+   "slug": "paper-ledger-spacer",
+   "displayName": "Paper Ledger Spacer",
+   "kind": "object",
+   "submittedBy": "codexfede",
+   "spritesheetUrl": "https://assets.petdex.dev/pets/paper-ledger-spacer-b136344e85e5/sprite.webp",
+   "petJsonUrl": "https://assets.petdex.dev/pets/paper-ledger-spacer-b136344e85e5/petjson.json",
+   "zipUrl": "https://assets.petdex.dev/pets/paper-ledger-spacer-b136344e85e5/zip.zip",
+   "spriteVersionNumber": 1
+  },
+  {
+   "slug": "shuangsheng-linger",
+   "displayName": "双生灵儿",
+   "kind": "creature",
+   "submittedBy": "369772958",
+   "spritesheetUrl": "https://assets.petdex.dev/pets/shuangsheng-linger-7d5ed5f6f3b3/sprite.webp",
+   "petJsonUrl": "https://assets.petdex.dev/pets/shuangsheng-linger-7d5ed5f6f3b3/petjson.json",
+   "zipUrl": "https://assets.petdex.dev/pets/shuangsheng-linger-7d5ed5f6f3b3/zip.zip",
+   "spriteVersionNumber": 1
+  },
+  {
+   "slug": "broken"
+  }
+ ]
+}

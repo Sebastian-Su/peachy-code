@@ -333,6 +333,13 @@
 "pets.import_sprite" = "选择精灵图宠物包";
 "pets.import_sprite_hint" = "选一个文件夹，里面有 pet.json 和一张精灵图，比如 AgentPet、petdex、openpets 的宠物包。";
 "pets.import_sprite_failed" = "导入失败：%@";
+"pets.search" = "搜索名字";
+"pets.kind.all" = "全部";
+"pets.kind.character" = "角色";
+"pets.kind.creature" = "生物";
+"pets.kind.object" = "物件";
+"pets.source_unreachable" = "暂时连不上这个网站。";
+"pets.count" = "%d 只";
 "pets.close" = "关闭";
 "pets.retry" = "重试";
 "pets.installed" = "已安装";

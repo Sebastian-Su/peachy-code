@@ -1,0 +1,10 @@
+{
+ "version": 3,
+ "generatedAt": "2026-11-03T11:43:05.803Z",
+ "total": 6,
+ "pageSize": 100,
+ "pages": [
+  "https://openpets.dev/pets/catalog.v3/x/page-000.json",
+  "https://openpets.dev/pets/catalog.v3/x/page-001.json"
+ ]
+}
