@@ -267,7 +267,10 @@ final class MascotStore {
     /// Removes a mascot. Sprite pets can be downloaded again, so their installed
     /// folder goes too; video pets keep their files (some cannot be made again).
     func delete(id: UUID, petsRoot: URL = LocalStorage.appSupportDir.appendingPathComponent("Pets", isDirectory: true)) {
-        if let sprite = mascots.first(where: { $0.id == id })?.config.sprite,
+        // Only pets installed as sprites own a sprite folder; a resource-center pack
+        // carrying sprite info lives under its pack folder and keeps its files.
+        if let mascot = mascots.first(where: { $0.id == id }), let sprite = mascot.config.sprite,
+           mascot.templateSlug == SpritePetInstaller.slug(source: sprite.source, id: sprite.id),
            SpritePetInstaller.isSafeId(sprite.id) {
             let folder = SpritePetInstaller.directory(for: sprite.source, id: sprite.id, under: petsRoot)
             try? FileManager.default.removeItem(at: folder)

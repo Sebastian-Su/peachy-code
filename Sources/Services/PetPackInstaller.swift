@@ -84,7 +84,7 @@ enum PetPackInstaller {
         throw PetPackError.invalidPack
     }
 
-    private static let mediaKeys: Set<String> = ["hevc", "webm", "transparentThumbnailUrl", "url"]
+    private static let mediaKeys: Set<String> = ["hevc", "webm", "transparentThumbnailUrl", "url", "sheet"]
 
     private static func rewriteMedia(_ value: Any, packRoot: URL, finalRoot: URL) throws -> Any {
         if let dict = value as? [String: Any] {

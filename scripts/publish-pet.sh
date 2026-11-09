@@ -8,6 +8,8 @@
 # relative, zips it as <pack id>.zip and prints the entry to add to catalog.json.
 # With --upload it also attaches the zip to the peachy-mascots Release
 # "<pack id>-v<version>" via gh. Remote (https://) media is left as is.
+# Spritesheet pets ship their sheet too; only locally imported ones may be
+# published, never pets downloaded from OpenPets or Petdex.
 set -euo pipefail
 
 NAME="${1:?usage: publish-pet.sh <pet name> <pack id> [--version N] [--out DIR] [--upload]}"
@@ -40,12 +42,15 @@ matches = [m for m in json.load(open(mascots_path)) if m.get("name") == name]
 if len(matches) != 1:
     sys.exit(f"expected exactly one pet named {name!r}, found {len(matches)}")
 config = matches[0]["config"]
+sprite = config.get("sprite")
+if sprite and sprite.get("source") != "local":
+    sys.exit(f"{name!r} came from {sprite.get('source')}; only sprite pets you imported yourself can be published")
 os.makedirs(pack)
 copied = {}
 
 def localize(value):
     if isinstance(value, dict):
-        return {k: (pack_path(v) if k in ("hevc", "webm", "transparentThumbnailUrl", "url") and isinstance(v, str) else localize(v))
+        return {k: (pack_path(v) if k in ("hevc", "webm", "transparentThumbnailUrl", "url", "sheet") and isinstance(v, str) else localize(v))
                 for k, v in value.items()}
     if isinstance(value, list):
         return [localize(v) for v in value]

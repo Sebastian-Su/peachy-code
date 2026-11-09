@@ -237,6 +237,7 @@ Sources/
 - 切图（`SpriteSlicer`）按透明空隙切；标准 8×9 网格上空行不会让后面的行错位。状态对应：待机→第 1 行，工作→第 8、2、3 行每轮随机，求关注→第 7 行，思考→第 9 行；缺的行退回待机
 - 桌面播放（`SpriteSheetPlayer`）：每轮结束通知状态机，状态切换等这一轮播完再硬切；整只宠物共用一个整数倍缩放，底部居中，最近邻放大；帧率工作 8、求关注 4、其他 3
 - 「浏览更多」分 PeachyPet / OpenPets / Petdex 三个标签，直接读两站清单（`SpriteCatalog`，缓存在 `SpriteCatalogs/`），不镜像、不转存；只下载用户点的那一只。Petdex 没有缩略图，点「预览」才拉精灵图，存在 `SpritePreviews/`，上限 200 MB，按最久没用的先删
+- 发布：`scripts/publish-pet.sh` 也能打包精灵图桌宠（精灵图和待机首帧一起进包），但只限本地导入的；来源是 OpenPets、Petdex 的直接拒绝，不再分发别人的作品
 - 切图、逐帧计时器、拉清单的写法复用自 AgentPet（MIT），版权声明在 `ThirdPartyNotices.md`
 
 ## 主窗口与皮肤
