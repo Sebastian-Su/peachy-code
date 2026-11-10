@@ -57,9 +57,6 @@ final class SpriteSheetView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
         layer?.isOpaque = false
-        // Pixel art: no smoothing when scaled up.
-        frameLayer.magnificationFilter = .nearest
-        frameLayer.minificationFilter = .nearest
         frameLayer.actions = ["contents": NSNull(), "frame": NSNull(), "bounds": NSNull(), "position": NSNull()]
         layer?.addSublayer(frameLayer)
     }
@@ -136,7 +133,11 @@ final class SpriteSheetView: NSView {
             placement = SpriteLayout(frameSizes: sizes, canvas: CGSize(width: bounds.width * scale, height: bounds.height * scale))
         }
         let frame = frames[index % frames.count]
-        guard let rect = placement?.rect(for: CGSize(width: frame.width, height: frame.height)) else { return }
+        guard let placement else { return }
+        let rect = placement.rect(for: CGSize(width: frame.width, height: frame.height))
+        let filter: CALayerContentsFilter = placement.isWholeScale ? .nearest : .linear
+        frameLayer.magnificationFilter = filter
+        frameLayer.minificationFilter = filter
         frameLayer.contentsScale = scale
         // Layout is top-left; the layer origin is bottom-left.
         frameLayer.frame = CGRect(x: rect.minX / scale, y: (bounds.height * scale - rect.maxY) / scale,

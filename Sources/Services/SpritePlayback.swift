@@ -11,9 +11,10 @@ enum SpriteTiming {
 }
 
 /// Where each frame of a spritesheet pet is drawn, following AgentPet's Windows
-/// renderer: bottom-centred, scaled by a whole number when it fits, on whole
-/// pixels. Unlike AgentPet the scale is shared by every frame of the pet (not
-/// just one row), so switching state never changes its size.
+/// renderer: bottom-centred on whole pixels, one scale for every frame of the pet
+/// (not just one row) so switching state never changes its size. The pet fills the
+/// canvas; rounding the scale down to a whole number left a 203 px frame at 1x in a
+/// 300 px window, a third of it empty.
 struct SpriteLayout {
     let canvas: CGSize
     let scale: CGFloat
@@ -22,9 +23,12 @@ struct SpriteLayout {
         self.canvas = canvas
         let maxW = frameSizes.map(\.width).max() ?? 1
         let maxH = frameSizes.map(\.height).max() ?? 1
-        let fit = min(canvas.width / max(maxW, 1), canvas.height / max(maxH, 1))
-        scale = fit >= 1 ? fit.rounded(.down) : fit
+        scale = min(canvas.width / max(maxW, 1), canvas.height / max(maxH, 1))
     }
+
+    /// Nearest-neighbour keeps pixel art crisp only at whole-number scales; anything
+    /// else needs smoothing, or soft-edged sheets turn jagged.
+    var isWholeScale: Bool { abs(scale - scale.rounded()) < 0.001 && scale >= 1 }
 
     /// Frame rect in canvas pixels, origin at the top-left.
     func rect(for size: CGSize) -> CGRect {

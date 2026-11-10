@@ -43,17 +43,30 @@ final class SpritePetPlaybackTests: XCTestCase {
         XCTAssertEqual(SpriteTiming.fps(for: node("Thinking", config), in: config), 3)
     }
 
-    // S21: one integer scale for every frame of the pet, bottom-centred, whole pixels
-    func testOneIntegerScaleForTheWholePet() {
+    // S21: one scale for every frame of the pet, filling the canvas, bottom-centred, whole pixels
+    func testOneScaleFillsTheCanvasForTheWholePet() {
         let frames = [CGSize(width: 136, height: 198), CGSize(width: 182, height: 198), CGSize(width: 150, height: 190)]
         let layout = SpriteLayout(frameSizes: frames, canvas: CGSize(width: 600, height: 600))
-        XCTAssertEqual(layout.scale, 3, "600 / 198 = 3.03, floored to 3")
+        XCTAssertEqual(layout.scale, 600 / 198, accuracy: 0.0001, "fills the height, no rounding down")
         for size in frames {
             let rect = layout.rect(for: size)
-            XCTAssertEqual(rect.width, size.width * 3)
-            XCTAssertEqual(rect.minY, 600 - size.height * 3, "bottom aligned in flipped coordinates")
+            XCTAssertEqual(rect.width, size.width * layout.scale, accuracy: 0.0001)
+            XCTAssertEqual(rect.maxY, 600, accuracy: 0.5, "bottom aligned")
             XCTAssertEqual(rect.minX, rect.minX.rounded(), "whole pixels")
         }
+        XCTAssertFalse(layout.isWholeScale)
+    }
+
+    // The reported case: a 203 px tall pet in the default 150 pt window (300 px on Retina)
+    func testDefaultWindowIsFilledByAPetdexSizedFrame() {
+        let layout = SpriteLayout(frameSizes: [CGSize(width: 186, height: 203)], canvas: CGSize(width: 300, height: 300))
+        XCTAssertEqual(layout.rect(for: CGSize(width: 186, height: 203)).height, 300, accuracy: 0.5)
+    }
+
+    // Pixel stays crisp only when the scale is a whole number; fractional scales are smoothed
+    func testNearestOnlyForWholeScales() {
+        XCTAssertTrue(SpriteLayout(frameSizes: [CGSize(width: 100, height: 100)], canvas: CGSize(width: 300, height: 300)).isWholeScale)
+        XCTAssertFalse(SpriteLayout(frameSizes: [CGSize(width: 100, height: 203)], canvas: CGSize(width: 300, height: 300)).isWholeScale)
     }
 
     func testCanvasSmallerThanFrameShrinksWithoutRounding() {
@@ -169,7 +182,7 @@ final class SpriteSheetViewTests: XCTestCase {
         view.advance(); view.advance() // 3rd idle frame was shown; this ends the pass
         XCTAssertEqual(machine.currentSpriteRow, 6)
         XCTAssertEqual(view.frameLayer.frame.size, size, "same scale after switching state")
-        XCTAssertEqual(view.frameLayer.magnificationFilter, .nearest)
+        XCTAssertEqual(view.frameLayer.magnificationFilter, .linear, "fractional scale is smoothed")
         view.teardown()
     }
 }
