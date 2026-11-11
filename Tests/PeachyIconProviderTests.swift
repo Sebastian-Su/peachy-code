@@ -81,6 +81,27 @@ final class PeachyIconProviderTests: XCTestCase {
         XCTAssertLessThan(corner.alphaComponent, 0.01)
     }
 
+    func testWindowBrandMarkUsesApproved02Artwork() throws {
+        let image = try XCTUnwrap(PeachyIconProvider.brandImage())
+        let bitmap = try XCTUnwrap(image.representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(bitmap.pixelsWide, 512)
+        XCTAssertEqual(bitmap.pixelsHigh, 512)
+        var rgba = Data()
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
+                rgba.append(contentsOf: [
+                    color.redComponent, color.greenComponent, color.blueComponent, color.alphaComponent
+                ].map { UInt8(($0 * 255).rounded()) })
+            }
+        }
+        let digest = SHA256.hash(data: rgba).map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(
+            digest, "37d6cd54a403e7e13fcd1e0cedb58cce4d2d3ae7cc3d045fcc8760c2eb333ac5",
+            "All window brand marks must display the approved 02 kitten"
+        )
+    }
+
     private func assertPixelsFormTransparentMonochromeTemplate(
         in image: NSImage,
         state: PeachyIconProvider.MenuBarState
