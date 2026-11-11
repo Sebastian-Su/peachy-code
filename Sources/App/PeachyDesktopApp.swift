@@ -209,13 +209,7 @@ struct PeachyDesktopApp: App {
             let menuBarState: PeachyIconProvider.MenuBarState =
                 appStore.sessionStore.runningSessions.isEmpty ? .idle : .working
             if let nsImage = PeachyIconProvider.menuBarImage(for: menuBarState) {
-                Image(nsImage: nsImage)
-                if appStore.hasUnreadNotifications {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 6, height: 6)
-                        .offset(x: 6, y: -6)
-                }
+                MenuBarIcon(image: nsImage, hasUnreadNotifications: appStore.hasUnreadNotifications)
             } else {
                 Image(systemName: "ellipsis.message")
             }
