@@ -17,7 +17,7 @@ concurrency:
 jobs:
   macos:
     name: macOS build and tests
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 25
     steps:
       - name: Checkout tested commit

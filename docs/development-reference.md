@@ -268,8 +268,10 @@ Sources/
 ## GitHub CI
 
 - 工作流为 `.github/workflows/ci.yml`：PR 目标为 `main`、`main` push，以及手动运行。PR 使用 GitHub 生成的临时合并提交，检查名固定为 `macOS build and tests`。
-- `macos-15` 干净 runner 执行生产资源模式的 release 编译，再执行 Git 跟踪的现有 XCTest；初版明确采用仓库测试全量，交互开发仍按根规范增量选测。
+- `macos-15-intel` 干净 runner 执行生产资源模式的 release 编译，再执行 Git 跟踪的现有 XCTest；初版明确采用仓库测试全量，交互开发仍按根规范增量选测。
 - `Package.resolved` 纳入 Git，编译和测试均使用 `--force-resolved-versions`；改依赖时同步更新锁文件，避免本机与 CI 解析到不同版本。
 - 不设置本机 live 测试的开关，不携带开发者目录或本地临时测试。已有可选用例的 skip 只表示该项未验证，不代表原生或升级验收通过。
 - 工作流只读仓库，无证书、签名、安装或发布步骤；公开发版及本机安装沿用各自独立流程。
 - 首次真实运行通过后，才将实际检查名配置为 `main` 的 required check，并同步更新根规范中的接入状态。语法检查、本地编译及本地测试均不能替代首次远端 CI 结果。
+
+首次 ARM64 runner 因 GitHub 容量不足而未获得机器，故使用官方 Intel 标签执行 CI；它验证 x86_64 编译和测试，本机 Apple Silicon 构建、签名安装及原生验收分别保留证据。更改 runner 时核对[官方镜像支持范围](https://github.com/actions/runner-images)。
