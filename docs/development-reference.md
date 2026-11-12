@@ -265,7 +265,7 @@ Sources/
 - 为 sandbox/签名场景保存并使用 security-scoped bookmark（避免下次启动失去权限）
 - 在 `MascotStore` 增加从 `URL` 读取并 decode 的入口，定义覆盖优先级（本地文件 > 已保存 mascot > bundle > 远端或按需）
 
-## GitHub CI（配置待首次远端运行）
+## GitHub CI
 
 - 工作流为 `.github/workflows/ci.yml`：PR 目标为 `main`、`main` push，以及手动运行。PR 使用 GitHub 生成的临时合并提交，检查名固定为 `macOS build and tests`。
 - `macos-15` 干净 runner 执行生产资源模式的 release 编译，再执行 Git 跟踪的现有 XCTest；初版明确采用仓库测试全量，交互开发仍按根规范增量选测。
