@@ -30,3 +30,17 @@ jobs:
         run: swift build --configuration release --force-resolved-versions -Xswiftc -DPEACHY_APP_BUNDLE
       - name: Run repository tests
         run: swift test --force-resolved-versions
+      - name: Print native test crash reports
+        if: failure()
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          reports = Path.home() / "Library/Logs/DiagnosticReports"
+          matches = sorted({*reports.glob("*xctest*"), *reports.glob("*PeachyPet*")})
+          for report in matches:
+              if report.is_file():
+                  print(f"=== {report.name} ===", flush=True)
+                  print(report.read_text(errors="replace")[:100_000], flush=True)
+          if not matches:
+              print("No native test crash report was produced.")
+          PYTHON
