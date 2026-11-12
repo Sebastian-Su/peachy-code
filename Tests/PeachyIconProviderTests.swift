@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class PeachyIconProviderTests: XCTestCase {
-    func testSystemApplicationIconMatchesApproved02Artwork() throws {
+    func testSystemApplicationIconMatchesApprovedScreenCatArtwork() throws {
         let project = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
         let info = try Data(contentsOf: project.appendingPathComponent("Info.plist"))
@@ -17,10 +17,10 @@ final class PeachyIconProviderTests: XCTestCase {
         XCTAssertNotNil(NSImage(contentsOf: icon), "The system icon must be decodable")
         let digest = SHA256.hash(data: try Data(contentsOf: icon))
             .map { String(format: "%02x", $0) }.joined()
-        // Frozen from the user-approved 02 ICNS, independently of the production resource.
+        // Frozen from an independent raster export of the approved B screen-cat artwork.
         XCTAssertEqual(
-            digest, "bbc1d9a6368c2f7d272ebfaaff0ffdf2bb8d57bddc9ca4a54bb1caf56f075c86",
-            "Finder and Dock must use the approved 02 artwork"
+            digest, "ba8933ec44c5f4a8f038d1cf8b6fcf2e23c5366348f886d04e5103184a31c301",
+            "Finder and Dock must use the approved B screen-cat artwork"
         )
     }
 
@@ -39,20 +39,20 @@ final class PeachyIconProviderTests: XCTestCase {
         }
     }
 
-    func testMenuBarSilhouettesMatchApprovedFullerMarksAtBothScales() throws {
-        // Alpha snapshots from the approved templates; black/white ink is not part of the contract.
+    func testMenuBarSilhouettesMatchApprovedScreenCatAtBothScales() throws {
+        // Independent raster exports of approved 02, with state expressions on the same cat frame.
         let approved: [(PeachyIconProvider.MenuBarState, [Int: String])] = [
             (.idle, [
-                18: "cc29b65cd3b3fcc03617f5c512e71743c7ebcf7c3c2c66e4a3cb2f6e1b55ff0f",
-                36: "ea750157ea810a359ea500c4b6a626d8ec87ce07a587a20caa5b679fd32beb27"
+                18: "6e295f3a45a405c6b0ca9954fe949d2907c76d53d21a71ab21899d858db4724a",
+                36: "998a8f405babcb9126590a44133c36f1f064e4fc68b97ecd247c3dd7dcd473d8"
             ]),
             (.working, [
-                18: "edb81255e28dd9e3761b6b98ac9e1f2caf270ae8229747b2dc03043a09a8d4dc",
-                36: "980987c5ba397217bf5494629b066218cc41cd19818cd1c496202b886e472f2b"
+                18: "4f66cec9b0fd4b3fedb1951be4821fb81fae69e016a0a427ab181f90fb19fe46",
+                36: "1ecf80078d0b7989c0742ab85d6a5645335dcb356e940812a85ab630b115062e"
             ]),
             (.attention, [
-                18: "41605de968a4ddace72e72484dc719e06ed6a7b2eee39eaef2c2425b5c9a39de",
-                36: "1ec5cfda0ab760a2a2096976c28bb94c377db8756c2675d4b769d885ff74dbb5"
+                18: "43629dc84d03dee5bf421e7a08b864c0e77fb76b29787987f337cb22f9d50416",
+                36: "04a2503a9f37867f376dfdb8c399af12e710cdab9ff60428534d0f4bf154415d"
             ])
         ]
         for (state, hashes) in approved {
@@ -67,7 +67,7 @@ final class PeachyIconProviderTests: XCTestCase {
                 }
                 let digest = SHA256.hash(data: alpha).map { String(format: "%02x", $0) }.joined()
                 XCTAssertEqual(
-                    digest, hashes[representation.pixelsWide], "\(state) must use the fuller silhouette"
+                    digest, hashes[representation.pixelsWide], "\(state) must use the approved screen-cat silhouette"
                 )
             }
         }
@@ -81,7 +81,19 @@ final class PeachyIconProviderTests: XCTestCase {
         XCTAssertLessThan(corner.alphaComponent, 0.01)
     }
 
-    func testWindowBrandMarkUsesApproved02Artwork() throws {
+    func testDocumentationHeaderUsesApprovedScreenCatArtwork() throws {
+        let project = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let image = project.appendingPathComponent("Sources/Resources/Images/app-icon.png")
+        let digest = SHA256.hash(data: try Data(contentsOf: image))
+            .map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(
+            digest, "87f7ada3e3718a181dc173fff54052ae7025176c443310035e230e2a152b36c2",
+            "The existing documentation header must use the same approved B artwork"
+        )
+    }
+
+    func testWindowBrandMarkUsesApprovedScreenCatArtwork() throws {
         let image = try XCTUnwrap(PeachyIconProvider.brandImage())
         let bitmap = try XCTUnwrap(image.representations.first as? NSBitmapImageRep)
         XCTAssertEqual(bitmap.pixelsWide, 512)
@@ -96,9 +108,11 @@ final class PeachyIconProviderTests: XCTestCase {
             }
         }
         let digest = SHA256.hash(data: rgba).map { String(format: "%02x", $0) }.joined()
+        // Frozen by decoding the independent approved export through AppKit;
+        // its alpha/color decoding differs from raw Pillow RGBA bytes.
         XCTAssertEqual(
-            digest, "37d6cd54a403e7e13fcd1e0cedb58cce4d2d3ae7cc3d045fcc8760c2eb333ac5",
-            "All window brand marks must display the approved 02 kitten"
+            digest, "445e790a96b3c846128bbe5f7426a47cf2a09806016274c18333602f50b03c8f",
+            "All window brand marks must display the approved B screen cat"
         )
     }
 
