@@ -1,105 +1,41 @@
-# PeachyPet（macOS 菜单栏应用）— Codex 协作指南
+# PeachyPet 开发约定
 
-> 目标：让你在不离开编码流的情况下，通过一个漂浮的 mascot（覆盖层）查看 Codex 的会话、权限请求、通知，并进行交互。
+个人维护的 macOS 14+ Swift／SwiftUI 桌宠与 Agent 会话助手。以小步修改、自动验证和保护用户数据为原则。
 
-## TL;DR（常用命令）
+## 怎么改
 
-- 构建：
+- 先看 Git 状态和已有实现，复用现有代码与脚本；只改当前任务，保留用户未提交的内容。
+- 简单任务直接做；复杂功能才写必要的行为说明和步骤。
+- 沿用现有 Swift 风格。完成后简短说明改了什么、怎么验、还有什么没验证。
 
-```bash
-swift build
-```
+## 怎么验
 
-- 运行：
+- 功能和缺陷修复先写／补目标测试，确认因目标行为缺失而失败，再实现并跑受影响回归；不得弱化断言、skip 或 mock 被测实现制造通过。
+- 默认用 `swift test --filter` 跑相关用例。全量只在用户明确要求或既有 CI／发布流程明确规定时运行；需要临时扩大为全量且尚未授权时，先问一次。
+- 逻辑改动验单元测试，组件与持久化协作验集成测试，UI 和系统能力验适用的原生用户路径；按影响选层级，不要求所有改动机械跑三套。
+- 测试用临时数据和独立偏好；真实服务、系统权限及用户目录的验证单独核实授权和副作用。未运行、失败、跳过和模拟结果如实说明，不能算作真实验收通过。
+- 文档修改只检查内容、链接和 diff；打包、签名、菜单栏及升级问题须用实际应用验证，编译成功或进程存活不能替代。
 
-```bash
-swift run
-```
+## 常用入口
 
-## 项目概览
+| 目的 | 入口 |
+| --- | --- |
+| 编译／运行 | `swift build`／`swift run` |
+| 目标测试 | `swift test --filter <测试类或用例>` |
+| 正式签名应用包 | `scripts/build-app.sh <输出目录>`，先核对签名身份和目录 |
+| 包资源／严格验签 | `scripts/verify-app-bundle-resources.sh <应用路径>`；`codesign --verify --deep --strict <应用路径>` |
+| DMG | `scripts/create-dmg.sh`，参数按脚本用法，不默认安装 |
 
-PeachyPet 是一个 **macOS 14+ 的 Swift/SwiftUI** 菜单栏应用：
-- 通过 **Codex 非阻塞 hooks** 监听工具调用、会话、通知等事件（配置写入 `~/.codex/hooks.json`）
-- 应用自身运行一个 **本地 HTTP 服务（默认端口在设置页可配）**，用于接收/分发事件
-- UI 包含：覆盖层 mascot、权限气泡、Dashboard、设置页等
+## 主分支与 CI
 
-## 目录结构（Sources/）
+- 功能改动从最新 `main` 开 `feature/*`，通过 GitHub PR 合入；不在主分支直接开发或强推，不混入无关改动。
+- CI 接入后自动检查编译、相关测试和必要打包；必需检查通过且已有授权时可合并，不额外要求他人 Review。核对检查对应实际提交；源或目标更新后重评受影响检查。
+- 提交标题用“类型: 中文改动”，不附模型署名；push 和合并遵循已有任务授权。不得为合并绕过已启用的保护或 CI。
+- CI 入口为 `.github/workflows/ci.yml`；主分支保护与检查结果以 GitHub 实际配置和当前提交为准，未配置或未运行不能宣称通过。
 
-```
-Sources/
-├── App/             App 入口 & 生命周期
-├── Models/          数据模型（会话、事件、动画配置等）
-├── Services/        本地 HTTP server、HookInstaller、更新等
-├── Stores/          可观察状态（sessions、notifications、mascots…）
-├── Views/           SwiftUI 视图（overlay、permission prompt、dashboard、settings）
-├── Utilities/       工具方法（LocalStorage、常量等）
-└── Resources/       资源（图片/字体/Defaults/*.json）
-```
+## 数据、安装与发布
 
-## 关键数据流
-
-### Codex hooks → PeachyPet
-
-- 目标：把 Codex 的事件流转为应用内状态与 UI 展示
-- hooks 的注册/卸载由 `Sources/Services/CodexHookInstaller.swift` 管理，目标文件是：
-  - `~/.codex/hooks.json`
-- 不注册 `PermissionRequest`：Codex 审批继续由 Codex 自身的 user / auto_review 设置处理，PeachyPet 不覆盖审批路由
-
-### Mascot 动画配置（PeachyPet JSON）加载/导入
-
-项目里的 Mascot 配置遵循 `PeachyAnimationConfig`（`Sources/Models/PeachyCollection.swift`）。
-
-**预置 Mascot（presets）加载策略：远端优先，失败回落到本地 bundle。**
-- 远端：`MascotStore.fetchRemoteConfig(slug:)` 从 `Constants.peachyBaseURL` 拉取模板 JSON
-- 本地回落：`MascotStore.loadBundledConfig(named:)` 读取 bundle 内 `Resources/Defaults/<name>.json`
-  - 默认内置配置示例：`Sources/Resources/Defaults/peachy.json`
-
-**用户导入：当前支持“粘贴 JSON 文本导入”，不支持直接选择本地 json 文件路径。**
-- UI：Dashboard → “Import JSON”（`Sources/Views/Peachy/PeachyDashboardView.swift`）
-- 逻辑：粘贴文本 → decode → `MascotStore.add(config:)`
-
-**持久化：导入/编辑后的 mascots 会写入本机 Application Support。**
-- 位置：`~/Library/Application Support/PeachyPet/`
-- 文件：`mascots.json`（见 `Sources/Stores/MascotStore.swift` 与 `Sources/Utilities/LocalStorage.swift`）
-
-**Masko 创作中心采用本地项目包。**
-- UI：Dashboard → Peachy → Create
-- 项目目录：`~/Library/Application Support/PeachyPet/Mascots/<uuid>/`
-- `project.json` 保存草稿、生成任务、验证结果和 Block
-- `character/`、`styles/`、`states/`、`transitions/` 保存本地素材
-- `.masko` 是带 `manifest.json` 与 SHA-256 清单的可迁移目录包
-- 自定义生成 Provider 的 API Key 只存 macOS Keychain，不写入项目或导出包
-- Custom API / MCP Bridge 契约见 `docs/masko-creation-center-spec.md`
-- 生成后必须通过图片解码、HEVC Alpha 编码、首尾锚点和转场端点检查；失败项进入 Block
-- MVP 只自动创建 `Idle <-> 其他状态` 转场，并通过 Any State 路由经 Idle 完成跨状态切换
-
-如果要支持“从本地文件读取 JSON（选择文件/路径覆盖/热更新）”，通常需要：
-- 增加文件选择器（SwiftUI `fileImporter` 或 `NSOpenPanel`）
-- 为 sandbox/签名场景保存并使用 security-scoped bookmark（避免下次启动失去权限）
-- 在 `MascotStore` 增加从 `URL` 读取并 decode 的入口，定义覆盖优先级（本地文件 > 已保存 mascot > bundle > 远端或按需）
-
-## 本地数据与存储位置
-
-- App 数据目录（JSON 持久化）：
-  - `~/Library/Application Support/PeachyPet/`
-  - 由 `LocalStorage` 管理（`Sources/Utilities/LocalStorage.swift`）
-
-## 代码风格与约束
-
-- 遵循现有 Swift 风格与项目约定
-- 使用 SwiftLint（配置在 `.swiftlint.yml`）
-- 提交保持聚焦：一个 PR/commit 尽量只做一类改动
-
-## 发布/打包（DMG）
-
-仓库包含 DMG 打包脚本：
-- `scripts/create-dmg.sh`：创建带背景图、拖拽到 Applications 的 DMG
-
-## 变更时的更新要求（写给协作代理/未来自己）
-
-当你做了以下任一类改动时，需要同步更新本文件（保持简短、可执行）：
-- 新增/修改构建、运行、打包命令
-- 新增依赖、工具链要求（Xcode/Swift 版本等）
-- Mascot JSON 加载/覆盖策略变化（远端/本地/导入/持久化）
-- hooks 的安装策略或 `~/.codex/hooks.json` 结构变更
-- 目录结构或关键模块职责发生变化
+- 不覆盖真实桌宠、设置、会话、项目和 hooks；不替用户开启权限或启停无关服务。密钥留在 Keychain 或受控凭据环境，不进代码、日志和报告。Codex 不注册 `PermissionRequest`。
+- 安装用同一团队身份正式签名的应用包，禁止用裸二进制或 ad-hoc 签名覆盖；保留旧包和用户数据，签名安装、公开发布按明确授权执行，已有授权不重复询问。
+- 更新功能要验旧版发现新版、下载、验签、安装、重启及数据保留；本机开发签名不能代替公开分发的 Developer ID、公证和 Sparkle 签名。
+- 涉及系统外观或临时权限的验收，结束后恢复并确认。项目细节按需读 [技术参考](docs/development-reference.md)，不重复维护多份规则。
