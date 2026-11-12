@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # PeachyPet（macOS 菜单栏应用）— Claude Code 协作指南
 
 > 目标：让你在不离开编码流的情况下，通过一个漂浮的 mascot（覆盖层）查看 Claude Code 的会话、权限请求、通知，并进行交互。
