@@ -8,9 +8,16 @@ final class SessionSwitcherStore {
     private(set) var isAutoDismissPaused = false
     private var autoDismissTimer: Timer?
     private let autoDismissInterval: TimeInterval
+    private let scheduleTimer: (TimeInterval, @escaping (Timer) -> Void) -> Timer
 
-    init(autoDismissInterval: TimeInterval = 5.0) {
+    init(
+        autoDismissInterval: TimeInterval = 5.0,
+        scheduleTimer: @escaping (TimeInterval, @escaping (Timer) -> Void) -> Timer = { interval, action in
+            Timer.scheduledTimer(withTimeInterval: interval, repeats: false, block: action)
+        }
+    ) {
         self.autoDismissInterval = autoDismissInterval
+        self.scheduleTimer = scheduleTimer
     }
 
     /// Called when user taps a row — AppStore wires this to focus terminal + dismiss.
@@ -110,7 +117,7 @@ final class SessionSwitcherStore {
         autoDismissTimer?.invalidate()
         autoDismissTimer = nil
         guard !isAutoDismissPaused else { return }
-        autoDismissTimer = Timer.scheduledTimer(withTimeInterval: autoDismissInterval, repeats: false) { [weak self] _ in
+        autoDismissTimer = scheduleTimer(autoDismissInterval) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self, self.isActive else { return }
                 self.close()
