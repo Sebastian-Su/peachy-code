@@ -52,11 +52,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Opens a new dashboard window. Set once the app starts; SwiftUI destroys a closed
+    /// WindowGroup window, so after a close there is nothing left to bring forward.
+    static var openDashboardWindow: (() -> Void)?
+
     /// Show the dashboard window
     static func showDashboard() {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
+        guard NSApp.windows.contains(where: { $0.canBecomeKey && !($0 is NSPanel) }) else {
+            // Without a window the app would only gain a Dock icon, which disappears again
+            // as soon as another app is activated. Open one, then configure it once it exists.
+            openDashboardWindow?()
+            DispatchQueue.main.async { configureDashboardWindow() }
+            return
+        }
+        configureDashboardWindow()
+    }
+
+    private static func configureDashboardWindow() {
         if let window = NSApp.windows.first(where: { $0.canBecomeKey && !($0 is NSPanel) }) {
             // Disable minimize button — prevents minimize-to-dock
             window.styleMask.remove(.miniaturizable)
@@ -190,6 +205,7 @@ struct PeachyDesktopApp: App {
                         overlayManager?.repositionForToast()
                     }
                     let openDashboardWindow = openWindow
+                    AppDelegate.openDashboardWindow = { openDashboardWindow(id: "dashboard") }
                     appStore.sessionResults.onHistoryOpen = { [weak appStore] in
                         guard let appStore else { return }
                         if appStore.sessionSwitcherStore.isActive {
