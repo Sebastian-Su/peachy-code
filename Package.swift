@@ -29,7 +29,8 @@ let package = Package(
                 .process("Resources/zh.lproj")
             ],
             linkerSettings: [
-                .linkedFramework("Security")
+                .linkedFramework("Security"),
+                .linkedLibrary("sqlite3")
             ]
         ),
         .testTarget(

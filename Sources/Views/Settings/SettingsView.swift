@@ -239,7 +239,7 @@ struct SettingsView: View {
 
             }
             if selectedTab == .general {
-                SessionResultPluginSettings(plugin: appStore.sessionResultPlugin)
+                SessionResultPluginSettings(plugin: appStore.sessionResultPlugin, results: appStore.sessionResults)
             }
 
             // MARK: – Keyboard Shortcuts
@@ -269,6 +269,11 @@ struct SettingsView: View {
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
                     ShortcutRecorderView(hotkeyManager: appStore.hotkeyManager)
+                }
+                HStack {
+                    Text(t("result_hook.history_shortcut"))
+                    Spacer()
+                    ShortcutRecorderView(hotkeyManager: appStore.hotkeyManager, target: .resultHistory)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     shortcutRow("⌘1-9", "Accept Nth pending permission")
@@ -659,7 +664,12 @@ struct SettingsView: View {
 
 /// A clickable view that records a keyboard shortcut when focused.
 struct ShortcutRecorderView: View {
+    enum Target {
+        case focus, resultHistory
+    }
+
     var hotkeyManager: GlobalHotkeyManager
+    var target: Target = .focus
     @State private var isRecording = false
     @State private var keyMonitor: Any?
 
@@ -677,7 +687,7 @@ struct ShortcutRecorderView: View {
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Constants.orangePrimary)
                 } else {
-                    Text(hotkeyManager.shortcutLabel)
+                    Text(target == .focus ? hotkeyManager.shortcutLabel : hotkeyManager.resultHistoryShortcutLabel)
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .foregroundColor(Constants.textPrimary)
                 }
@@ -705,17 +715,18 @@ struct ShortcutRecorderView: View {
             if event.modifierFlags.contains(.control) { flags.insert(.maskControl) }
             if event.modifierFlags.contains(.option) { flags.insert(.maskAlternate) }
 
-            // Require at least one modifier
-            guard !flags.isEmpty else { return event }
-
             // Escape cancels recording
             if event.keyCode == 53 {
                 stopRecording()
                 return nil
             }
 
-            // Use hardware keyCode directly — works on all keyboard layouts
-            hotkeyManager.setShortcut(keyCode: Int64(event.keyCode), modifiers: flags)
+            guard !flags.isEmpty else { return event }
+            if target == .resultHistory {
+                hotkeyManager.setResultHistoryShortcut(keyCode: Int64(event.keyCode), modifiers: flags)
+            } else {
+                hotkeyManager.setShortcut(keyCode: Int64(event.keyCode), modifiers: flags)
+            }
             stopRecording()
             return nil
         }

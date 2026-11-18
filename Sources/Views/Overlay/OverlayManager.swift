@@ -90,6 +90,7 @@ final class OverlayManager {
     var hotkeyManager: GlobalHotkeyManager = GlobalHotkeyManager()
     var sessionSwitcherStore: SessionSwitcherStore = SessionSwitcherStore()
     var sessionFinishedStore: SessionFinishedStore = SessionFinishedStore()
+    var sessionResults: SessionResultStore?
 
     var currentSizePixels: Int {
         get {
@@ -156,6 +157,17 @@ final class OverlayManager {
 
         print("[PeachyPet] Overlay panel shown at \(rect), level=\(newPanel.level.rawValue)")
 
+        let hudFrame = NSRect(x: rect.midX - 140, y: rect.maxY + 4, width: 280, height: 200)
+        let hud = makePermissionPanel(frame: hudFrame, screenHeight: screenFrame.height)
+        newPanel.addChildWindow(hud, ordered: .above)
+        hud.orderFrontRegardless()
+        SkyLightOperator.shared.delegateWindow(hud)
+        pendingPermissionStore.onPendingChange = { [weak self] in self?.scheduleHUDReposition() }
+        pendingPermissionStore.onRequestTextInputFocus = { [weak hud] in
+            NSApp.activate(ignoringOtherApps: true)
+            hud?.makeKey()
+        }
+        self.permissionPanel = hud
         self.panel = newPanel
         self.currentURL = url
         self.isOverlayActive = true
@@ -263,34 +275,12 @@ final class OverlayManager {
         mascotPanel.addChildWindow(newStatsPanel, ordered: .above)
 
         // --- Permission panel (smart-positioned, adapts to screen edges) ---
-        permissionHUDConfig = PermissionHUDConfig()
-        permissionHUDConfig.updateMaximumSessionSwitcherHeight(
-            visibleScreenHeight: screenFrame.height
-        )
-        permissionHUDConfig.onContentSizeChange = { [weak self] _ in
-            self?.scheduleHUDReposition()
-        }
-        let permView = PermissionHUDView(config: permissionHUDConfig)
-            .environment(pendingPermissionStore)
-            .environment(hotkeyManager)
-            .environment(sessionSwitcherStore)
-            .environment(sessionStore)
-            .environment(sessionFinishedStore)
-
-        let permController = TransparentHostingController(rootView: permView)
-        permController.sizingOptions = []
-
-        let statsTop = statsRect.maxY
         let permRect = NSRect(
-            x: mascotRect.midX - 140,
-            y: statsTop + 4,
-            width: 280,
-            height: 200
+            x: mascotRect.midX - 140, y: statsRect.maxY + 4, width: 280, height: 200
         )
-        let newPermPanel = OverlayPanel(contentRect: permRect)
-        newPermPanel.isMovableByWindowBackground = false
-        newPermPanel.contentView = permController.view
-        newPermPanel.contentViewController = permController
+        let newPermPanel = makePermissionPanel(
+            frame: permRect, screenHeight: (mascotPanel.screen?.visibleFrame ?? screenFrame).height
+        )
 
         // Resize/reposition when permissions change (delay lets SwiftUI render)
         pendingPermissionStore.onPendingChange = { [weak self] in
@@ -403,8 +393,8 @@ final class OverlayManager {
     private func updateAutoHideState(hasActiveSessions: Bool) {
         guard isAutoHideEnabled, isOverlayActive || isAutoHidden else { return }
 
-        if hasActiveSessions {
-            // At least one session is alive — cancel any pending hide and restore if hidden
+        if hasActiveSessions || sessionResults?.preview != nil {
+            // Keep the mascot available whenever there is a session or a result to read.
             autoHideTimer?.invalidate()
             autoHideTimer = nil
             if isAutoHidden {
@@ -422,7 +412,7 @@ final class OverlayManager {
 
     private func fadeOutForAutoHide() {
         autoHideTimer = nil
-        guard isOverlayActive, !isAutoHidden else { return }
+        guard isOverlayActive, !isAutoHidden, sessionResults?.preview == nil else { return }
         isAutoHidden = true
 
         NSAnimationContext.runAnimationGroup { context in
@@ -708,33 +698,8 @@ final class OverlayManager {
         workspaceObservers.append(spaceObserver)
 
         // --- Permission panel (above stats, no tail) ---
-        permissionHUDConfig = PermissionHUDConfig()
-        permissionHUDConfig.updateMaximumSessionSwitcherHeight(
-            visibleScreenHeight: screen.height
-        )
-        permissionHUDConfig.onContentSizeChange = { [weak self] _ in
-            self?.scheduleHUDReposition()
-        }
-        let permView = PermissionHUDView(config: permissionHUDConfig)
-            .environment(pendingPermissionStore)
-            .environment(hotkeyManager)
-            .environment(sessionSwitcherStore)
-            .environment(sessionStore)
-            .environment(sessionFinishedStore)
-
-        let permController = TransparentHostingController(rootView: permView)
-        permController.sizingOptions = []
-
-        let permRect = NSRect(
-            x: statsRect.midX - 140,
-            y: statsRect.maxY + 4,
-            width: 280,
-            height: 200
-        )
-        let newPermPanel = OverlayPanel(contentRect: permRect)
-        newPermPanel.isMovableByWindowBackground = false
-        newPermPanel.contentView = permController.view
-        newPermPanel.contentViewController = permController
+        let permRect = NSRect(x: statsRect.midX - 140, y: statsRect.maxY + 4, width: 280, height: 200)
+        let newPermPanel = makePermissionPanel(frame: permRect, screenHeight: screen.height)
 
         pendingPermissionStore.onPendingChange = { [weak self] in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -1052,6 +1017,13 @@ final class OverlayManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.scheduleHUDReposition() }
     }
 
+    func repositionForSessionResult() {
+        updateAutoHideState(hasActiveSessions: !sessionStore.activeSessions.isEmpty)
+        guard expandedPanel == nil, !isAutoHidden else { return }
+        permissionPanel?.orderFrontRegardless()
+        scheduleHUDReposition()
+    }
+
     func repositionForToast() {
         permissionPanel?.orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.scheduleHUDReposition() }
@@ -1183,6 +1155,26 @@ final class OverlayManager {
         // Standalone mode: stats stay at their initial position
     }
 
+    private func makePermissionPanel(frame: NSRect, screenHeight: CGFloat) -> OverlayPanel {
+        permissionHUDConfig = PermissionHUDConfig()
+        permissionHUDConfig.updateMaximumSessionSwitcherHeight(visibleScreenHeight: screenHeight)
+        permissionHUDConfig.onContentSizeChange = { [weak self] _ in self?.scheduleHUDReposition() }
+        let view = PermissionHUDView(config: permissionHUDConfig, sessionResults: sessionResults)
+            .environment(pendingPermissionStore)
+            .environment(hotkeyManager)
+            .environment(sessionSwitcherStore)
+            .environment(sessionStore)
+            .environment(sessionFinishedStore)
+        let controller = TransparentHostingController(rootView: view)
+        controller.sizingOptions = []
+        let hud = OverlayPanel(contentRect: frame)
+        hud.isMovableByWindowBackground = false
+        hud.ignoresMouseEvents = true
+        hud.contentView = controller.view
+        hud.contentViewController = controller
+        return hud
+    }
+
     /// Measure permission content, resize panel, and smart-position it.
     /// Tries above → right → left → below mascot. In standalone mode, positions at bottom-right.
     private func syncPermissionPanel() {
@@ -1200,8 +1192,9 @@ final class OverlayManager {
             visibleScreenHeight: screen.height
         )
         let contentSize = permissionHUDConfig.contentSize
-        // Skip if no content (no permissions AND no session switcher)
-        if contentSize.height <= 10 { return }
+        let isEmpty = contentSize.height <= 10
+        permissionPanel.ignoresMouseEvents = isEmpty
+        guard !isEmpty else { return }
 
         let permSize = CGSize(
             width: max(contentSize.width, 280),

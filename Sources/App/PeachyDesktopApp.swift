@@ -133,13 +133,14 @@ final class AppUpdater {
 @main
 struct PeachyDesktopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.openWindow) private var openWindow
     @State private var appStore = AppStore()
     @State private var overlayManager = OverlayManager()
     @State private var appUpdater = AppUpdater()
 
     var body: some Scene {
         // Main dashboard window (shown on launch)
-        WindowGroup {
+        WindowGroup(id: "dashboard") {
             ContentView()
                 .environment(appStore)
                 .environment(overlayManager)
@@ -155,6 +156,10 @@ struct PeachyDesktopApp: App {
                     overlayManager.hotkeyManager = appStore.hotkeyManager
                     overlayManager.sessionSwitcherStore = appStore.sessionSwitcherStore
                     overlayManager.sessionFinishedStore = appStore.sessionFinishedStore
+                    overlayManager.sessionResults = appStore.sessionResults
+                    appStore.sessionResults.onPreviewChange = { [weak overlayManager] in
+                        overlayManager?.repositionForSessionResult()
+                    }
                     appStore.onEventForOverlay = { [weak overlayManager] event in
                         overlayManager?.handleEvent(event)
                     }
@@ -179,8 +184,19 @@ struct PeachyDesktopApp: App {
                     appStore.onToastChanged = { [weak overlayManager] in
                         overlayManager?.repositionForToast()
                     }
-                    appStore.sessionResultPlugin.present = { report in
-                        SessionResultPanel.shared.show(report)
+                    let openDashboardWindow = openWindow
+                    appStore.sessionResults.onHistoryOpen = { [weak appStore] in
+                        guard let appStore else { return }
+                        if appStore.sessionSwitcherStore.isActive {
+                            appStore.sessionSwitcherStore.close()
+                            appStore.syncActiveCard()
+                            appStore.onSessionSwitcherDismiss?()
+                        }
+                        if NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain && !($0 is NSPanel) }) {
+                            AppDelegate.showDashboard()
+                        } else {
+                            openDashboardWindow(id: "dashboard")
+                        }
                     }
                     await appStore.start()
                     overlayManager.restoreIfNeeded()

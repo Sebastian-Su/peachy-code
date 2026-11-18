@@ -9,7 +9,7 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "initialSection").flatMap(SidebarSection.init(rawValue:)) ?? .inbox
 
     enum SidebarSection: String, CaseIterable {
-        case inbox, sessions, agents, services, pets, settings
+        case inbox, sessions, agents, services, pets, results, settings
 
         var titleKey: String { "nav.\(rawValue)" }
         var eyebrow: String { rawValue.uppercased() }
@@ -22,6 +22,7 @@ struct ContentView: View {
             case .services: "server.rack"
             case .pets: "wand.and.stars"
             case .settings: "gear"
+            case .results: "doc.text"
             }
         }
     }
@@ -92,6 +93,9 @@ struct ContentView: View {
             .background(Constants.lightBackground)
         }
         .background(Constants.lightBackground)
+        .onChange(of: appStore.sessionResults.navigation, initial: true) { _, navigation in
+            if navigation != nil { selectedSection = .results }
+        }
         .onChange(of: appStore.navigateToMascotId) { _, newId in
             if newId != nil {
                 selectedSection = .pets
@@ -111,6 +115,7 @@ struct ContentView: View {
         case .services: ServicesView()
         case .pets: PeachyDashboardView()
         case .settings: SettingsView()
+        case .results: SessionResultHistoryView(store: appStore.sessionResults, sessionStore: appStore.sessionStore)
         }
     }
 

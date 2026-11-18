@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 @testable import PeachyPet
 
@@ -69,8 +70,10 @@ extension SessionResultHookTests {
         plugin.instructions = "Keep the headings."
 
         let output = expectation(description: "Markdown panel receives the report")
-        plugin.present = { report in
-            XCTAssertEqual(report.title, "Claude Code · sample-project")
+        plugin.onResult = { report, destination in
+            XCTAssertEqual(destination, .panel)
+            XCTAssertEqual(report.source.label, "Claude Code · sample-project")
+            XCTAssertEqual(report.source.sessionID, "test-source")
             XCTAssertEqual(report.markdown, "# 中文报告\n\n- 已完成\n")
             output.fulfill()
         }
@@ -90,7 +93,10 @@ extension SessionResultHookTests {
         defer { cleanup() }
         plugin.isEnabled = true
         plugin.destination = .agent
-        plugin.present = { _ in XCTFail("Agent delivery should use the hook response") }
+        plugin.onResult = { report, destination in
+            XCTAssertEqual(destination, .agent)
+            XCTAssertEqual(report.source.sessionID, "test-source")
+        }
 
         let server = LocalServer(port: 0)
         server.onSessionResult = { plugin.receive($0) }
@@ -184,14 +190,35 @@ extension SessionResultHookTests {
     }
 
     @MainActor
-    func testNativeMarkdownPanelOpensAndCloses() {
+    func testResultUsesTheExistingNativeHUD() async throws {
         _ = NSApplication.shared
-        let panel = SessionResultPanel.shared.show(.init(title: "Claude Code", markdown: "# 中文\n\n- **通过**"))
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = SessionResultStore(databaseURL: directory.appendingPathComponent("results.sqlite3"))
+        let report = SessionResultReport(sessionID: "native-source", agent: .claudeCode,
+                                         project: "Native", markdown: "# 中文\n\n- **通过**")
+        await store.add(report, showPreview: true)
+
+        let config = PermissionHUDConfig()
+        let view = PermissionHUDView(config: config, sessionResults: store)
+            .environment(PendingPermissionStore())
+            .environment(GlobalHotkeyManager())
+            .environment(SessionSwitcherStore())
+            .environment(SessionStore())
+            .environment(SessionFinishedStore())
+        let panel = OverlayPanel(contentRect: NSRect(x: 100, y: 100, width: 280, height: 200))
+        let host = NSHostingView(rootView: view)
+        panel.contentView = host
+        panel.orderFrontRegardless()
+        defer { panel.close() }
+        host.layoutSubtreeIfNeeded()
         XCTAssertTrue(panel.isVisible)
-        XCTAssertTrue(panel.styleMask.contains(.resizable))
-        XCTAssertNotNil(panel.contentView)
-        panel.close()
-        XCTAssertFalse(panel.isVisible)
+        XCTAssertTrue(panel.collectionBehavior.contains(.canJoinAllSpaces))
+        XCTAssertEqual(store.preview?.report, report)
+        XCTAssertGreaterThan(host.fittingSize.height, 30)
+        store.dismissPreview()
+        XCTAssertNil(store.preview)
+        XCTAssertEqual(store.entries.first?.sessionID, "native-source")
     }
 
     private func completedReply(id: String = "test-source", client: String? = nil, continuation: Bool = false) -> AgentEvent {
