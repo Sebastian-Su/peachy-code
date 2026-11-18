@@ -157,8 +157,13 @@ struct PeachyDesktopApp: App {
                     overlayManager.sessionSwitcherStore = appStore.sessionSwitcherStore
                     overlayManager.sessionFinishedStore = appStore.sessionFinishedStore
                     overlayManager.sessionResults = appStore.sessionResults
-                    appStore.sessionResults.onPreviewChange = { [weak overlayManager] in
+                    overlayManager.onPermissionHUDAvailabilityChange = { [weak appStore] available in
+                        appStore?.sessionResultHUDAvailable = available
+                        appStore?.syncActiveCard()
+                    }
+                    appStore.sessionResults.onPreviewChange = { [weak overlayManager, weak appStore] in
                         overlayManager?.repositionForSessionResult()
+                        appStore?.syncActiveCard()
                     }
                     appStore.onEventForOverlay = { [weak overlayManager] event in
                         overlayManager?.handleEvent(event)

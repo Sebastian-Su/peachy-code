@@ -6,6 +6,13 @@ final class SessionResultStore {
     static let defaultHistoryLimit = 100
     static let previewDuration: TimeInterval = 30
 
+    enum Shortcut: Int {
+        case readReport = 1
+        case history = 2
+
+        var label: String { "⌘\(rawValue)" }
+    }
+
     struct Preview {
         let report: SessionResultReport
         var deadline: Date?
@@ -30,6 +37,8 @@ final class SessionResultStore {
     var onHistoryOpen: (() -> Void)?
 
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
+    @ObservationIgnored private var pointerOverPreview = false
+    @ObservationIgnored private var previewShortcutsHeld = false
     private let defaults: UserDefaults
     private let database: SessionResultHistory
     private let previewDuration: TimeInterval
@@ -97,12 +106,33 @@ final class SessionResultStore {
         onHistoryOpen?()
     }
 
+    @MainActor func perform(_ shortcut: Shortcut) {
+        switch shortcut {
+        case .readReport:
+            guard let reportID = preview?.report.source.id else { return }
+            openHistory(reportID: reportID)
+        case .history:
+            openHistory()
+        }
+    }
+
     @MainActor func setPreviewHovered(_ hovered: Bool, at time: Date = Date()) {
+        pointerOverPreview = hovered
+        updatePreviewPause(at: time)
+    }
+
+    @MainActor func setPreviewShortcutsHeld(_ held: Bool, at time: Date = Date()) {
+        previewShortcutsHeld = held
+        updatePreviewPause(at: time)
+    }
+
+    @MainActor private func updatePreviewPause(at time: Date) {
+        let paused = pointerOverPreview || previewShortcutsHeld
         guard var preview else { return }
-        if hovered, preview.deadline != nil {
+        if paused, preview.deadline != nil {
             preview.pausedFor = preview.remaining(at: time)
             preview.deadline = nil
-        } else if !hovered, preview.deadline == nil {
+        } else if !paused, preview.deadline == nil {
             preview.deadline = time.addingTimeInterval(preview.pausedFor)
         } else {
             return
@@ -119,6 +149,8 @@ final class SessionResultStore {
     @MainActor func dismissPreview() {
         guard preview != nil else { return }
         preview = nil
+        pointerOverPreview = false
+        previewShortcutsHeld = false
         expiryTask?.cancel()
         expiryTask = nil
         onPreviewChange?()

@@ -41,7 +41,9 @@ final class SessionResultHistoryTests: XCTestCase {
         await store.add(entry, showPreview: true)
         let preview = try XCTUnwrap(store.preview)
         XCTAssertEqual(preview.remaining(at: preview.deadline!.addingTimeInterval(-30)), 30, accuracy: 0.01)
-        store.setPreviewHovered(true, at: preview.deadline!.addingTimeInterval(-12))
+        store.setPreviewShortcutsHeld(true, at: preview.deadline!.addingTimeInterval(-12))
+        store.setPreviewHovered(true, at: preview.deadline!.addingTimeInterval(-9))
+        store.setPreviewShortcutsHeld(false, at: Date(timeIntervalSince1970: 99))
         XCTAssertEqual(store.preview?.remaining(at: .distantFuture), 12)
         store.setPreviewHovered(false, at: Date(timeIntervalSince1970: 100))
         XCTAssertEqual(store.preview?.deadline, Date(timeIntervalSince1970: 112))
@@ -75,6 +77,25 @@ final class SessionResultHistoryTests: XCTestCase {
         store.onPreviewChange = nil
         XCTAssertNil(store.preview)
         XCTAssertEqual(store.entries.map(\.sessionID), ["returned", "popup"])
+    }
+
+    @MainActor
+    func testNumberedActionsOpenTheVisibleReportOrItsHistory() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = SessionResultStore(databaseURL: directory.appendingPathComponent("results.sqlite3"))
+        let entry = report("keyboard-session", "# Report")
+        await store.add(entry, showPreview: true)
+
+        store.perform(.readReport)
+        XCTAssertEqual(store.navigation?.reportID, entry.source.id)
+        XCTAssertNil(store.preview)
+        await store.add(report("another-result", "# Another"), showPreview: true)
+        store.perform(.history)
+        XCTAssertNil(store.navigation?.reportID)
+        XCTAssertNil(store.preview)
+        XCTAssertEqual(store.entries.count, 2)
     }
 
     private func report(_ id: String, _ markdown: String) -> SessionResultReport {

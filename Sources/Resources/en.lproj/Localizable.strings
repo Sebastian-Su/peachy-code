@@ -446,3 +446,4 @@
 "result_hook.history_limit" = "Maximum saved results (1–1000)";
 "result_hook.save_limit" = "Save";
 "result_hook.history_shortcut" = "Result history after double Cmd";
+"result_hook.shortcut_actions" = "Read the visible result / Open result history";

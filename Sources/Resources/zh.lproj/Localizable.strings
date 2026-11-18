@@ -446,3 +446,4 @@
 "result_hook.history_limit" = "历史最多保留条数（1–1000）";
 "result_hook.save_limit" = "保存";
 "result_hook.history_shortcut" = "双击 Cmd 后打开结果历史";
+"result_hook.shortcut_actions" = "阅读当前结果／打开结果历史";

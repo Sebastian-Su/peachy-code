@@ -30,6 +30,7 @@ final class AppStore {
     let sessionFinishedStore = SessionFinishedStore()
     let sessionResultPlugin = SessionResultPlugin()
     let sessionResults = SessionResultStore()
+    var sessionResultHUDAvailable = false
     let approvalHistoryStore = ApprovalHistoryStore()
 
     private(set) var eventProcessor: EventProcessor!
@@ -340,6 +341,10 @@ final class AppStore {
                 } else {
                     self.hotkeyManager.selectedButtonIndex = index
                 }
+            case .result:
+                if let shortcut = SessionResultStore.Shortcut(rawValue: index + 1) {
+                    self.sessionResults.perform(shortcut)
+                }
             case .toast, .none:
                 break
             }
@@ -359,6 +364,8 @@ final class AppStore {
                 self.hotkeyManager.confirmTrigger += 1
             case .expandedPermission:
                 self.hotkeyManager.confirmTrigger += 1
+            case .result:
+                self.sessionResults.perform(.readReport)
             case .toast:
                 self.sessionFinishedStore.dismiss()
             case .none:
@@ -379,6 +386,8 @@ final class AppStore {
             case .permission:
                 guard let topPerm = self.pendingPermissionStore.topVisiblePermission else { return }
                 self.pendingPermissionStore.dismissFallbackOrDeny(id: topPerm.id)
+            case .result:
+                self.sessionResults.dismissPreview()
             case .toast:
                 self.sessionFinishedStore.dismiss()
             case .none:
@@ -437,6 +446,10 @@ final class AppStore {
                     itermSessionId: topPerm.event.itermSessionId,
                     projectDir: topPerm.event.cwd
                 )
+            } else if self.hotkeyManager.activeCard == .result {
+                if let session = self.sessionResults.preview?.report.source.focusTarget(in: self.sessionStore.sessions) {
+                    IDETerminalFocus.focusSession(session)
+                }
             } else if let toast = self.sessionFinishedStore.current,
                       let session = self.sessionStore.sessions.first(where: { $0.id == toast.sessionId }) {
                 IDETerminalFocus.focusSession(session)
@@ -538,15 +551,12 @@ final class AppStore {
 
         // Don't overwrite expanded permission state - only dismiss controls it
         if hotkeyManager.activeCard == .expandedPermission { return }
-        if sessionSwitcherStore.isActive {
-            hotkeyManager.activeCard = .sessionSwitcher
-        } else if !pendingPermissionStore.pending.isEmpty {
-            hotkeyManager.activeCard = .permission
-        } else if sessionFinishedStore.current != nil {
-            hotkeyManager.activeCard = .toast
-        } else {
-            hotkeyManager.activeCard = .none
-        }
+        hotkeyManager.activeCard = .preferred(
+            switcher: sessionSwitcherStore.isActive,
+            permission: !pendingPermissionStore.pending.isEmpty,
+            result: sessionResultHUDAvailable && sessionResults.preview != nil,
+            toast: sessionFinishedStore.current != nil
+        )
     }
 
     /// Call once from .task {} on the menu bar view
