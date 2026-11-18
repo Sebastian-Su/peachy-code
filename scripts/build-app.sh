@@ -37,6 +37,12 @@ for dir in Defaults Fonts Images Extensions en.lproj zh.lproj; do
   [ -d "$REPO/Sources/Resources/$dir" ] && cp -R "$REPO/Sources/Resources/$dir" "$APP/Contents/Resources/$dir"
 done
 
+# Paseo remote bridge: bundled from the official SDK at build time (about 5 MB, not committed).
+BRIDGE="$REPO/tools/paseo-bridge"
+(cd "$BRIDGE" && npm ci --ignore-scripts --silent && npm run build --silent)
+mkdir -p "$APP/Contents/Resources/PaseoBridge"
+cp "$BRIDGE/dist/paseo-bridge.mjs" "$APP/Contents/Resources/PaseoBridge/paseo-bridge.mjs"
+
 "$REPO/scripts/verify-app-bundle-resources.sh" "$APP"
 
 # Sparkle framework — the release executable links @rpath/Sparkle.framework

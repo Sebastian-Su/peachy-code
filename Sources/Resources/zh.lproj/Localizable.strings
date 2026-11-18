@@ -451,3 +451,13 @@
 "result_hook.editor_title" = "%@ 结果 Hook";
 "result_hook.trigger" = "最终回复包含关键词";
 "result_hook.trigger_default" = "留空时处理所有最终回复";
+
+"settings.paseo_remote" = "Paseo 远端会话";
+"settings.paseo_remote_hint" = "显示本机 Paseo 已连接主机上 Agent 的结束报告，并交给对应 Agent 的结果 Hook 处理。需要 Node.js。";
+"settings.paseo_remote_starting" = "正在启动 Paseo 桥接…";
+"settings.paseo_remote_waiting" = "等待本机 Paseo 守护进程…";
+"settings.paseo_remote_connected" = "已连接：%@";
+"settings.paseo_remote_no_hosts" = "已连接 Paseo，暂无在线的远端主机。";
+"settings.paseo_remote_node_missing" = "未找到 Node.js，无法启动 Paseo 桥接。";
+"settings.paseo_remote_bridge_missing" = "此构建未包含 Paseo 桥接脚本。";
+"settings.paseo_remote_exited" = "Paseo 桥接已退出（%d），关闭后重新打开可重试。";

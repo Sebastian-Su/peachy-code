@@ -46,7 +46,10 @@ struct SessionHostResolver {
             return .paseo(agentId: agent.agentId)
         }
         if hasTerminal { return .terminal }
-        guard engine == .codex else { return .unknown }
+        guard engine == .codex else {
+            // Only producers outside the local hooks (a remote Paseo host) name an originator.
+            return known?.originator.map { .other(originator: $0) } ?? .unknown
+        }
         let meta = known?.originator != nil ? known : readRolloutMeta(sessionId: sessionId, transcriptPath: transcriptPath)
         return Self.codexHost(for: meta)
     }

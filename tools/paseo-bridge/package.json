@@ -1,0 +1,15 @@
+{
+  "name": "peachypet-paseo-bridge",
+  "private": true,
+  "type": "module",
+  "description": "Streams turn completions of agents on Paseo-connected hosts to PeachyPet as JSON lines.",
+  "scripts": {
+    "build": "esbuild bridge.mjs --bundle --platform=node --format=esm --target=node22 --minify --legal-comments=none --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\" --outfile=dist/paseo-bridge.mjs"
+  },
+  "dependencies": {
+    "@getpaseo/client": "0.16.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

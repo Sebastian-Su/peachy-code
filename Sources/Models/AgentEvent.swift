@@ -56,7 +56,8 @@ struct AgentEvent: Identifiable, Codable {
 
     /// Which PeachyPet producer delivered the event: the Codex hook ("codex-cli", set by the
     /// `--source` argument hook-sender.sh receives), the Copilot hook ("copilot"), or the Codex
-    /// JSONL poller ("codex-jsonl"). Absent for Claude Code hooks.
+    /// JSONL poller ("codex-jsonl"), or the Paseo remote bridge ("<engine>-paseo").
+    /// Absent for Claude Code hooks.
     var client: String?
 
     /// Codex rollout `session_meta.originator` (e.g. "Codex Desktop", "codex-tui"); set by the
@@ -80,6 +81,7 @@ struct AgentEvent: Identifiable, Codable {
     var agentSource: AgentSource {
         guard let client else { return .claudeCode }
         if client.hasPrefix("codex") { return .codex }
+        if client.hasPrefix("claude") { return .claudeCode }
         if client == "copilot" { return .copilot }
         return .unknown
     }
