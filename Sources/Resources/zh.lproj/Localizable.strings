@@ -414,3 +414,24 @@
 "services.approve.replacing" = "会先结束这个正在运行的进程（PID %d）";
 "services.approve.confirm_replace" = "确认并重启";
 "services.error.process_changed" = "这个进程在你确认后变了，所以没有结束它，也没有启动新的。";
+
+"result_hook.title" = "会话结果插件";
+"result_hook.enable" = "处理 Agent 的最终回复";
+"result_hook.tool" = "本地工具";
+"result_hook.executable" = "自定义可执行文件";
+"result_hook.path" = "可执行文件路径";
+"result_hook.path_detect" = "自动查找 Codex";
+"result_hook.prompt" = "处理提示词（可选）";
+"result_hook.conversation" = "工具会话";
+"result_hook.new" = "每次新建会话";
+"result_hook.reuse" = "同一来源会话复用上下文";
+"result_hook.destination" = "结果发送到";
+"result_hook.panel" = "PeachyPet Markdown 弹窗";
+"result_hook.agent" = "原 Agent 会话";
+"result_hook.report_title" = "会话结果";
+"result_hook.copy" = "复制 Markdown";
+"result_hook.error_executable" = "找不到本地可执行文件。请检查路径。";
+"result_hook.error_exit" = "本地工具已退出，退出码为 %d。";
+"result_hook.error_empty" = "本地工具没有返回 Markdown。";
+"result_hook.error_session" = "本地工具没有返回会话标识。";
+"result_hook.error_generic" = "PeachyPet 无法处理这条会话结果。";

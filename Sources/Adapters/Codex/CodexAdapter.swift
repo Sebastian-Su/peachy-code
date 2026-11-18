@@ -58,7 +58,7 @@ final class CodexAdapter: AgentAdapter {
     }
 
     func route(_ event: AgentEvent) {
-        guard !shouldSuppress(event) else { return }
+        guard !SessionResultTool.isWorkerDirectory(event.cwd), !shouldSuppress(event) else { return }
 
         if event.eventType == .permissionRequest {
             onPermissionRequest?(event, TerminalFallbackTransport(event: event))
