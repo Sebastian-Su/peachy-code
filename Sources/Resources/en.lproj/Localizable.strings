@@ -414,3 +414,24 @@
 "services.approve.replacing" = "WILL END THIS RUNNING PROCESS FIRST (PID %d)";
 "services.approve.confirm_replace" = "Confirm & restart";
 "services.error.process_changed" = "That process changed since you confirmed, so nothing was ended or started.";
+
+"result_hook.title" = "Session result plugin";
+"result_hook.enable" = "Process completed Agent replies";
+"result_hook.tool" = "Local tool";
+"result_hook.executable" = "Custom executable";
+"result_hook.path" = "Executable path";
+"result_hook.path_detect" = "Find Codex automatically";
+"result_hook.prompt" = "Processing instructions (optional)";
+"result_hook.conversation" = "Tool conversation";
+"result_hook.new" = "Start a new conversation";
+"result_hook.reuse" = "Reuse for the same source session";
+"result_hook.destination" = "Send result to";
+"result_hook.panel" = "PeachyPet Markdown panel";
+"result_hook.agent" = "Original Agent session";
+"result_hook.report_title" = "Session result";
+"result_hook.copy" = "Copy Markdown";
+"result_hook.error_executable" = "The local executable could not be found. Check its path.";
+"result_hook.error_exit" = "The local tool exited with code %d.";
+"result_hook.error_empty" = "The local tool returned no Markdown.";
+"result_hook.error_session" = "The local tool did not identify its conversation.";
+"result_hook.error_generic" = "PeachyPet could not process the session result.";

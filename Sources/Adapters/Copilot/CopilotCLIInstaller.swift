@@ -20,6 +20,7 @@ enum CopilotCLIInstaller {
         "PreToolUse",
         "PostToolUse",
         "ErrorOccurred",
+        "Stop",
     ]
 
     // MARK: - Public API
@@ -71,10 +72,12 @@ enum CopilotCLIInstaller {
         var hooksByEvent: [String: Any] = [:]
         for event in hookEvents {
             let camelEvent = toCamelCase(event)
-            hooksByEvent[camelEvent] = [[
+            var hook: [String: Any] = [
                 "type": "command",
                 "bash": "\(copilotHookCommand) \(event)",
-            ]]
+            ]
+            if event == "Stop" { hook["timeoutSec"] = 310 }
+            hooksByEvent[camelEvent] = [hook]
         }
         let hooksConfig: [String: Any] = [
             "version": 1,
@@ -125,7 +128,7 @@ enum CopilotCLIInstaller {
 
     // MARK: - Hook Script
 
-    private static let copilotScriptVersion = "# version: 2"
+    private static let copilotScriptVersion = "# version: 3"
 
     /// Ensure the copilot hook script exists and is up to date.
     /// Called on app startup when the plugin is registered.
@@ -169,8 +172,15 @@ enum CopilotCLIInstaller {
             -e 's/"taskId"/"task_id"/g' \\
             -e 's/"taskSubject"/"task_subject"/g')
 
+        if [ "$EVENT_TYPE" = "Stop" ]; then
+            printf '%s' "$INPUT" | curl -fsS -X POST -H "Content-Type: application/json" \\
+                -H "X-Peachy-Stop: 1" --data-binary @- "http://localhost:\(port)/hook" \\
+                --connect-timeout 1 --max-time 300 2>/dev/null || true
+            exit 0
+        fi
+
         # Fire-and-forget
-        curl -s -X POST -H "Content-Type: application/json" -d "$INPUT" \\
+        printf '%s' "$INPUT" | curl -s -X POST -H "Content-Type: application/json" --data-binary @- \\
             "http://localhost:\(port)/hook" \\
             --connect-timeout 1 --max-time 2 2>/dev/null || true
         exit 0
@@ -189,6 +199,7 @@ enum CopilotCLIInstaller {
 
     /// Convert PascalCase to camelCase (e.g. "PreToolUse" -> "preToolUse")
     private static func toCamelCase(_ pascal: String) -> String {
+        if pascal == "Stop" { return "agentStop" }
         guard let first = pascal.first else { return pascal }
         return first.lowercased() + pascal.dropFirst()
     }

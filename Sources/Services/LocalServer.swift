@@ -5,10 +5,12 @@ import Network
 final class LocalServer {
     private var listener: NWListener?
     private(set) var isRunning = false
-    private(set) var port: UInt16 = Constants.serverPort
+    private(set) var port: UInt16
+    private let usesEphemeralPort: Bool
     private var stopped = false
 
     var onEventReceived: ((AgentEvent) -> Void)?
+    var onSessionResult: (@MainActor (AgentEvent) -> Task<String?, Never>?)?
     var onPermissionRequest: ((AgentEvent, NWConnection) -> Void)?
     /// Custom input endpoint: `POST /input {"name":"x","value":true}`
     var onInputReceived: ((String, ConditionValue) -> Void)?
@@ -19,6 +21,11 @@ final class LocalServer {
     private static let maxRetries = 3
     /// Max ports to try before giving up (49152..49161)
     private static let maxPortAttempts: UInt16 = 10
+
+    init(port: UInt16 = Constants.serverPort) {
+        self.port = port
+        usesEphemeralPort = port == 0
+    }
 
     func start() throws {
         stopped = false
@@ -45,7 +52,9 @@ final class LocalServer {
                     self.isRunning = true
                     self.retryCount = 0
                     // If we landed on a different port than default, persist it and reinstall hooks
-                    if self.port != Constants.serverPort {
+                    if self.usesEphemeralPort {
+                        self.port = self.listener?.port?.rawValue ?? 0
+                    } else if self.port != Constants.serverPort {
                         Constants.setServerPort(self.port)
                         try? HookInstaller.install()
                     }
@@ -75,7 +84,7 @@ final class LocalServer {
 
     /// Try the next port in the range. If all ports exhausted, retry with backoff.
     private func tryNextPort(reason: String, error: NWError) {
-        guard !stopped else { return }
+        guard !stopped, !usesEphemeralPort else { return }
         let nextPort = port + 1
         if nextPort < Constants.defaultServerPort + Self.maxPortAttempts {
             print("[PeachyPet] Port \(port) \(reason): \(error) - trying \(nextPort)...")
@@ -127,28 +136,16 @@ final class LocalServer {
 
     /// Check if we have a complete HTTP request (headers + full body per Content-Length).
     private func hasCompleteHTTPRequest(_ data: Data) -> Bool {
-        guard let str = String(data: data, encoding: .utf8) else { return false }
-
-        // GET requests are complete once we see the header terminator
-        if str.hasPrefix("GET ") {
-            return str.contains("\r\n\r\n")
+        // A receive boundary can split a multibyte character, or leave the
+        // headers in their own packet. Compare the declared length in bytes.
+        guard let separator = data.range(of: Data([13, 10, 13, 10])) else { return false }
+        let headers = String(decoding: data[..<separator.lowerBound], as: UTF8.self)
+        for line in headers.components(separatedBy: "\r\n").dropFirst() {
+            let field = line.split(separator: ":", maxSplits: 1)
+            guard field.count == 2, field[0].caseInsensitiveCompare("Content-Length") == .orderedSame else { continue }
+            guard let length = Int(field[1].trimmingCharacters(in: .whitespaces)), length >= 0 else { return false }
+            return data.distance(from: separator.upperBound, to: data.endIndex) >= length
         }
-
-        // POST: need header terminator + Content-Length bytes
-        guard let separatorRange = str.range(of: "\r\n\r\n") else { return false }
-        let headers = str[str.startIndex..<separatorRange.lowerBound]
-        let body = str[separatorRange.upperBound...]
-
-        // Parse Content-Length header
-        if let clRange = headers.range(of: "Content-Length: ", options: .caseInsensitive) {
-            let afterCL = headers[clRange.upperBound...]
-            if let lineEnd = afterCL.firstIndex(of: "\r"),
-               let contentLength = Int(afterCL[afterCL.startIndex..<lineEnd]) {
-                return body.utf8.count >= contentLength
-            }
-        }
-
-        // No Content-Length → treat as complete if we have the separator
         return true
     }
 
@@ -186,6 +183,8 @@ final class LocalServer {
 
         // Route: POST /hook — receive Claude Code hook events
         if firstLine.contains("POST /hook") {
+            let acceptsStopResponse = Self.acceptsStopResponse(from: connection.endpoint,
+                                                              headers: httpString[..<bodyRange.lowerBound])
             let decoder = JSONDecoder()
             if let event = try? decoder.decode(AgentEvent.self, from: bodyData) {
                 print("[PeachyPet] Hook received: \(event.hookEventName)")
@@ -203,6 +202,15 @@ final class LocalServer {
                     return
                 }
 
+                if acceptsStopResponse, event.eventType == .stop {
+                    Task { @MainActor [self] in
+                        // Copilot registers this Stop specifically for the result plugin.
+                        if event.agentSource != .copilot { onEventReceived?(event) }
+                        let response = await onSessionResult?(event)?.value
+                        sendResponse(connection: connection, status: "200 OK", body: response ?? "")
+                    }
+                    return
+                }
                 DispatchQueue.main.async { [weak self] in
                     self?.onEventReceived?(event)
                 }
@@ -256,6 +264,17 @@ final class LocalServer {
         }
 
         sendResponse(connection: connection, status: "404 Not Found", body: "Not Found")
+    }
+
+    /// The existing event endpoint also receives non-command traffic. Only the
+    /// local hook sender can start result processing or receive a continuation.
+    static func acceptsStopResponse(from endpoint: NWEndpoint, headers: Substring) -> Bool {
+        guard case let .hostPort(host, _) = endpoint,
+              host == .ipv4(.loopback) || host == .ipv6(.loopback) else { return false }
+        let lines = headers.components(separatedBy: "\r\n")
+        return lines.first == "POST /hook HTTP/1.1"
+            && lines.contains { $0.caseInsensitiveCompare("X-Peachy-Stop: 1") == .orderedSame }
+            && lines.contains { $0.caseInsensitiveCompare("Content-Type: application/json") == .orderedSame }
     }
 
     private func sendResponse(connection: NWConnection, status: String, body: String) {

@@ -238,6 +238,10 @@ struct SettingsView: View {
             .animation(.easeInOut(duration: 0.25), value: installingIDE)
 
             }
+            if selectedTab == .general {
+                SessionResultPluginSettings(plugin: appStore.sessionResultPlugin)
+            }
+
             // MARK: – Keyboard Shortcuts
             if selectedTab == .shortcuts {
             Section {

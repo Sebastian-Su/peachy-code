@@ -28,6 +28,7 @@ final class AppStore {
     let hotkeyManager = GlobalHotkeyManager()
     let sessionSwitcherStore = SessionSwitcherStore()
     let sessionFinishedStore = SessionFinishedStore()
+    let sessionResultPlugin = SessionResultPlugin()
     let approvalHistoryStore = ApprovalHistoryStore()
 
     private(set) var eventProcessor: EventProcessor!
@@ -131,6 +132,10 @@ final class AppStore {
         )
         self.sessionMetadataMonitor = SessionMetadataMonitor { [weak self] update in
             self?.sessionStore.updateMetadata(update)
+        }
+
+        localServer.onSessionResult = { [weak self] event in
+            self?.sessionResultPlugin.receive(event)
         }
 
         // Register adapters with the event bus

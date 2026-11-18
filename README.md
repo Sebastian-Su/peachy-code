@@ -34,6 +34,7 @@
 | ⏳ | **Waiting-for-input cards** | When a session has been idle waiting for your reply, the overlay shows a timed card until you respond |
 | 📥 | **Inbox** | Pending requests on top, one timeline of notifications, approvals, and activity below — filter by project or agent |
 | 📊 | **Sessions** | Active and recent sessions with titles, subagents, and a route from engine to host app (terminal, Codex Desktop, Paseo) |
+| 📝 | **Session result plugin** | Process final Agent replies with a local tool and show the Markdown report or return it to the source session ([settings and tool contract](docs/session-result-plugin.md)) |
 | 🤖 | **Agents** | Hook install status, session counts, and host distribution for Claude Code, Codex, and Copilot CLI, plus a connection doctor |
 | 🛠️ | **Services console** | Start, stop, and restart local services and one-off scripts, read their logs, and manage brew services and your LaunchAgents ([details](#services)) |
 | 🐾 | **Pet gallery** | Switch pets, download more from the online catalog, or create your own in the creation center |

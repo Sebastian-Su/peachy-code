@@ -122,7 +122,7 @@ enum HookInstaller {
         try writeSettings(settings)
     }
 
-    private static let scriptVersion = "# version: 19"
+    private static let scriptVersion = "# version: 20"
 
     /// Exposed for testing: returns the script content that would be written by ensureScriptExists().
     /// This avoids tests needing to touch the real home directory.
@@ -169,7 +169,7 @@ enum HookInstaller {
         # Use health endpoint instead of pgrep (works regardless of binary name)
         curl -s --connect-timeout 0.3 "http://localhost:\(Constants.serverPort)/health" >/dev/null 2>&1 || exit 0
         INPUT=$(cat 2>/dev/null || echo '{}')
-        EVENT_NAME=$(echo "$INPUT" | grep -o '"hook_event_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+        EVENT_NAME=$(printf '%s' "$INPUT" | grep -o '"hook_event_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4)
 
         # Parse --source <value> argument (passed by Codex hook registration).
         # When present, record it as "peachy_client" so the app knows which agent sent the
@@ -238,9 +238,16 @@ enum HookInstaller {
             [ -n "$BODY" ] && echo "$BODY"
             [ "$HTTP_CODE" = "403" ] && exit 2
             exit 0
+        elif [ "$EVENT_NAME" = "Stop" ]; then
+            # Peachy replies immediately for panel delivery. In return mode this same
+            # connection carries the original session's continuation decision.
+            printf '%s' "$INPUT" | curl -fsS -X POST -H "Content-Type: application/json" \\
+              -H "X-Peachy-Stop: 1" --data-binary @- "http://localhost:\(Constants.serverPort)/hook" \\
+              --connect-timeout 1 --max-time 300 2>/dev/null || true
+            exit 0
         else
             # Fire-and-forget for all other events
-            curl -s -X POST -H "Content-Type: application/json" -d "$INPUT" \\
+            printf '%s' "$INPUT" | curl -s -X POST -H "Content-Type: application/json" --data-binary @- \\
               "http://localhost:\(Constants.serverPort)/hook" \\
               --connect-timeout 1 --max-time 2 2>/dev/null || true
             exit 0

@@ -179,6 +179,9 @@ struct PeachyDesktopApp: App {
                     appStore.onToastChanged = { [weak overlayManager] in
                         overlayManager?.repositionForToast()
                     }
+                    appStore.sessionResultPlugin.present = { report in
+                        SessionResultPanel.shared.show(report)
+                    }
                     await appStore.start()
                     overlayManager.restoreIfNeeded()
 
