@@ -426,7 +426,7 @@
 "result_hook.new" = "Start a new conversation";
 "result_hook.reuse" = "Reuse for the same source session";
 "result_hook.destination" = "Send result to";
-"result_hook.panel" = "PeachyPet Markdown panel";
+"result_hook.panel" = "PeachyPet floating bubble";
 "result_hook.agent" = "Original Agent session";
 "result_hook.report_title" = "Session result";
 "result_hook.copy" = "Copy Markdown";
@@ -435,3 +435,14 @@
 "result_hook.error_empty" = "The local tool returned no Markdown.";
 "result_hook.error_session" = "The local tool did not identify its conversation.";
 "result_hook.error_generic" = "PeachyPet could not process the session result.";
+"nav.results" = "Result History";
+"result_hook.countdown" = "%d s";
+"result_hook.dismiss" = "Dismiss result";
+"result_hook.read" = "Read report";
+"result_hook.history" = "History";
+"result_hook.history_empty" = "No session results yet";
+"result_hook.history_unavailable" = "Session result history is unavailable";
+"result_hook.open_source" = "Open original session";
+"result_hook.history_limit" = "Maximum saved results (1–1000)";
+"result_hook.save_limit" = "Save";
+"result_hook.history_shortcut" = "Result history after double Cmd";

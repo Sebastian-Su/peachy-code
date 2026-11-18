@@ -20,6 +20,33 @@ enum PlainEscapeAction: Equatable {
     case dismissTerminalFallback
 }
 
+/// A second-stage shortcut stays armed just after the existing double-Cmd gesture.
+struct SessionResultHistoryChord {
+    private var armedAt: TimeInterval?
+    private static let interval: TimeInterval = 1.5
+
+    mutating func arm(at time: TimeInterval) { armedAt = time }
+
+    mutating func consume(at time: TimeInterval, matches: Bool) -> Bool {
+        defer { armedAt = nil }
+        guard let armedAt else { return false }
+        return matches && time >= armedAt && time - armedAt < Self.interval
+    }
+}
+
+struct HotkeyCombination: Equatable {
+    let keyCode: Int64
+    let modifiers: CGEventFlags
+
+    var label: String {
+        let modifiersAndSymbols: [(CGEventFlags, String)] = [
+            (.maskControl, "⌃"), (.maskAlternate, "⌥"), (.maskShift, "⇧"), (.maskCommand, "⌘"),
+        ]
+        return modifiersAndSymbols.compactMap { modifiers.contains($0.0) ? $0.1 : nil }.joined()
+            + keyCodeToString(keyCode)
+    }
+}
+
 // MARK: - Thread-safe state shared between main actor and CGEvent callback
 
 /// Holds values read/written from the CGEvent callback thread.
@@ -45,6 +72,8 @@ final class HotkeySharedState: @unchecked Sendable {
     var lastCmdReleaseTime: UInt64 = 0
     /// True if Cmd was pressed and released without any other key (solitary press).
     var cmdWasSolitary = false
+    var resultHistoryChord = SessionResultHistoryChord()
+    var resultHistoryShortcut = HotkeyCombination(keyCode: 15, modifiers: .maskCommand)
 
     /// The configured shortcut key code (default: 46 = M).
     var keyCode: Int64 = 46
@@ -104,6 +133,7 @@ final class GlobalHotkeyManager {
 
     /// Called when double-tap Cmd opens the session switcher.
     var onSessionSwitcherOpen: (() -> Void)?
+    var onResultHistoryOpen: (@MainActor () -> Void)?
 
     /// Called when the physical Cmd hold state changes.
     var onCmdHeldChanged: ((Bool) -> Void)?
@@ -206,15 +236,26 @@ final class GlobalHotkeyManager {
 
     /// Human-readable label for the current shortcut (e.g. "⌘⇧M").
     var shortcutLabel: String {
-        var parts: [String] = []
-        let mods = hotkeyModifiers
-        if mods.contains(.maskControl) { parts.append("⌃") }
-        if mods.contains(.maskAlternate) { parts.append("⌥") }
-        if mods.contains(.maskShift) { parts.append("⇧") }
-        if mods.contains(.maskCommand) { parts.append("⌘") }
-        parts.append(keyCodeToString(hotkeyKeyCode))
-        return parts.joined()
+        HotkeyCombination(keyCode: hotkeyKeyCode, modifiers: hotkeyModifiers).label
     }
+
+    private(set) var resultHistoryShortcut: HotkeyCombination = {
+        let defaults = UserDefaults.standard
+        let key = defaults.object(forKey: "sessionResult.historyShortcutKey") as? Int ?? 15
+        let raw = defaults.object(forKey: "sessionResult.historyShortcutModifiers") as? Int
+            ?? Int(CGEventFlags.maskCommand.rawValue)
+        return HotkeyCombination(keyCode: Int64(key), modifiers: CGEventFlags(rawValue: UInt64(raw)))
+    }()
+
+    var resultHistoryShortcutLabel: String { "⌘ ⌘ → " + resultHistoryShortcut.label }
+
+    func setResultHistoryShortcut(keyCode: Int64, modifiers: CGEventFlags) {
+        resultHistoryShortcut = HotkeyCombination(keyCode: keyCode, modifiers: modifiers)
+        UserDefaults.standard.set(Int(keyCode), forKey: "sessionResult.historyShortcutKey")
+        UserDefaults.standard.set(Int(modifiers.rawValue), forKey: "sessionResult.historyShortcutModifiers")
+        shared.resultHistoryShortcut = resultHistoryShortcut
+    }
+
 
     /// Detect the key code for "M" based on the current keyboard layout.
     /// Returns 46 on QWERTY, 41 on AZERTY, etc.
@@ -278,6 +319,9 @@ final class GlobalHotkeyManager {
         // Sync UserDefaults → shared state
         shared.keyCode = hotkeyKeyCode
         shared.modifiersRaw = hotkeyModifiers.rawValue
+        shared.resultHistoryShortcut = resultHistoryShortcut
+        shared.resultHistoryChord = SessionResultHistoryChord()
+        shared.lastCmdReleaseTime = 0
 
         let eventMask: CGEventMask = (
             (1 << CGEventType.keyDown.rawValue) |
@@ -412,6 +456,14 @@ private func globalHotkeyCallback(
     let flags = event.flags
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
+    if state.isRecording {
+        state.lastCmdReleaseTime = 0
+        state.cmdWasSolitary = false
+        state.cmdHeld = flags.contains(.maskCommand)
+        state.resultHistoryChord = SessionResultHistoryChord()
+        return Unmanaged.passUnretained(event)
+    }
+
     // Debug: log Cmd-related events
     if type == .flagsChanged || (type == .keyDown && flags.contains(.maskCommand)) {
         GlobalHotkeyManager.debugLog("event: type=\(type.rawValue) keyCode=\(keyCode) flags=\(flags.rawValue)")
@@ -446,6 +498,7 @@ private func globalHotkeyCallback(
                     // Double-tap Cmd detected → open session switcher
                     GlobalHotkeyManager.debugLog("Double-tap Cmd detected — opening session switcher")
                     state.lastCmdReleaseTime = 0 // reset to prevent triple-tap
+                    state.resultHistoryChord.arm(at: ProcessInfo.processInfo.systemUptime)
                     DispatchQueue.main.async { manager.onSessionSwitcherOpen?() }
                 } else {
                     state.lastCmdReleaseTime = now
@@ -468,11 +521,6 @@ private func globalHotkeyCallback(
     // --- keyDown: check for our shortcuts ---
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
 
-    // When recording a new shortcut, pass all events through to SwiftUI
-    if state.isRecording {
-        return Unmanaged.passUnretained(event)
-    }
-
     // Any keyDown while Cmd is held → Cmd is being used as modifier, not solitary
     if state.cmdHeld {
         state.cmdWasSolitary = false
@@ -484,6 +532,13 @@ private func globalHotkeyCallback(
     let requiredMods = CGEventFlags(rawValue: state.modifiersRaw)
     let relevantFlags: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate]
     let activeFlags = flags.intersection(relevantFlags)
+
+    let combo = HotkeyCombination(keyCode: keyCode, modifiers: activeFlags)
+    if state.resultHistoryChord.consume(at: ProcessInfo.processInfo.systemUptime,
+                                        matches: combo == state.resultHistoryShortcut) {
+        DispatchQueue.main.async { manager.onResultHistoryOpen?() }
+        return nil
+    }
 
     if keyCode == state.keyCode && activeFlags == requiredMods {
         GlobalHotkeyManager.debugLog("⌘M MATCHED — triggering toggleFocus")

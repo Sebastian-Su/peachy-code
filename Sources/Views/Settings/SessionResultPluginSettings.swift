@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SessionResultPluginSettings: View {
     @Bindable var plugin: SessionResultPlugin
+    let results: SessionResultStore
+    @State private var limitText = ""
 
     var body: some View {
         Section {
@@ -34,8 +36,27 @@ struct SessionResultPluginSettings: View {
                         .foregroundStyle(.red)
                 }
             }
+            HStack {
+                Text(t("result_hook.history_limit"))
+                Spacer()
+                TextField(t("result_hook.history_limit"), text: $limitText)
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 64)
+                    .onSubmit(saveLimit)
+                Button(t("result_hook.save_limit"), action: saveLimit)
+                    .disabled(Int(limitText).map { !SessionResultStore.historyRange.contains($0) || $0 == results.historyLimit } ?? true)
+            }
         } header: {
             Text(t("result_hook.title")).font(Constants.heading(size: 13, weight: .semibold))
         }
+        .onAppear { limitText = String(results.historyLimit) }
+        .onChange(of: results.historyLimit) { _, limit in limitText = String(limit) }
+    }
+
+    private func saveLimit() {
+        guard let limit = Int(limitText), SessionResultStore.historyRange.contains(limit),
+              limit != results.historyLimit else { return }
+        Task { await results.setHistoryLimit(limit) }
     }
 }

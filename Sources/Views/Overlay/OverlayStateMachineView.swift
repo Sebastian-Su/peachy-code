@@ -140,6 +140,7 @@ final class PermissionHUDConfig {
 
 struct PermissionHUDView: View {
     let config: PermissionHUDConfig
+    var sessionResults: SessionResultStore? = nil
     @Environment(SessionSwitcherStore.self) var sessionSwitcherStore
     @Environment(GlobalHotkeyManager.self) var hotkeyManager
     @Environment(SessionFinishedStore.self) var sessionFinishedStore
@@ -151,6 +152,9 @@ struct PermissionHUDView: View {
             }
             SessionSwitcherView(maximumHeight: config.maximumSessionSwitcherHeight)
             SessionFinishedToastView()
+            if let sessionResults {
+                SessionResultBubble(store: sessionResults)
+            }
             PermissionStackView()
         }
         .fixedSize(horizontal: false, vertical: true)

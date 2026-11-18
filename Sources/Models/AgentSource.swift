@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Identifies which coding agent produced an event or owns a session.
-enum AgentSource: String, Codable, CaseIterable, Identifiable {
+enum AgentSource: String, Codable, CaseIterable, Identifiable, Sendable {
     case claudeCode
     case copilot
     case codex

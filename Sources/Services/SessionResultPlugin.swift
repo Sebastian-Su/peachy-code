@@ -10,11 +10,6 @@ final class SessionResultPlugin {
         case panel, agent
     }
 
-    struct Report {
-        let title: String
-        let markdown: String
-    }
-
     var isEnabled: Bool { didSet { defaults.set(isEnabled, forKey: "sessionResult.enabled") } }
     var backend: SessionResultTool.Backend { didSet { defaults.set(backend.rawValue, forKey: "sessionResult.backend") } }
     var executablePath: String { didSet { defaults.set(executablePath, forKey: "sessionResult.executablePath") } }
@@ -23,7 +18,7 @@ final class SessionResultPlugin {
     var destination: Destination { didSet { defaults.set(destination.rawValue, forKey: "sessionResult.destination") } }
     private(set) var lastError: String?
 
-    var present: ((Report) -> Void)?
+    var onResult: ((SessionResultReport, Destination) async -> Void)?
 
     private let defaults: UserDefaults
     @ObservationIgnored private var pending: [String: Task<String?, Never>] = [:]
@@ -71,10 +66,10 @@ final class SessionResultPlugin {
                     self.defaults.set(self.workerSessions, forKey: "sessionResult.workerSessions")
                 }
                 self.lastError = nil
-                if destination == .agent { return Self.continuation(for: output.markdown) }
-                let source = event.projectName.map { "\(event.assistantDisplayName) · \($0)" }
-                    ?? event.assistantDisplayName
-                self.present?(Report(title: source, markdown: output.markdown))
+                let report = SessionResultReport(sessionID: sessionID, agent: event.agentSource,
+                                                 project: event.projectName, markdown: output.markdown)
+                await self.onResult?(report, destination)
+                if destination == .agent { return Self.continuation(for: report.markdown) }
             } catch {
                 self.lastError = Self.errorMessage(error)
             }

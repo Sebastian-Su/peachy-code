@@ -63,7 +63,7 @@ extension EnvironmentValues {
 
 /// Card with 14px corners and a triangular tail on any of the 4 edges.
 /// `tailSide` controls which edge; `tailPercent` controls position along that edge.
-private struct SpeechBubbleShape: Shape {
+struct SpeechBubbleShape: Shape {
     var tailSide: TailSide = .bottom
     var tailPercent: CGFloat = 0.80
 

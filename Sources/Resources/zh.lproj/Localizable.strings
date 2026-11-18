@@ -426,7 +426,7 @@
 "result_hook.new" = "每次新建会话";
 "result_hook.reuse" = "同一来源会话复用上下文";
 "result_hook.destination" = "结果发送到";
-"result_hook.panel" = "PeachyPet Markdown 弹窗";
+"result_hook.panel" = "PeachyPet 桌宠气泡";
 "result_hook.agent" = "原 Agent 会话";
 "result_hook.report_title" = "会话结果";
 "result_hook.copy" = "复制 Markdown";
@@ -435,3 +435,14 @@
 "result_hook.error_empty" = "本地工具没有返回 Markdown。";
 "result_hook.error_session" = "本地工具没有返回会话标识。";
 "result_hook.error_generic" = "PeachyPet 无法处理这条会话结果。";
+"nav.results" = "结果历史";
+"result_hook.countdown" = "%d 秒";
+"result_hook.dismiss" = "收起结果";
+"result_hook.read" = "阅读报告";
+"result_hook.history" = "历史";
+"result_hook.history_empty" = "还没有会话结果";
+"result_hook.history_unavailable" = "暂时无法读取会话结果历史";
+"result_hook.open_source" = "打开原会话";
+"result_hook.history_limit" = "历史最多保留条数（1–1000）";
+"result_hook.save_limit" = "保存";
+"result_hook.history_shortcut" = "双击 Cmd 后打开结果历史";

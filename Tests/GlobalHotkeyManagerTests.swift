@@ -70,3 +70,18 @@ final class GlobalHotkeyManagerTests: XCTestCase {
         XCTAssertEqual(fallbackKeyCodeToString(255), "?")
     }
 }
+
+extension GlobalHotkeyManagerTests {
+    func testHistoryChordRequiresDoubleCommandAndConsumesOnlyOneMatchingPress() {
+        var chord = SessionResultHistoryChord()
+        XCTAssertFalse(chord.consume(at: 10, matches: true))
+        chord.arm(at: 10)
+        XCTAssertTrue(chord.consume(at: 10.25, matches: true))
+        XCTAssertFalse(chord.consume(at: 10.3, matches: true))
+        chord.arm(at: 20)
+        XCTAssertFalse(chord.consume(at: 20.1, matches: false))
+        XCTAssertFalse(chord.consume(at: 20.2, matches: true))
+        chord.arm(at: 30)
+        XCTAssertFalse(chord.consume(at: 32, matches: true))
+    }
+}

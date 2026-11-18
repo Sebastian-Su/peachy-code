@@ -29,6 +29,7 @@ final class AppStore {
     let sessionSwitcherStore = SessionSwitcherStore()
     let sessionFinishedStore = SessionFinishedStore()
     let sessionResultPlugin = SessionResultPlugin()
+    let sessionResults = SessionResultStore()
     let approvalHistoryStore = ApprovalHistoryStore()
 
     private(set) var eventProcessor: EventProcessor!
@@ -136,6 +137,17 @@ final class AppStore {
 
         localServer.onSessionResult = { [weak self] event in
             self?.sessionResultPlugin.receive(event)
+        }
+
+        sessionResultPlugin.onResult = { [weak self] report, destination in
+            guard let self else { return }
+            var report = report
+            if let session = self.sessionStore.sessions.first(where: {
+                $0.id == report.source.sessionID && $0.agentSource == report.source.agent
+            }) {
+                report.source.sessionTitle = session.displaySessionTitle
+            }
+            await self.sessionResults.add(report, showPreview: destination == .panel)
         }
 
         // Register adapters with the event bus
@@ -282,6 +294,10 @@ final class AppStore {
             self.sessionSwitcherStore.setAutoDismissPaused(self.hotkeyManager.isCmdHeld)
             self.syncActiveCard()
             self.onSessionSwitcherShow?()
+        }
+
+        hotkeyManager.onResultHistoryOpen = { [weak self] in
+            self?.sessionResults.openHistory()
         }
 
         hotkeyManager.onCmdHeldChanged = { [weak self] held in
