@@ -51,6 +51,7 @@ final class PaseoRemoteBridgeTests: XCTestCase {
             XCTAssertEqual(session.displayProjectName, "MacMini", provider)
             XCTAssertEqual(session.displaySessionTitle, "Merge regression", provider)
             XCTAssertEqual(session.focusAppBundleId, PaseoRegistry.bundleId, provider)
+            XCTAssertTrue(session.isRemote, provider)
             XCTAssertEqual(SessionRoute(session: session).destination, .paseo, provider)
 
             var opened: URL?
@@ -78,6 +79,16 @@ final class PaseoRemoteBridgeTests: XCTestCase {
         XCTAssertEqual(announcedEarly, false)
         XCTAssertTrue(notifications.notifications.contains { $0.sessionId == sessionId })
         XCTAssertEqual(sessions.sessions.first { $0.id == sessionId }?.host, PaseoRemoteBridge.host(for: remote))
+    }
+
+    func testOnlyAgentsOnAnotherHostAreRemote() {
+        var session = AgentSession(id: "s", projectDir: nil, projectName: nil, agentSource: .codex, status: .active,
+                                   phase: .idle, eventCount: 1, startedAt: Date(), lastEventAt: Date())
+        XCTAssertFalse(session.isRemote)
+        session.host = .paseo(agentId: "a1")
+        XCTAssertFalse(session.isRemote)
+        session.host = .paseo(agentId: "a1", serverId: "srv_mini")
+        XCTAssertTrue(session.isRemote)
     }
 
     func testLocalPaseoHostSavedBeforeRemoteHostsStillDecodes() throws {

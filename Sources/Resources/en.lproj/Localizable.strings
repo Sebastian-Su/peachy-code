@@ -461,3 +461,4 @@
 "settings.paseo_remote_node_missing" = "Node.js was not found, so the Paseo bridge cannot start.";
 "settings.paseo_remote_bridge_missing" = "This build does not include the Paseo bridge script.";
 "settings.paseo_remote_exited" = "The Paseo bridge exited (%d). Turn it off and on again to retry.";
+"sessions.remote_host" = "Remote host";
