@@ -31,6 +31,20 @@ final class AppStore {
     let sessionResultPlugin = SessionResultPlugin()
     let sessionResults = SessionResultStore()
     var sessionResultHUDAvailable = false
+    let paseoRemoteBridge = PaseoRemoteBridge()
+
+    /// Shows turn completions from hosts connected to the local Paseo daemon. Off by default.
+    var isPaseoRemoteEnabled: Bool = UserDefaults.standard.bool(forKey: "paseoRemoteEventsEnabled") {
+        didSet {
+            UserDefaults.standard.set(isPaseoRemoteEnabled, forKey: "paseoRemoteEventsEnabled")
+            guard isRunning else { return }
+            if isPaseoRemoteEnabled {
+                paseoRemoteBridge.start()
+            } else {
+                paseoRemoteBridge.stop()
+            }
+        }
+    }
     let approvalHistoryStore = ApprovalHistoryStore()
 
     private(set) var eventProcessor: EventProcessor!
@@ -159,52 +173,12 @@ final class AppStore {
         // Wire event bus -> event processor + overlay state machine
         eventBus.onEvent = { [weak self] event in
             guard let self else { return }
-            Task { @MainActor in
-                guard await self.eventProcessor.process(event) else { return }
-                self.sessionMetadataMonitor.update(activeSessions: self.sessionStore.activeSessions)
+            Task { @MainActor in await self.handleAgentEvent(event) }
+        }
 
-                // If a subsequent event arrives for a session with pending permissions,
-                // the user may have resolved a permission from the terminal - dismiss it.
-                // For postToolUse/postToolUseFailure: only dismiss the SPECIFIC tool use
-                // that completed (by toolUseId), not all permissions for the agent.
-                // For stop/userPromptSubmit: session is ending, dismiss all for that agent.
-                if let eventType = event.eventType,
-                   let sid = event.sessionId {
-                    // Cache PreToolUse toolUseId - fires immediately before PermissionRequest
-                    // for the same tool call, and carries the tool_use_id that PermissionRequest lacks.
-                    if eventType == .preToolUse,
-                       let toolUseId = event.toolUseId,
-                       let toolName = event.toolName {
-                        self.pendingPermissionStore.cachePreToolUse(
-                            sessionId: sid, agentId: event.agentId,
-                            toolName: toolName, toolUseId: toolUseId
-                        )
-                    }
-
-                    // Codex approvals answered in the terminal can emit follow-up events
-                    // (for example a second PreToolUse/exec begin) before the tool completes.
-                    // If we see any later non-permission event for the same toolUseId, the
-                    // approval card is stale and should close immediately.
-                    if eventType != .permissionRequest,
-                       let toolUseId = event.toolUseId {
-                        self.pendingPermissionStore.dismissByToolUseId(sessionId: sid, toolUseId: toolUseId)
-                    }
-
-                    if [.stop, .userPromptSubmit].contains(eventType),
-                       self.pendingPermissionStore.pending.contains(where: {
-                           $0.event.sessionId == sid && $0.event.agentId == event.agentId
-                       }) {
-                        self.pendingPermissionStore.dismissForAgent(sessionId: sid, agentId: event.agentId)
-                    } else if [.postToolUse, .postToolUseFailure].contains(eventType),
-                              let toolUseId = event.toolUseId {
-                        self.pendingPermissionStore.dismissByToolUseId(sessionId: sid, toolUseId: toolUseId)
-                    }
-                }
-
-                self.updateSessionToast(for: event)
-
-                self.onEventForOverlay?(event)
-            }
+        paseoRemoteBridge.onTurnEnded = { [weak self] turn in
+            guard let self else { return }
+            Task { @MainActor in await self.handleRemoteTurn(turn) }
         }
 
         // Wire event bus -> custom input endpoint
@@ -484,6 +458,66 @@ final class AppStore {
         }
     }
 
+    @MainActor private func handleAgentEvent(_ event: AgentEvent) async {
+        guard await eventProcessor.process(event) else { return }
+        self.sessionMetadataMonitor.update(activeSessions: self.sessionStore.activeSessions)
+
+        // If a subsequent event arrives for a session with pending permissions,
+        // the user may have resolved a permission from the terminal - dismiss it.
+        // For postToolUse/postToolUseFailure: only dismiss the SPECIFIC tool use
+        // that completed (by toolUseId), not all permissions for the agent.
+        // For stop/userPromptSubmit: session is ending, dismiss all for that agent.
+        if let eventType = event.eventType,
+           let sid = event.sessionId {
+            // Cache PreToolUse toolUseId - fires immediately before PermissionRequest
+            // for the same tool call, and carries the tool_use_id that PermissionRequest lacks.
+            if eventType == .preToolUse,
+               let toolUseId = event.toolUseId,
+               let toolName = event.toolName {
+                self.pendingPermissionStore.cachePreToolUse(
+                    sessionId: sid, agentId: event.agentId,
+                    toolName: toolName, toolUseId: toolUseId
+                )
+            }
+
+            // Codex approvals answered in the terminal can emit follow-up events
+            // (for example a second PreToolUse/exec begin) before the tool completes.
+            // If we see any later non-permission event for the same toolUseId, the
+            // approval card is stale and should close immediately.
+            if eventType != .permissionRequest,
+               let toolUseId = event.toolUseId {
+                self.pendingPermissionStore.dismissByToolUseId(sessionId: sid, toolUseId: toolUseId)
+            }
+
+            if [.stop, .userPromptSubmit].contains(eventType),
+               self.pendingPermissionStore.pending.contains(where: {
+                   $0.event.sessionId == sid && $0.event.agentId == event.agentId
+               }) {
+                self.pendingPermissionStore.dismissForAgent(sessionId: sid, agentId: event.agentId)
+            } else if [.postToolUse, .postToolUseFailure].contains(eventType),
+                      let toolUseId = event.toolUseId {
+                self.pendingPermissionStore.dismissByToolUseId(sessionId: sid, toolUseId: toolUseId)
+            }
+        }
+
+        self.updateSessionToast(for: event)
+
+        self.onEventForOverlay?(event)
+    }
+
+    /// A turn that ended on another host. It is shown like a local Stop, and its final reply
+    /// goes through that agent's result hook; a remote session has no hook to continue.
+    @MainActor private func handleRemoteTurn(_ turn: PaseoRemoteBridge.TurnEnded) async {
+        let event = PaseoRemoteBridge.event(for: turn)
+        await handleAgentEvent(event)
+        if let sessionId = event.sessionId, let title = turn.title {
+            sessionStore.updateMetadata(SessionMetadataUpdate(
+                sessionId: sessionId, sessionTitle: "\(turn.host) · \(title)", firstUserPrompt: nil, projectDisplayName: nil
+            ))
+        }
+        _ = sessionResultPlugin.receive(event, allowsContinuation: false)
+    }
+
     func updateSessionToast(for event: AgentEvent) {
         if event.eventType == .stop,
            event.reason != "interrupted",
@@ -584,6 +618,9 @@ final class AppStore {
 
         eventBus.startAll()
         sessionMetadataMonitor.start(activeSessions: sessionStore.activeSessions)
+        if isPaseoRemoteEnabled {
+            paseoRemoteBridge.start()
+        }
 
         // Reconcile sessions when app comes to foreground (crash recovery).
         // Throttled to at most once per 30 seconds — this notification fires on every
@@ -627,6 +664,7 @@ final class AppStore {
     /// Tear down adapters and timers to prevent zombie processes
     func stop() {
         eventBus.stopAll()
+        paseoRemoteBridge.stop()
         sessionMetadataMonitor.stop()
         sessionStore.stopTimers()
         pendingPermissionStore.stopTimers()

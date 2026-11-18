@@ -82,7 +82,8 @@ final class SessionResultPlugin {
 
     /// Returns nil for panel delivery so the caller can acknowledge the Stop
     /// immediately. A continuation task stays attached to the requesting hook.
-    @MainActor func receive(_ event: AgentEvent) -> Task<String?, Never>? {
+    /// Without a hook to continue (a remote Paseo session), the result goes to the panel.
+    @MainActor func receive(_ event: AgentEvent, allowsContinuation: Bool = true) -> Task<String?, Never>? {
         let agent = event.agentSource
         guard let configuration = configuration(for: agent), configuration.isEnabled,
               Self.accepts(event), let sessionID = event.sessionId else { return nil }
@@ -90,7 +91,7 @@ final class SessionResultPlugin {
         let tool = SessionResultTool(backend: configuration.backend, executablePath: configuration.executablePath,
                                      workingDirectory: SessionResultTool.defaultWorkingDirectory)
         let conversation = configuration.conversation
-        let destination = configuration.destination
+        let destination = allowsContinuation ? configuration.destination : .panel
         let key = [event.agentSource.rawValue, sessionID, tool.backend.rawValue, tool.executablePath].joined(separator: ":")
         let previous = pending[key]
         // Keep requests for a resumed conversation in order, even when two

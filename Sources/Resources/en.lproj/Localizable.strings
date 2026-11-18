@@ -451,3 +451,13 @@
 "result_hook.editor_title" = "%@ result hook";
 "result_hook.trigger" = "Final reply contains";
 "result_hook.trigger_default" = "Leave blank to process every final reply";
+
+"settings.paseo_remote" = "Paseo remote sessions";
+"settings.paseo_remote_hint" = "Shows end-of-turn reports from agents on hosts connected to the local Paseo daemon and passes them to that agent's result hook. Requires Node.js.";
+"settings.paseo_remote_starting" = "Starting the Paseo bridge…";
+"settings.paseo_remote_waiting" = "Waiting for the local Paseo daemon…";
+"settings.paseo_remote_connected" = "Connected: %@";
+"settings.paseo_remote_no_hosts" = "Connected to Paseo. No remote host is online.";
+"settings.paseo_remote_node_missing" = "Node.js was not found, so the Paseo bridge cannot start.";
+"settings.paseo_remote_bridge_missing" = "This build does not include the Paseo bridge script.";
+"settings.paseo_remote_exited" = "The Paseo bridge exited (%d). Turn it off and on again to retry.";

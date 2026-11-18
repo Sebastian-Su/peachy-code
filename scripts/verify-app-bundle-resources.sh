@@ -9,6 +9,7 @@ for resource in \
   Contents/Resources/Extensions \
   Contents/Resources/Fonts \
   Contents/Resources/Images \
+  Contents/Resources/PaseoBridge/paseo-bridge.mjs \
   Contents/Resources/en.lproj/Localizable.strings \
   Contents/Resources/zh.lproj/Localizable.strings; do
   if [ ! -e "$APP/$resource" ]; then

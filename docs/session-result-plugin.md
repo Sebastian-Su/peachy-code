@@ -29,3 +29,9 @@ Each saved result identifies the original agent, project, session, and time. All
 - In reuse mode, PeachyPet sets `PEACHYPET_SESSION_ID` to a stable identifier for that source session. Use the identifier to load and save the tool's context. In new-conversation mode, the variable is unset.
 
 The tool runs in PeachyPet's application support directory. The report view supports scrolling and copying the full Markdown. It shows placeholders for embedded images to avoid automatically fetching image URLs.
+
+## Paseo remote sessions
+
+Settings → General → Tools Integration → **Paseo remote sessions** (off by default) shows turns that end on hosts connected to the local Paseo daemon. PeachyPet starts a bundled Node.js script (`tools/paseo-bridge`, built by `scripts/build-app.sh` from Paseo's official SDK) that connects to `ws://127.0.0.1:6767/ws`. Paseo itself is not modified.
+
+When a remote agent goes from running to idle, PeachyPet records a Stop for that session. The session is labeled with the host name and Paseo title and has no local jump target. Its final reply then goes through the result hook configured for the same agent (Codex or Claude Code). Remote results always go to the PeachyPet bubble, because there is no local Stop Hook to continue. Local agents are not reported by the bridge, since their own hooks already reach PeachyPet. Agents delegated by another agent (`paseo.parent-agent-id`) are not reported either.

@@ -219,6 +219,21 @@ struct SettingsView: View {
                     resultHookButton(for: .copilot)
                 }
 
+                // Paseo remote hosts: turn completions via the local Paseo daemon
+                HStack {
+                    Text(t("settings.paseo_remote"))
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { appStore.isPaseoRemoteEnabled },
+                        set: { appStore.isPaseoRemoteEnabled = $0 }
+                    ))
+                    .labelsHidden()
+                }
+                Text(paseoRemoteStatusText)
+                    .font(.system(size: 11))
+                    .foregroundColor(Constants.textMuted)
+
                 // IDE extensions
                 ForEach(ideStatuses) { ide in
                     HStack {
@@ -510,6 +525,22 @@ struct SettingsView: View {
             Button(t("settings.uninstall_peachy"), role: .destructive) { performUninstall() }
         } message: {
             Text(t("settings.uninstall_confirm"))
+        }
+    }
+
+    private var paseoRemoteStatusText: String {
+        switch appStore.paseoRemoteBridge.status {
+        case .off: return t("settings.paseo_remote_hint")
+        case .starting: return t("settings.paseo_remote_starting")
+        case .waitingForDaemon: return t("settings.paseo_remote_waiting")
+        case .connected(let hosts):
+            let watching = hosts.filter(\.watching).map(\.label)
+            return watching.isEmpty
+                ? t("settings.paseo_remote_no_hosts")
+                : String(format: t("settings.paseo_remote_connected"), watching.joined(separator: ", "))
+        case .nodeMissing: return t("settings.paseo_remote_node_missing")
+        case .bridgeMissing: return t("settings.paseo_remote_bridge_missing")
+        case .exited(let status): return String(format: t("settings.paseo_remote_exited"), status)
         }
     }
 
