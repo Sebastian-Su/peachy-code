@@ -461,3 +461,4 @@
 "settings.paseo_remote_node_missing" = "未找到 Node.js，无法启动 Paseo 桥接。";
 "settings.paseo_remote_bridge_missing" = "此构建未包含 Paseo 桥接脚本。";
 "settings.paseo_remote_exited" = "Paseo 桥接已退出（%d），关闭后重新打开可重试。";
+"sessions.remote_host" = "远程主机";

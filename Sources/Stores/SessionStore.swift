@@ -47,6 +47,12 @@ struct AgentSession: Identifiable, Codable {
             ?? "Session"
     }
 
+    /// An agent on another host, reached through the local Paseo daemon.
+    var isRemote: Bool {
+        if case .paseo(_, .some) = host { return true }
+        return false
+    }
+
     var displaySessionTitle: String? {
         func nonEmpty(_ s: String?) -> String? {
             guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }

@@ -146,10 +146,13 @@ private struct SessionSwitcherRow: View {
 
             // Project name + phase
             VStack(alignment: .leading, spacing: 1) {
-                Text(projectLabel)
-                    .font(Constants.body(size: 11, weight: .medium))
-                    .foregroundStyle(Constants.textPrimary)
-                    .lineLimit(1)
+                HStack(spacing: 3) {
+                    if session.isRemote { RemoteHostIcon(size: 9) }
+                    Text(projectLabel)
+                        .font(Constants.body(size: 11, weight: .medium))
+                        .foregroundStyle(Constants.textPrimary)
+                        .lineLimit(1)
+                }
 
                 HStack(spacing: 4) {
                     Text(phaseLabel)

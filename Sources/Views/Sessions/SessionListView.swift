@@ -88,10 +88,13 @@ private struct SessionInspector: View {
         let route = SessionRoute(session: session)
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(session.displayProjectName)
-                    .font(Constants.heading(size: 22, weight: .heavy))
-                    .tracking(-0.5)
-                    .foregroundColor(Constants.textPrimary)
+                HStack(spacing: 6) {
+                    if session.isRemote { RemoteHostIcon(size: 15) }
+                    Text(session.displayProjectName)
+                        .font(Constants.heading(size: 22, weight: .heavy))
+                        .tracking(-0.5)
+                        .foregroundColor(Constants.textPrimary)
+                }
                 if let title = session.displaySessionTitle {
                     Text(title)
                         .font(Constants.body(size: 13))
@@ -246,9 +249,12 @@ private struct SessionRow: View {
             AgentSourceBadge(source: session.agentSource, compact: true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.displayProjectName)
-                    .font(Constants.heading(size: 14, weight: .semibold))
-                    .foregroundColor(isSelected ? Constants.orangePrimary : Constants.textPrimary)
+                HStack(spacing: 4) {
+                    if session.isRemote { RemoteHostIcon(size: 10) }
+                    Text(session.displayProjectName)
+                        .font(Constants.heading(size: 14, weight: .semibold))
+                        .foregroundColor(isSelected ? Constants.orangePrimary : Constants.textPrimary)
+                }
                 HStack {
                     Text("\(session.eventCount) \(t("sessions.events"))")
                         .font(Constants.body(size: 11))
