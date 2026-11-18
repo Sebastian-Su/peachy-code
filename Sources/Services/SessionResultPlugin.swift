@@ -2,21 +2,33 @@ import Foundation
 
 @Observable
 final class SessionResultPlugin {
-    enum Conversation: String, CaseIterable, Hashable {
+    enum Conversation: String, CaseIterable, Hashable, Codable {
         case new, reuse
     }
 
-    enum Destination: String, CaseIterable, Hashable {
+    enum Destination: String, CaseIterable, Hashable, Codable {
         case panel, agent
     }
 
-    var isEnabled: Bool { didSet { defaults.set(isEnabled, forKey: "sessionResult.enabled") } }
-    var backend: SessionResultTool.Backend { didSet { defaults.set(backend.rawValue, forKey: "sessionResult.backend") } }
-    var executablePath: String { didSet { defaults.set(executablePath, forKey: "sessionResult.executablePath") } }
-    var instructions: String { didSet { defaults.set(instructions, forKey: "sessionResult.instructions") } }
-    var conversation: Conversation { didSet { defaults.set(conversation.rawValue, forKey: "sessionResult.conversation") } }
-    var destination: Destination { didSet { defaults.set(destination.rawValue, forKey: "sessionResult.destination") } }
-    private(set) var lastError: String?
+    struct Configuration: Codable, Equatable {
+        var isEnabled = true
+        var backend: SessionResultTool.Backend = .codex
+        var executablePath = ""
+        var instructions = ""
+        var conversation: Conversation = .new
+        var destination: Destination = .panel
+        var triggerKeyword = ""
+
+        func matches(_ report: String) -> Bool {
+            let keyword = triggerKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
+            return keyword.isEmpty || report.range(of: keyword, options: .caseInsensitive) != nil
+        }
+    }
+
+    private static let configurationsKey = "sessionResult.agentConfigurations"
+    private static let supportedAgents: [AgentSource] = [.claudeCode, .codex, .copilot]
+    private(set) var lastErrors: [AgentSource: String] = [:]
+    private var configurations: [String: Configuration]
 
     var onResult: ((SessionResultReport, Destination) async -> Void)?
 
@@ -26,26 +38,59 @@ final class SessionResultPlugin {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        isEnabled = defaults.bool(forKey: "sessionResult.enabled")
-        backend = defaults.string(forKey: "sessionResult.backend").flatMap(SessionResultTool.Backend.init) ?? .codex
-        executablePath = defaults.string(forKey: "sessionResult.executablePath") ?? ""
-        instructions = defaults.string(forKey: "sessionResult.instructions") ?? ""
-        conversation = defaults.string(forKey: "sessionResult.conversation").flatMap(Conversation.init) ?? .new
-        destination = defaults.string(forKey: "sessionResult.destination").flatMap(Destination.init) ?? .panel
         workerSessions = defaults.dictionary(forKey: "sessionResult.workerSessions") as? [String: String] ?? [:]
+
+        if let stored = defaults.data(forKey: Self.configurationsKey) {
+            configurations = (try? JSONDecoder().decode([String: Configuration].self, from: stored)) ?? [:]
+        } else if let legacy = Self.legacyConfiguration(in: defaults) {
+            // Copy the previous global behavior to each agent once. Keep the legacy
+            // keys so rolling back the application still restores its configuration.
+            configurations = Dictionary(uniqueKeysWithValues: Self.supportedAgents.map { ($0.rawValue, legacy) })
+            defaults.set(try? JSONEncoder().encode(configurations), forKey: Self.configurationsKey)
+        } else {
+            configurations = [:]
+        }
+    }
+
+    func configuration(for agent: AgentSource) -> Configuration? {
+        configurations[agent.rawValue]
+    }
+
+    @MainActor func save(_ configuration: Configuration, for agent: AgentSource) {
+        guard Self.supportedAgents.contains(agent) else { return }
+        var saved = configurations
+        saved[agent.rawValue] = configuration
+        guard let data = try? JSONEncoder().encode(saved) else { return }
+        defaults.set(data, forKey: Self.configurationsKey)
+        configurations = saved
+        lastErrors[agent] = nil
+    }
+
+    private static func legacyConfiguration(in defaults: UserDefaults) -> Configuration? {
+        let prefix = "sessionResult."
+        let fields = ["enabled", "backend", "executablePath", "instructions", "conversation", "destination"]
+        guard fields.contains(where: { defaults.object(forKey: prefix + $0) != nil }) else { return nil }
+        return Configuration(
+            isEnabled: defaults.bool(forKey: prefix + "enabled"),
+            backend: defaults.string(forKey: prefix + "backend").flatMap(SessionResultTool.Backend.init) ?? .codex,
+            executablePath: defaults.string(forKey: prefix + "executablePath") ?? "",
+            instructions: defaults.string(forKey: prefix + "instructions") ?? "",
+            conversation: defaults.string(forKey: prefix + "conversation").flatMap(Conversation.init) ?? .new,
+            destination: defaults.string(forKey: prefix + "destination").flatMap(Destination.init) ?? .panel
+        )
     }
 
     /// Returns nil for panel delivery so the caller can acknowledge the Stop
     /// immediately. A continuation task stays attached to the requesting hook.
     @MainActor func receive(_ event: AgentEvent) -> Task<String?, Never>? {
-        guard isEnabled, Self.accepts(event),
-              let sessionID = event.sessionId else { return nil }
+        let agent = event.agentSource
+        guard let configuration = configuration(for: agent), configuration.isEnabled,
+              Self.accepts(event), let sessionID = event.sessionId else { return nil }
 
-        let tool = SessionResultTool(backend: backend, executablePath: executablePath,
+        let tool = SessionResultTool(backend: configuration.backend, executablePath: configuration.executablePath,
                                      workingDirectory: SessionResultTool.defaultWorkingDirectory)
-        let instructions = instructions
-        let conversation = conversation
-        let destination = destination
+        let conversation = configuration.conversation
+        let destination = configuration.destination
         let key = [event.agentSource.rawValue, sessionID, tool.backend.rawValue, tool.executablePath].joined(separator: ":")
         let previous = pending[key]
         // Keep requests for a resumed conversation in order, even when two
@@ -54,24 +99,25 @@ final class SessionResultPlugin {
             _ = await previous?.value
             guard let self else { return nil }
             do {
-                guard let original = try await SessionResultTranscript.report(for: event) else { return nil }
+                guard let original = try await SessionResultTranscript.report(for: event),
+                      configuration.matches(original) else { return nil }
                 let targetSession = conversation == .reuse
                     ? self.workerSessions[key] ?? (tool.backend == .executable ? UUID().uuidString : nil)
                     : nil
-                let output = try await tool.run(prompt: Self.prompt(instructions: instructions, report: original),
+                let output = try await tool.run(prompt: Self.prompt(instructions: configuration.instructions, report: original),
                                                 sessionID: targetSession, retainSession: conversation == .reuse)
                 if conversation == .reuse {
                     guard let id = output.sessionID else { throw SessionResultTool.Failure.missingSessionID }
                     self.workerSessions[key] = id
                     self.defaults.set(self.workerSessions, forKey: "sessionResult.workerSessions")
                 }
-                self.lastError = nil
+                self.lastErrors[agent] = nil
                 let report = SessionResultReport(sessionID: sessionID, agent: event.agentSource,
                                                  project: event.projectName, markdown: output.markdown)
                 await self.onResult?(report, destination)
                 if destination == .agent { return Self.continuation(for: report.markdown) }
             } catch {
-                self.lastError = Self.errorMessage(error)
+                self.lastErrors[agent] = Self.errorMessage(error)
             }
             return nil
         }

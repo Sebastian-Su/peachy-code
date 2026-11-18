@@ -6,7 +6,7 @@ struct SessionResultTool {
         let sessionID: String?
     }
 
-    enum Backend: String, CaseIterable, Hashable {
+    enum Backend: String, CaseIterable, Hashable, Codable {
         case codex, executable
     }
 

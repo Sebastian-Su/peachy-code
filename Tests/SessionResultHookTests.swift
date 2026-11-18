@@ -63,11 +63,14 @@ extension SessionResultHookTests {
     func testDefaultPanelDeliversLocalToolOutputAndPreservesPrompt() async throws {
         let (plugin, directory, cleanup) = try makePlugin()
         defer { cleanup() }
-        XCTAssertFalse(plugin.isEnabled)
-        XCTAssertEqual(plugin.destination, .panel)
-        XCTAssertEqual(plugin.conversation, .new)
-        plugin.isEnabled = true
-        plugin.instructions = "Keep the headings."
+        XCTAssertNil(plugin.configuration(for: .claudeCode))
+        let configuration = SessionResultPlugin.Configuration(
+            backend: .executable, executablePath: directory.appendingPathComponent("tool").path,
+            instructions: "Keep the headings."
+        )
+        XCTAssertEqual(configuration.destination, .panel)
+        XCTAssertEqual(configuration.conversation, .new)
+        plugin.save(configuration, for: .claudeCode)
 
         let output = expectation(description: "Markdown panel receives the report")
         plugin.onResult = { report, destination in
@@ -91,8 +94,10 @@ extension SessionResultHookTests {
     func testStopHTTPReturnsMarkdownToRequestingAgentAndContinuesOnlyOnce() async throws {
         let (plugin, directory, cleanup) = try makePlugin()
         defer { cleanup() }
-        plugin.isEnabled = true
-        plugin.destination = .agent
+        plugin.save(
+            .init(backend: .executable, executablePath: directory.appendingPathComponent("tool").path, destination: .agent),
+            for: .codex
+        )
         plugin.onResult = { report, destination in
             XCTAssertEqual(destination, .agent)
             XCTAssertEqual(report.source.sessionID, "test-source")
@@ -137,9 +142,10 @@ extension SessionResultHookTests {
     func testReusableWorkerSessionIsScopedToTheTriggeringSession() async throws {
         let (plugin, directory, cleanup) = try makePlugin()
         defer { cleanup() }
-        plugin.isEnabled = true
-        plugin.destination = .agent
-        plugin.conversation = .reuse
+        plugin.save(
+            .init(backend: .executable, executablePath: directory.appendingPathComponent("tool").path,
+                  conversation: .reuse, destination: .agent), for: .claudeCode
+        )
         let first = try XCTUnwrap(plugin.receive(completedReply()))
         let second = try XCTUnwrap(plugin.receive(completedReply()))
         let another = try XCTUnwrap(plugin.receive(completedReply(id: "another-source")))
@@ -264,8 +270,6 @@ extension SessionResultHookTests {
         """.write(to: tool, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tool.path)
         let plugin = SessionResultPlugin(defaults: defaults)
-        plugin.backend = .executable
-        plugin.executablePath = tool.path
         return (plugin, directory, {
             defaults.removePersistentDomain(forName: suite)
             try? FileManager.default.removeItem(at: directory)

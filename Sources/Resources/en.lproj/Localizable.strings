@@ -415,7 +415,6 @@
 "services.approve.confirm_replace" = "Confirm & restart";
 "services.error.process_changed" = "That process changed since you confirmed, so nothing was ended or started.";
 
-"result_hook.title" = "Session result plugin";
 "result_hook.enable" = "Process completed Agent replies";
 "result_hook.tool" = "Local tool";
 "result_hook.executable" = "Custom executable";
@@ -447,3 +446,8 @@
 "result_hook.save_limit" = "Save";
 "result_hook.history_shortcut" = "Result history after double Cmd";
 "result_hook.shortcut_actions" = "Read the visible result / Open result history";
+"result_hook.add" = "Add Hook";
+"result_hook.edit" = "Edit Hook";
+"result_hook.editor_title" = "%@ result hook";
+"result_hook.trigger" = "Final reply contains";
+"result_hook.trigger_default" = "Leave blank to process every final reply";
