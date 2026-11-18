@@ -415,7 +415,6 @@
 "services.approve.confirm_replace" = "确认并重启";
 "services.error.process_changed" = "这个进程在你确认后变了，所以没有结束它，也没有启动新的。";
 
-"result_hook.title" = "会话结果插件";
 "result_hook.enable" = "处理 Agent 的最终回复";
 "result_hook.tool" = "本地工具";
 "result_hook.executable" = "自定义可执行文件";
@@ -447,3 +446,8 @@
 "result_hook.save_limit" = "保存";
 "result_hook.history_shortcut" = "双击 Cmd 后打开结果历史";
 "result_hook.shortcut_actions" = "阅读当前结果／打开结果历史";
+"result_hook.add" = "添加 Hook";
+"result_hook.edit" = "编辑 Hook";
+"result_hook.editor_title" = "%@ 结果 Hook";
+"result_hook.trigger" = "最终回复包含关键词";
+"result_hook.trigger_default" = "留空时处理所有最终回复";

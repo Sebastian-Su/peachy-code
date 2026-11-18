@@ -1,9 +1,12 @@
 # Session result plugin
 
-Open PeachyPet Settings → General → Session result plugin and enable **Process completed Agent replies**. Select a local tool and optionally add processing instructions. The default is Codex CLI, a new tool conversation for each reply, and a bubble anchored to the PeachyPet mascot.
+Open PeachyPet Settings → General → Tools Integration and choose **Add Hook** or **Edit Hook** next to Claude Code, Codex, or Copilot CLI. Each agent has its own configuration. Click **Save** to apply the whole draft. Closing the editor or clicking **Cancel** discards it. An existing global configuration is copied to each agent during the upgrade.
+
+A new hook defaults to Codex CLI, a new tool conversation for each reply, and a bubble anchored to the PeachyPet mascot.
 
 | Setting | What it controls |
 | --- | --- |
+| Final reply contains | Matches a literal keyword or phrase in the original reply, ignoring case. An empty field processes every final reply. |
 | Local tool | Codex CLI uses the installed executable and its model configuration. Custom executable accepts an absolute path to a program that implements the input/output contract below. |
 | Processing instructions | The tool receives these instructions and the full reply. Its prompt asks for Simplified Chinese when the resulting prose is entirely in English or Korean and asks to preserve Markdown, code, links, and identifiers. |
 | Tool conversation | **Start a new conversation** processes each reply independently. **Reuse for the same source session** keeps processing context separate for each source agent and session. |
@@ -17,7 +20,7 @@ Hold Cmd while the result bubble is active to reveal shortcuts. Cmd+1 opens the 
 
 Open **Result History** in the sidebar, select **History** in a result bubble, or press Cmd twice and then Cmd+R. Set the second shortcut in Settings → Shortcuts. The first two Cmd taps still open the session switcher.
 
-Each saved result identifies the original agent, project, session, and time. All results are stored in the local SQLite database, including results returned to their original sessions. Settings → General → Session result plugin controls how many records to retain. The default is 100. Saving a smaller limit removes the oldest records.
+Each saved result identifies the original agent, project, session, and time. All results are stored in the local SQLite database, including results returned to their original sessions. Settings → General → Result History controls how many records to retain. The default is 100. Saving a smaller limit removes the oldest records.
 
 ## Custom executable contract
 

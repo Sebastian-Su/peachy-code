@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(OverlayManager.self) var overlayManager
     @State private var isHookEnabled = false
     @State private var isCodexHookEnabled = false
+    @State private var editingResultHook: AgentSource?
     @State private var hookError: String?
     @State private var showUninstallConfirm = false
     @State private var portText: String = ""
@@ -182,6 +183,7 @@ struct SettingsView: View {
                     Text("Claude Code")
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
+                    resultHookButton(for: .claudeCode)
                     Toggle("", isOn: Binding(
                         get: { isHookEnabled },
                         set: { setClaudeHookEnabled($0) }
@@ -197,6 +199,7 @@ struct SettingsView: View {
                     Text("Codex")
                         .foregroundColor(Constants.textPrimary)
                     Spacer()
+                    resultHookButton(for: .codex)
                     Toggle("", isOn: Binding(
                         get: { isCodexHookEnabled },
                         set: { setCodexHookEnabled($0) }
@@ -207,6 +210,13 @@ struct SettingsView: View {
                     Text(t("settings.codex_hook_hint"))
                         .font(.system(size: 11))
                         .foregroundColor(Constants.textMuted)
+                }
+
+                HStack {
+                    Text(AgentSource.copilot.displayName)
+                        .foregroundColor(Constants.textPrimary)
+                    Spacer()
+                    resultHookButton(for: .copilot)
                 }
 
                 // IDE extensions
@@ -239,7 +249,7 @@ struct SettingsView: View {
 
             }
             if selectedTab == .general {
-                SessionResultPluginSettings(plugin: appStore.sessionResultPlugin, results: appStore.sessionResults)
+                SessionResultHistorySettings(results: appStore.sessionResults)
             }
 
             // MARK: – Keyboard Shortcuts
@@ -485,6 +495,9 @@ struct SettingsView: View {
             ideStatuses = statuses
             appStore.cachedIDEStatuses = statuses
         }
+        .sheet(item: $editingResultHook) { agent in
+            SessionResultHookEditor(agent: agent, plugin: appStore.sessionResultPlugin)
+        }
         .sheet(isPresented: $showConnectionDoctor) {
             ConnectionDoctorView()
                 .environment(appStore)
@@ -498,6 +511,13 @@ struct SettingsView: View {
         } message: {
             Text(t("settings.uninstall_confirm"))
         }
+    }
+
+    private func resultHookButton(for agent: AgentSource) -> some View {
+        let saved = appStore.sessionResultPlugin.configuration(for: agent)
+        let title = t(saved == nil ? "result_hook.add" : "result_hook.edit")
+        return Button(title) { editingResultHook = agent }
+            .accessibilityLabel("\(agent.displayName) · \(title)")
     }
 
     private func setLaunchAtLoginEnabled(_ enabled: Bool) {
