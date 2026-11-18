@@ -45,9 +45,11 @@ enum IDETerminalFocus {
         urlOpener: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     ) -> Bool {
         switch host {
-        case .paseo(let agentId):
+        case .paseo(let agentId, let serverId):
             // Open that agent in Paseo, not the Codex thread it drives.
-            if let url = paseo.deepLink(agentId: agentId), urlOpener(url) {
+            let url = serverId.map { PaseoRegistry.Agent(serverId: $0, agentId: agentId).deepLink }
+                ?? paseo.deepLink(agentId: agentId)
+            if let url, urlOpener(url) {
                 return true
             }
             activateApp(bundleId: PaseoRegistry.bundleId)

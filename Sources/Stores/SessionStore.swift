@@ -884,6 +884,14 @@ final class SessionStore {
 
     // MARK: - Metadata Updates
 
+    /// A host known from outside the session's own events (an agent on a remote Paseo host).
+    func assignHost(_ host: SessionHost, toSession sessionId: String) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }), sessions[index].host != host else { return }
+        sessions[index].host = host
+        persist()
+        onPhasesChanged?()
+    }
+
     func updateMetadata(_ update: SessionMetadataUpdate) {
         guard let index = sessions.firstIndex(where: { $0.id == update.sessionId }) else { return }
         var changed = false

@@ -9,8 +9,9 @@ enum SessionHost: Codable, Equatable {
     case terminal
     /// Codex Desktop (com.openai.codex).
     case codexDesktop
-    /// Started from Paseo; `agentId` names the agent for its deep link.
-    case paseo(agentId: String)
+    /// Started from Paseo; `agentId` names the agent for its deep link. `serverId` is set for an
+    /// agent on another host connected to the local daemon; nil means this machine's daemon.
+    case paseo(agentId: String, serverId: String? = nil)
     /// A known client with no way to focus it (e.g. a Codex app-server client such as baocut).
     case other(originator: String)
 
@@ -46,10 +47,7 @@ struct SessionHostResolver {
             return .paseo(agentId: agent.agentId)
         }
         if hasTerminal { return .terminal }
-        guard engine == .codex else {
-            // Only producers outside the local hooks (a remote Paseo host) name an originator.
-            return known?.originator.map { .other(originator: $0) } ?? .unknown
-        }
+        guard engine == .codex else { return .unknown }
         let meta = known?.originator != nil ? known : readRolloutMeta(sessionId: sessionId, transcriptPath: transcriptPath)
         return Self.codexHost(for: meta)
     }

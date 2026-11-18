@@ -161,6 +161,9 @@ final class AppStore {
                 $0.id == report.source.sessionID && $0.agentSource == report.source.agent
             }) {
                 report.source.sessionTitle = session.displaySessionTitle
+                if case .paseo(_, .some) = session.host {
+                    report.source.project = session.displayProjectName
+                }
             }
             await self.sessionResults.add(report, showPreview: destination == .panel)
         }
@@ -458,8 +461,8 @@ final class AppStore {
         }
     }
 
-    @MainActor private func handleAgentEvent(_ event: AgentEvent) async {
-        guard await eventProcessor.process(event) else { return }
+    @MainActor private func handleAgentEvent(_ event: AgentEvent, onRecorded: (() -> Void)? = nil) async {
+        guard await eventProcessor.process(event, onRecorded: onRecorded) else { return }
         self.sessionMetadataMonitor.update(activeSessions: self.sessionStore.activeSessions)
 
         // If a subsequent event arrives for a session with pending permissions,
@@ -509,11 +512,10 @@ final class AppStore {
     /// goes through that agent's result hook; a remote session has no hook to continue.
     @MainActor private func handleRemoteTurn(_ turn: PaseoRemoteBridge.TurnEnded) async {
         let event = PaseoRemoteBridge.event(for: turn)
-        await handleAgentEvent(event)
-        if let sessionId = event.sessionId, let title = turn.title {
-            sessionStore.updateMetadata(SessionMetadataUpdate(
-                sessionId: sessionId, sessionTitle: "\(turn.host) · \(title)", firstUserPrompt: nil, projectDisplayName: nil
-            ))
+        guard let sessionId = event.sessionId else { return }
+        await handleAgentEvent(event) {
+            self.sessionStore.assignHost(PaseoRemoteBridge.host(for: turn), toSession: sessionId)
+            self.sessionStore.updateMetadata(PaseoRemoteBridge.metadata(for: turn, sessionId: sessionId))
         }
         _ = sessionResultPlugin.receive(event, allowsContinuation: false)
     }

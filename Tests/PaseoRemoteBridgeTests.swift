@@ -34,15 +34,55 @@ final class PaseoRemoteBridgeTests: XCTestCase {
         XCTAssertEqual(PaseoRemoteBridge.event(for: turn(status: "error")).eventType, .stopFailure)
     }
 
-    func testRemoteSessionShowsItsHostAndHasNoLocalFocusTarget() {
+    func testRemoteSessionShowsHostThenTitleAndOpensInPaseo() throws {
         let store = SessionStore()
         for provider in ["codex", "claude"] {
-            let event = PaseoRemoteBridge.event(for: turn(provider: provider))
+            let remote = turn(provider: provider)
+            let event = PaseoRemoteBridge.event(for: remote)
+            let sessionId = try XCTUnwrap(event.sessionId)
             store.recordEvent(event)
-            let session = store.sessions.first { $0.id == event.sessionId }
-            XCTAssertEqual(session?.host, .other(originator: "MacMini"), provider)
-            XCTAssertEqual(session?.phase, .idle, provider)
+            store.assignHost(PaseoRemoteBridge.host(for: remote), toSession: sessionId)
+            store.updateMetadata(PaseoRemoteBridge.metadata(for: remote, sessionId: sessionId))
+            // A later turn of the same agent must not demote the host.
+            store.recordEvent(event)
+
+            let session = try XCTUnwrap(store.sessions.first { $0.id == sessionId })
+            XCTAssertEqual(session.host, .paseo(agentId: "a1", serverId: "srv_mini"), provider)
+            XCTAssertEqual(session.displayProjectName, "MacMini", provider)
+            XCTAssertEqual(session.displaySessionTitle, "Merge regression", provider)
+            XCTAssertEqual(session.focusAppBundleId, PaseoRegistry.bundleId, provider)
+            XCTAssertEqual(SessionRoute(session: session).destination, .paseo, provider)
+
+            var opened: URL?
+            IDETerminalFocus.focusSession(session, urlOpener: { opened = $0; return true })
+            XCTAssertEqual(opened?.absoluteString, "paseo://h/srv_mini/agent/a1", provider)
         }
+    }
+
+    @MainActor
+    func testRemoteHostIsAppliedBeforeTheCompletionIsAnnounced() async throws {
+        let events = EventStore(); events.clear()
+        let sessions = SessionStore()
+        defer { sessions.stopTimers() }
+        let notifications = NotificationStore()
+        let processor = EventProcessor(eventStore: events, sessionStore: sessions,
+                                       notificationStore: notifications, notificationService: .shared)
+        let remote = turn()
+        let event = PaseoRemoteBridge.event(for: remote)
+        let sessionId = try XCTUnwrap(event.sessionId)
+        var announcedEarly: Bool?
+        await processor.process(event) {
+            announcedEarly = notifications.notifications.contains { $0.sessionId == sessionId }
+            sessions.assignHost(PaseoRemoteBridge.host(for: remote), toSession: sessionId)
+        }
+        XCTAssertEqual(announcedEarly, false)
+        XCTAssertTrue(notifications.notifications.contains { $0.sessionId == sessionId })
+        XCTAssertEqual(sessions.sessions.first { $0.id == sessionId }?.host, PaseoRemoteBridge.host(for: remote))
+    }
+
+    func testLocalPaseoHostSavedBeforeRemoteHostsStillDecodes() throws {
+        let saved = Data(#"{"paseo":{"agentId":"a1"}}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(SessionHost.self, from: saved), .paseo(agentId: "a1"))
     }
 
     @MainActor

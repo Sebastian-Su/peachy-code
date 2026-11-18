@@ -44,7 +44,8 @@ final class EventProcessor {
         }
     }
 
-    @MainActor @discardableResult func process(_ event: AgentEvent) async -> Bool {
+    /// `onRecorded` runs right after the session records the event, before any notification.
+    @MainActor @discardableResult func process(_ event: AgentEvent, onRecorded: (() -> Void)? = nil) async -> Bool {
         eventStore.append(event)
         PeachyLog.event.debug("Processing \(event.hookEventName) sid=\(event.sessionId ?? "-") src=\(event.source ?? "-")")
 
@@ -70,11 +71,11 @@ final class EventProcessor {
             return false
         }
 
-        await processVisibleEvent(event)
+        await processVisibleEvent(event, onRecorded: onRecorded)
         return true
     }
 
-    @MainActor private func processVisibleEvent(_ event: AgentEvent) async {
+    @MainActor private func processVisibleEvent(_ event: AgentEvent, onRecorded: (() -> Void)?) async {
         let disp = disposition(for: event)
         let sessionId = event.sessionId ?? ""
 
@@ -111,6 +112,7 @@ final class EventProcessor {
             let isRepeatedStart = event.eventType == .sessionStart
                 && sessionStore.sessions.contains { $0.id == sessionId && $0.status == .active }
             sessionStore.recordEvent(event)
+            onRecorded?()
 
             if event.eventType == .sessionEnd, !sessionId.isEmpty {
                 CodexHookLiveness.shared.clear(sessionId: sessionId)
@@ -130,6 +132,7 @@ final class EventProcessor {
                 sessionStore.discardSnapshot(taskId: taskId)
             }
             sessionStore.recordEvent(event)
+            onRecorded?()
 
             if var notification = createNotification(from: event) {
                 notification.agentSource = event.agentSource

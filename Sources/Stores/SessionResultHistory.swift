@@ -5,7 +5,7 @@ struct SessionResultSource: Identifiable, Equatable, Sendable {
     let id: UUID
     let sessionID: String
     let agent: AgentSource
-    let project: String?
+    var project: String?
     var sessionTitle: String?
     let receivedAt: Date
 
