@@ -5,13 +5,26 @@ import Carbon.HIToolbox
 // MARK: - Unified overlay card priority
 
 /// The active overlay card — determines which card owns keyboard shortcuts.
-/// Priority: sessionSwitcher > permission > toast > none.
+/// Priority: sessionSwitcher > permission > result > toast.
 enum ActiveCard: Int32 {
     case none = 0
     case toast = 1
     case permission = 2
     case expandedPermission = 3
     case sessionSwitcher = 4
+    case result = 5
+
+    static func preferred(switcher: Bool, permission: Bool, result: Bool, toast: Bool) -> Self {
+        if switcher { return .sessionSwitcher }
+        if permission { return .permission }
+        if result { return .result }
+        return toast ? .toast : .none
+    }
+
+    func acceptsNumber(_ number: Int) -> Bool {
+        if self == .result { return SessionResultStore.Shortcut(rawValue: number) != nil }
+        return self != .none
+    }
 }
 
 enum PlainEscapeAction: Equatable {
@@ -114,16 +127,16 @@ final class GlobalHotkeyManager {
     var onToggleFocus: (() -> Void)?
 
     /// Called when ⌘Enter confirms the topmost card (switcher confirm / permission allow / toast dismiss).
-    var onConfirm: (() -> Void)?
+    var onConfirm: (@MainActor () -> Void)?
 
     /// Called when ⌘Esc or Esc dismisses the topmost card (switcher cancel / permission deny / toast dismiss).
-    var onDismiss: (() -> Void)?
+    var onDismiss: (@MainActor () -> Void)?
 
     /// Called when plain Escape dismisses a terminal-only permission locally.
     var onDismissTerminalFallback: ((UInt64) -> Void)?
 
     /// Called when ⌘N selects the Nth item within the topmost card (0-indexed).
-    var onSelect: ((Int) -> Void)?
+    var onSelect: (@MainActor (Int) -> Void)?
 
     /// Called when ⌘L collapses (later) the topmost non-collapsed permission.
     var onCollapsePermission: (() -> Void)?
@@ -183,7 +196,7 @@ final class GlobalHotkeyManager {
             return .passThrough
         case .permission:
             return permissionIsTerminalFallback ? .dismissTerminalFallback : .passThrough
-        case .toast, .sessionSwitcher:
+        case .toast, .sessionSwitcher, .result:
             return .dismissCard
         }
     }
@@ -372,6 +385,8 @@ final class GlobalHotkeyManager {
         }
         shared.eventTap = nil
         runLoopSource = nil
+        shared.cmdHeld = false
+        isCmdHeld = false
         isActive = false
         print("[PeachyPet] Global hotkey manager stopped")
     }
@@ -599,7 +614,7 @@ private func globalHotkeyCallback(
             18: 1, 19: 2, 20: 3, 21: 4, 23: 5,
             22: 6, 26: 7, 28: 8, 25: 9,
         ]
-        if let digit = digitKeyCodes[keyCode], card != .none {
+        if let digit = digitKeyCodes[keyCode], card.acceptsNumber(digit) {
             DispatchQueue.main.async { manager.onSelect?(digit - 1) }
             return nil
         }

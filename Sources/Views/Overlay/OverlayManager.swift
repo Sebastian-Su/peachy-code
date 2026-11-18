@@ -26,7 +26,10 @@ final class OverlayManager {
     private(set) var currentStateMachine: OverlayStateMachine?
     private var panel: OverlayPanel?           // Mascot video — fixed size
     private var statsPanel: OverlayPanel?      // Stats/debug — fixed directly above mascot
-    private var permissionPanel: OverlayPanel? // Permission prompts — smart-positioned
+    private var permissionPanel: OverlayPanel? {
+        didSet { onPermissionHUDAvailabilityChange?(permissionPanel != nil) }
+    }
+    var onPermissionHUDAvailabilityChange: ((Bool) -> Void)?
     private var permissionHUDConfig = PermissionHUDConfig()
     private var workspaceObservers: [NSObjectProtocol] = []
     /// Polls the hardware mouse button after a move so the mascot can be snapped back
@@ -981,6 +984,7 @@ final class OverlayManager {
     }
 
     func dismissExpandedPermission() {
+        let hadExpandedPanel = expandedPanel != nil
         expandedPanel?.close()
         expandedPanel = nil
 
@@ -988,12 +992,11 @@ final class OverlayManager {
         statsPanel?.orderFrontRegardless()
         permissionPanel?.orderFrontRegardless()
 
-        // Restore active card to permission so shortcuts target the small bubble again
-        if !pendingPermissionStore.pending.isEmpty {
-            hotkeyManager.activeCard = .permission
-        } else {
-            hotkeyManager.activeCard = .none
+        // Release expanded keyboard ownership before the app chooses the next card.
+        if hadExpandedPanel {
+            hotkeyManager.activeCard = pendingPermissionStore.pending.isEmpty ? .none : .permission
         }
+        onPermissionHUDAvailabilityChange?(permissionPanel != nil)
     }
 
     // MARK: - Session Switcher (rendered inside permission panel)

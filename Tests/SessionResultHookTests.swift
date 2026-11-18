@@ -200,11 +200,16 @@ extension SessionResultHookTests {
         await store.add(report, showPreview: true)
 
         let config = PermissionHUDConfig()
+        let manager = GlobalHotkeyManager()
+        let sessions = SessionStore()
+        defer { sessions.stopTimers() }
+        sessions.recordEvent(AgentEvent(hookEventName: "SessionStart", sessionId: "native-source",
+                                        cwd: "/tmp/native-fixture", terminalPid: Int(getpid())))
         let view = PermissionHUDView(config: config, sessionResults: store)
             .environment(PendingPermissionStore())
-            .environment(GlobalHotkeyManager())
+            .environment(manager)
             .environment(SessionSwitcherStore())
-            .environment(SessionStore())
+            .environment(sessions)
             .environment(SessionFinishedStore())
         let panel = OverlayPanel(contentRect: NSRect(x: 100, y: 100, width: 280, height: 200))
         let host = NSHostingView(rootView: view)
@@ -216,6 +221,19 @@ extension SessionResultHookTests {
         XCTAssertTrue(panel.collectionBehavior.contains(.canJoinAllSpaces))
         XCTAssertEqual(store.preview?.report, report)
         XCTAssertGreaterThan(host.fittingSize.height, 30)
+        XCTAssertNotNil(store.preview?.deadline)
+        XCTAssertEqual(report.source.focusTarget(in: sessions.sessions)?.id, "native-source")
+        manager.activeCard = .result
+        manager.isCmdHeld = true
+        for _ in 0..<20 where store.preview?.deadline != nil {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTAssertNil(store.preview?.deadline, "Cmd shown by the result view pauses the timer")
+        manager.activeCard = .permission
+        for _ in 0..<20 where store.preview?.deadline == nil {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTAssertNotNil(store.preview?.deadline, "Permission takes keyboard ownership and resumes the timer")
         store.dismissPreview()
         XCTAssertNil(store.preview)
         XCTAssertEqual(store.entries.first?.sessionID, "native-source")

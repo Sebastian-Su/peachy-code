@@ -278,6 +278,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     shortcutRow("⌘1-9", "Accept Nth pending permission")
                     shortcutRow("Hold ⌘", "Show numbered badges on permissions")
+                    shortcutRow("⌘1 / ⌘2", t("result_hook.shortcut_actions"))
                 }
                 .padding(.vertical, 2)
                 if !appStore.hotkeyManager.isActive {

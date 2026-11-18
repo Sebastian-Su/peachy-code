@@ -12,6 +12,19 @@ struct SessionResultSource: Identifiable, Equatable, Sendable {
     var label: String {
         [agent.displayName, project].compactMap { $0 }.joined(separator: " · ")
     }
+
+    func focusTarget(in sessions: [AgentSession]) -> AgentSession? {
+        guard let session = sessions.first(where: { $0.id == sessionID && $0.agentSource == agent }) else { return nil }
+        switch session.host {
+        case .paseo, .codexDesktop:
+            return session
+        case .other:
+            return nil
+        case .terminal, .unknown:
+            return session.focusAppBundleId != nil || session.terminalPid != nil || session.itermSessionId != nil
+                ? session : nil
+        }
+    }
 }
 
 struct SessionResultReport: Equatable, Sendable {

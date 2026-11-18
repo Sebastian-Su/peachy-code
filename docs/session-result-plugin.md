@@ -11,6 +11,8 @@ Open PeachyPet Settings → General → Session result plugin and enable **Proce
 
 The plugin uses live completion Hooks from Claude Code, Codex, and Copilot CLI. Claude Code and Codex supply the final reply in the event. Copilot CLI supplies the path to its local session transcript, which PeachyPet reads to find the final reply for the current turn. Codex sessions discovered solely from periodic log polling need the live Hook to use this plugin. The model provider configured in the selected tool receives the reply when the plugin runs.
 
+Hold Cmd while the result bubble is active to reveal shortcuts. Cmd+1 opens the current report, Cmd+2 opens Result History, and Esc dismisses the bubble. The configured focus shortcut (Cmd+M by default) points to the original session when PeachyPet has a way to locate it. Holding Cmd also pauses the countdown.
+
 ## Result History
 
 Open **Result History** in the sidebar, select **History** in a result bubble, or press Cmd twice and then Cmd+R. Set the second shortcut in Settings → Shortcuts. The first two Cmd taps still open the session switcher.

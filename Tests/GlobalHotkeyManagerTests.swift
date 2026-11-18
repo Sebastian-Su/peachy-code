@@ -85,3 +85,18 @@ extension GlobalHotkeyManagerTests {
         XCTAssertFalse(chord.consume(at: 32, matches: true))
     }
 }
+
+extension GlobalHotkeyManagerTests {
+    func testResultClaimsOnlyItsOwnDigitsAndYieldsToPermissionAndSwitcher() {
+        XCTAssertEqual(ActiveCard.preferred(switcher: false, permission: false, result: true, toast: true), .result)
+        XCTAssertEqual(ActiveCard.preferred(switcher: false, permission: true, result: true, toast: true), .permission)
+        XCTAssertEqual(ActiveCard.preferred(switcher: true, permission: true, result: true, toast: true), .sessionSwitcher)
+        XCTAssertEqual(ActiveCard.preferred(switcher: false, permission: false, result: false, toast: true), .toast)
+        XCTAssertTrue(ActiveCard.result.acceptsNumber(1))
+        XCTAssertTrue(ActiveCard.result.acceptsNumber(2))
+        XCTAssertFalse(ActiveCard.result.acceptsNumber(3))
+        XCTAssertTrue(ActiveCard.permission.acceptsNumber(9))
+        XCTAssertEqual(GlobalHotkeyManager.plainEscapeAction(card: .result, flags: [],
+                                                              permissionIsTerminalFallback: false), .dismissCard)
+    }
+}

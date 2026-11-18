@@ -6,6 +6,12 @@ struct SessionResultBubble: View {
     @Environment(\.speechBubbleTailSide) private var tailSide
     @Environment(\.speechBubbleTailPercent) private var tailPercent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(GlobalHotkeyManager.self) private var hotkeyManager
+    @Environment(SessionStore.self) private var sessionStore
+
+    private var showShortcuts: Bool {
+        store.preview != nil && hotkeyManager.isCmdHeld && hotkeyManager.activeCard == .result
+    }
 
     var body: some View {
         Group {
@@ -15,6 +21,10 @@ struct SessionResultBubble: View {
             }
         }
         .animation(.easeOut(duration: 0.18), value: store.preview?.report.source.id)
+        .onChange(of: showShortcuts, initial: true) { _, held in
+            store.setPreviewShortcutsHeld(held)
+        }
+        .onDisappear { store.setPreviewShortcutsHeld(false) }
     }
 
     private var tailAnchor: UnitPoint {
@@ -43,6 +53,17 @@ struct SessionResultBubble: View {
                         .monospacedDigit()
                         .foregroundStyle(OverlayStyle.textMuted)
                 }
+                if let session = report.source.focusTarget(in: sessionStore.sessions) {
+                    Button {
+                        IDETerminalFocus.focusSession(session)
+                    } label: {
+                        Image(systemName: "terminal.fill").padding(3)
+                    }
+                    .buttonStyle(.plain)
+                    .help(t("result_hook.open_source"))
+                    .accessibilityLabel(t("result_hook.open_source"))
+                    if showShortcuts { ActionBadge(label: hotkeyManager.shortcutLabel) }
+                }
                 Button {
                     store.dismissPreview()
                 } label: {
@@ -64,11 +85,9 @@ struct SessionResultBubble: View {
                 .lineLimit(3)
 
             HStack {
-                Button(t("result_hook.read")) { store.openHistory(reportID: report.source.id) }
-                    .font(Constants.body(size: 11, weight: .semibold))
+                shortcutButton("result_hook.read", .readReport)
                 Spacer()
-                Button(t("result_hook.history")) { store.openHistory() }
-                    .font(Constants.body(size: 11, weight: .medium))
+                shortcutButton("result_hook.history", .history)
             }
             .buttonStyle(.plain)
             .foregroundStyle(OverlayStyle.orange)
@@ -80,5 +99,17 @@ struct SessionResultBubble: View {
         .overlay(shape.stroke(Constants.border, lineWidth: 1).allowsHitTesting(false))
         .shadow(color: OverlayStyle.cardShadow, radius: 3, x: 0, y: 2)
         .onHover { store.setPreviewHovered($0) }
+    }
+
+    private func shortcutButton(_ title: String, _ shortcut: SessionResultStore.Shortcut) -> some View {
+        Button {
+            store.perform(shortcut)
+        } label: {
+            HStack(spacing: 4) {
+                Text(t(title))
+                    .font(Constants.body(size: 11, weight: .semibold))
+                if showShortcuts { ActionBadge(label: shortcut.label) }
+            }
+        }
     }
 }
