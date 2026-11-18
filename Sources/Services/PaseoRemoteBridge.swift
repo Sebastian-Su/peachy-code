@@ -68,8 +68,7 @@ final class PaseoRemoteBridge {
     }
 
     /// The Stop event a remote turn produces. The client tag keeps the engine ("codex",
-    /// "claude") so it reads like that agent's own event; the host label becomes the
-    /// session's originator, which the session list shows and which has no local focus target.
+    /// "claude") so it reads like that agent's own event.
     static func event(for turn: TurnEnded) -> AgentEvent {
         let engine = turn.provider.split(separator: "/").first.map(String.init) ?? turn.provider
         return AgentEvent(
@@ -80,6 +79,17 @@ final class PaseoRemoteBridge {
             client: engine + clientSuffix,
             originator: turn.host
         )
+    }
+
+    /// Opens the agent on its own host through the local Paseo app.
+    static func host(for turn: TurnEnded) -> SessionHost {
+        .paseo(agentId: turn.agentId, serverId: turn.serverId)
+    }
+
+    /// A remote session reads "host • title" wherever a session is named.
+    static func metadata(for turn: TurnEnded, sessionId: String) -> SessionMetadataUpdate {
+        SessionMetadataUpdate(sessionId: sessionId, sessionTitle: turn.title, firstUserPrompt: nil,
+                              projectDisplayName: turn.host)
     }
 
     // MARK: - Process
