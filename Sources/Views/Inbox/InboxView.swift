@@ -66,6 +66,29 @@ struct InboxView: View {
 
     // MARK: - Header
 
+    /// Drawn label instead of a menu-style Picker: with fixedSize the system
+    /// pop-up button collapsed its title to zero width, leaving only the arrows.
+    private func filterMenu<Items: View>(_ title: String, @ViewBuilder items: () -> Items) -> some View {
+        Menu {
+            items()
+        } label: {
+            HStack(spacing: 5) {
+                Text(title).lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+            }
+            .font(Constants.body(size: 12, weight: .medium))
+            .foregroundColor(Constants.textPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Constants.surfaceWhite, in: Capsule())
+            .overlay(Capsule().stroke(Constants.border, lineWidth: 1))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
     private func header(projects: [String]) -> some View {
         let hasUnread = appStore.notificationStore.unreadCount > 0
         let isEmpty = appStore.notificationStore.notifications.isEmpty
@@ -73,20 +96,14 @@ struct InboxView: View {
             Text(t("inbox.history"))
                 .font(Constants.heading(size: 15, weight: .bold))
                 .foregroundColor(Constants.textPrimary)
-            Picker("", selection: $projectFilter) {
-                Text(t("inbox.all_projects")).tag(String?.none)
-                ForEach(projects, id: \.self) { Text($0).tag(String?.some($0)) }
+            filterMenu(projectFilter ?? t("inbox.all_projects")) {
+                Button(t("inbox.all_projects")) { projectFilter = nil }
+                ForEach(projects, id: \.self) { project in Button(project) { projectFilter = project } }
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .fixedSize()
-            Picker("", selection: $agentFilter) {
-                Text(t("inbox.all_agents")).tag(AgentSource?.none)
-                ForEach([AgentSource.claudeCode, .codex, .copilot]) { Text($0.displayName).tag(AgentSource?.some($0)) }
+            filterMenu(agentFilter?.displayName ?? t("inbox.all_agents")) {
+                Button(t("inbox.all_agents")) { agentFilter = nil }
+                ForEach([AgentSource.claudeCode, .codex, .copilot]) { agent in Button(agent.displayName) { agentFilter = agent } }
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .fixedSize()
             Spacer()
             Button(t("notifications.mark_read")) { appStore.notificationStore.markAllAsRead() }
                 .buttonStyle(.plain)
@@ -130,7 +147,8 @@ struct InboxView: View {
             case .notification:
                 if let notification = data.notifications[source.id] {
                     selectable(source.id) {
-                        NotificationRow(notification: notification, project: source.project)
+                        NotificationRow(notification: notification, project: source.project,
+                                        isRemote: notification.sessionId.map(data.remoteSessions.contains) ?? false)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 6)
                     } onTap: {
@@ -221,12 +239,14 @@ private struct InboxData {
     let events: [UUID: AgentEvent]
     let sources: [InboxHistory.Source]
     let projects: [String]
+    let remoteSessions: Set<String>
 
     init(appStore: AppStore) {
         let projectBySession = Dictionary(
-            appStore.sessionStore.sessions.compactMap { s in s.projectName.map { (s.id, $0) } },
+            appStore.sessionStore.sessions.compactMap { s in s.inboxProjectLabel.map { (s.id, $0) } },
             uniquingKeysWith: { first, _ in first }
         )
+        remoteSessions = Set(appStore.sessionStore.sessions.filter(\.isRemote).map(\.id))
         let notifications = appStore.notificationStore.notifications
         let approvals = appStore.approvalHistoryStore.history
         let events = appStore.eventStore.events

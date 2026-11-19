@@ -47,6 +47,12 @@ struct AgentSession: Identifiable, Codable {
             ?? "Session"
     }
 
+    /// The project as the inbox names it; a remote session leads with its host.
+    var inboxProjectLabel: String? {
+        guard isRemote else { return projectName }
+        return [displayProjectName, projectName].compactMap { $0 }.joined(separator: " · ")
+    }
+
     /// An agent on another host, reached through the local Paseo daemon.
     var isRemote: Bool {
         if case .paseo(_, .some) = host { return true }

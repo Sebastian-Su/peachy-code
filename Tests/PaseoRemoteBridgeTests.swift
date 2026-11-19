@@ -105,6 +105,21 @@ final class PaseoRemoteBridgeTests: XCTestCase {
         XCTAssertFalse(store.activeSessions.contains { $0.id == local })
     }
 
+    func testInboxProjectNamesTheRemoteHost() throws {
+        let store = SessionStore()
+        defer { store.stopTimers() }
+        let remote = turn()
+        let event = PaseoRemoteBridge.event(for: remote)
+        let sessionId = try XCTUnwrap(event.sessionId)
+        store.recordEvent(event)
+        store.assignHost(PaseoRemoteBridge.host(for: remote), toSession: sessionId)
+        store.updateMetadata(PaseoRemoteBridge.metadata(for: remote, sessionId: sessionId))
+        XCTAssertEqual(store.sessions.first { $0.id == sessionId }?.inboxProjectLabel, "MacMini · project")
+
+        store.recordEvent(AgentEvent(hookEventName: "Stop", sessionId: "local", cwd: "/Users/u/masko-code", client: "codex-cli"))
+        XCTAssertEqual(store.sessions.first { $0.id == "local" }?.inboxProjectLabel, "masko-code")
+    }
+
     func testOnlyAgentsOnAnotherHostAreRemote() {
         var session = AgentSession(id: "s", projectDir: nil, projectName: nil, agentSource: .codex, status: .active,
                                    phase: .idle, eventCount: 1, startedAt: Date(), lastEventAt: Date())
