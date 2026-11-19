@@ -57,7 +57,16 @@ struct SessionResultBubble: View {
                     Button {
                         IDETerminalFocus.focusSession(session)
                     } label: {
-                        Image(systemName: "terminal.fill").padding(3)
+                        // The app a click goes to, as in the session switcher.
+                        Group {
+                            if let bundleId = session.focusAppBundleId,
+                               let icon = AppIconProvider.icon(forBundleId: bundleId) {
+                                Image(nsImage: icon).resizable().frame(width: 14, height: 14)
+                            } else {
+                                Image(systemName: "terminal.fill")
+                            }
+                        }
+                        .padding(3)
                     }
                     .buttonStyle(.plain)
                     .help(t("result_hook.open_source"))
