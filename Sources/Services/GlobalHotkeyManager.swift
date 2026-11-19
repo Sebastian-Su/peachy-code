@@ -179,6 +179,9 @@ final class GlobalHotkeyManager {
 
     let shared = HotkeySharedState()
     private var runLoopSource: CFRunLoopSource?
+    /// The tap runs on its own thread: on the main thread, a busy moment (saving history,
+    /// redrawing) delayed key events by up to 12 s, so double-tap timing and ⌘N went wrong.
+    private static let tapThread = EventTapThread()
     private var previousApp: NSRunningApplication?
 
     // MARK: - Active card (bridged to shared state)
@@ -384,8 +387,10 @@ final class GlobalHotkeyManager {
         }
 
         shared.eventTap = tap
-        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        if let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) {
+            runLoopSource = source
+            Self.tapThread.add(source)
+        }
         CGEvent.tapEnable(tap: tap, enable: true)
         isActive = true
         // Clear denied flag now that accessibility is working
@@ -401,7 +406,7 @@ final class GlobalHotkeyManager {
             CFMachPortInvalidate(tap)
         }
         if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+            Self.tapThread.remove(source)
         }
         shared.eventTap = nil
         runLoopSource = nil
@@ -723,4 +728,37 @@ private func keyCodeToString(_ keyCode: Int64) -> String {
         }
     }
     return fallbackKeyCodeToString(keyCode)
+}
+
+/// A thread whose run loop only serves the event tap.
+private final class EventTapThread: Thread {
+    private let ready = DispatchSemaphore(value: 0)
+    private var loop: CFRunLoop?
+
+    override init() {
+        super.init()
+        name = "PeachyPet.EventTap"
+        qualityOfService = .userInteractive
+        start()
+        ready.wait()
+    }
+
+    override func main() {
+        loop = CFRunLoopGetCurrent()
+        // A run loop with no source returns at once; this port keeps it alive.
+        RunLoop.current.add(NSMachPort(), forMode: .default)
+        ready.signal()
+        while true { RunLoop.current.run(mode: .default, before: .distantFuture) }
+    }
+
+    func add(_ source: CFRunLoopSource) {
+        guard let loop else { return }
+        CFRunLoopAddSource(loop, source, .commonModes)
+        CFRunLoopWakeUp(loop)
+    }
+
+    func remove(_ source: CFRunLoopSource) {
+        guard let loop else { return }
+        CFRunLoopRemoveSource(loop, source, .commonModes)
+    }
 }
