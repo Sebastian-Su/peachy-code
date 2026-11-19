@@ -1008,7 +1008,10 @@ final class SessionStore {
                     .sessionStart, .userPromptSubmit, .preToolUse, .postToolUse,
                     .permissionRequest, .preCompact, .subagentStart
                 ]
-                if let eventType = event.eventType, reactivatingEvents.contains(eventType) {
+                // A remote Paseo agent only reports turn ends, so each one is new activity.
+                let isRemoteTurnEnd = event.client?.hasSuffix(PaseoRemoteBridge.clientSuffix) == true
+                    && [.stop, .stopFailure].contains(event.eventType)
+                if let eventType = event.eventType, reactivatingEvents.contains(eventType) || isRemoteTurnEnd {
                     sessions[index].status = .active
                     sessions[index].phase = (eventType == .preCompact) ? .compacting
                         : (eventType == .sessionStart) ? .idle : .running
