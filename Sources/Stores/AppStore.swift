@@ -102,6 +102,9 @@ final class AppStore {
     /// Set by URL handler to navigate to a mascot after install
     var navigateToMascotId: UUID?
 
+    /// A dashboard page to show the next time the dashboard appears (consumed by ContentView)
+    var requestedDashboardSection: ContentView.SidebarSection?
+
     static func assistantEventIngestionStatus(
         localServerRunning: Bool,
         localServerPort: UInt16,
@@ -388,6 +391,16 @@ final class AppStore {
             } else if let topCollapsed = self.pendingPermissionStore.pending.last {
                 self.pendingPermissionStore.expand(id: topCollapsed.id)
             }
+        }
+
+        // Wire hotkey manager — ⌘P / ⌘S in the session switcher open the dashboard
+        hotkeyManager.onOpenDashboard = { [weak self] page in
+            guard let self else { return }
+            self.sessionSwitcherStore.close()
+            self.syncActiveCard()
+            self.onSessionSwitcherDismiss?()
+            if page == .services { self.requestedDashboardSection = .services }
+            AppDelegate.showDashboard()
         }
 
         // Wire hotkey manager — ⌘P expands topmost permission to fullscreen

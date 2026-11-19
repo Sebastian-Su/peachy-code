@@ -100,3 +100,17 @@ extension GlobalHotkeyManagerTests {
                                                               permissionIsTerminalFallback: false), .dismissCard)
     }
 }
+
+final class SessionSwitcherShortcutTests: XCTestCase {
+    func testSwitcherOpensDashboardPages() {
+        XCTAssertEqual(GlobalHotkeyManager.switcherPage(keyCode: 35, card: .sessionSwitcher), .current)
+        XCTAssertEqual(GlobalHotkeyManager.switcherPage(keyCode: 1, card: .sessionSwitcher), .services)
+    }
+
+    func testPageKeysBelongToTheSwitcherOnly() {
+        // ⌘P on a permission card still expands it; ⌘S elsewhere stays the app's own Save.
+        XCTAssertNil(GlobalHotkeyManager.switcherPage(keyCode: 35, card: .permission))
+        XCTAssertNil(GlobalHotkeyManager.switcherPage(keyCode: 1, card: .none))
+        XCTAssertNil(GlobalHotkeyManager.switcherPage(keyCode: 0, card: .sessionSwitcher))
+    }
+}
