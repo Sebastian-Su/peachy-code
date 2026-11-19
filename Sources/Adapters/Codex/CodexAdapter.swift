@@ -3,7 +3,7 @@ import Foundation
 /// Codex adapter - tails local Codex session logs and routes mapped events into the shared pipeline.
 final class CodexAdapter: AgentAdapter {
     let source: AgentSource = .codex
-    let monitor = CodexSessionMonitor()
+    let monitor = CodexSessionMonitor(queue: DispatchQueue(label: "PeachyPet.CodexSessionMonitor", qos: .utility))
 
     var isRunning: Bool { monitor.isRunning }
 
@@ -43,18 +43,22 @@ final class CodexAdapter: AgentAdapter {
 
     func start() throws {
         monitor.onEventReceived = { [weak self] event in
-            Task { @MainActor in
+            // FIFO: events must reach the session layer in log order.
+            DispatchQueue.main.async {
                 guard let self else { return }
                 // 该会话已有真 hooks → 轮询事件全部静默，避免重复
                 if CodexHookLiveness.shared.isLive(sessionId: event.sessionId) { return }
                 self.route(event)
             }
         }
-        monitor.start()
+        // Log reads and parsing stay off the main thread; events hop to it above.
+        let monitor = monitor
+        monitor.queue.async { monitor.start() }
     }
 
     func stop() {
-        monitor.stop()
+        let monitor = monitor
+        monitor.queue.sync { monitor.stop() }
     }
 
     func route(_ event: AgentEvent) {

@@ -471,6 +471,7 @@ final class SessionStore {
             persistTimer = nil
             persistNow()
         }
+        LocalStorage.flush()
     }
 
     deinit {
@@ -594,7 +595,7 @@ final class SessionStore {
 
     private func persistNow() {
         pruneEndedSessions()
-        LocalStorage.save(sessions, to: Self.filename)
+        LocalStorage.saveInBackground(sessions, to: Self.filename)
     }
 
     /// Ended sessions are only kept for history and reactivation; cap them so the file stays small.

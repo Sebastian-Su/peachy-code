@@ -46,7 +46,6 @@ final class PaseoRemoteBridge {
     var onRemoteTurn: ((RemoteTurn) -> Void)?
 
     @ObservationIgnored private var process: Process?
-    @ObservationIgnored private var lineBuffer = Data()
 
     static let clientSuffix = "-paseo"
 
@@ -125,7 +124,6 @@ final class PaseoRemoteBridge {
         let running = process
         process = nil
         running?.terminate()
-        lineBuffer.removeAll()
         status = .off
     }
 
@@ -141,9 +139,14 @@ final class PaseoRemoteBridge {
         process.standardOutput = stdout
         process.standardError = stderr
 
+        // Split and decode on the pipe's own queue (handler calls are serial); only
+        // decoded messages reach the main thread.
+        var buffer = Data()
         stdout.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            DispatchQueue.main.async { self?.receive(data, from: process) }
+            buffer.append(handle.availableData)
+            let messages = Self.takeMessages(from: &buffer)
+            guard !messages.isEmpty else { return }
+            DispatchQueue.main.async { self?.apply(messages, from: process) }
         }
         stderr.fileHandleForReading.readabilityHandler = { handle in
             let text = String(decoding: handle.availableData, as: UTF8.self)
@@ -168,13 +171,20 @@ final class PaseoRemoteBridge {
         }
     }
 
-    private func receive(_ data: Data, from source: Process) {
+    /// Removes every complete line from `buffer` and decodes it.
+    static func takeMessages(from buffer: inout Data) -> [Message] {
+        var messages: [Message] = []
+        while let newline = buffer.firstIndex(of: 0x0A) {
+            let line = Data(buffer[buffer.startIndex..<newline])
+            buffer.removeSubrange(buffer.startIndex...newline)
+            if let message = decode(line: line) { messages.append(message) }
+        }
+        return messages
+    }
+
+    private func apply(_ messages: [Message], from source: Process) {
         guard source === process else { return }
-        lineBuffer.append(data)
-        while let newline = lineBuffer.firstIndex(of: 0x0A) {
-            let line = lineBuffer[lineBuffer.startIndex..<newline]
-            lineBuffer.removeSubrange(lineBuffer.startIndex...newline)
-            guard let message = Self.decode(line: Data(line)) else { continue }
+        for message in messages {
             switch message {
             case .connected: status = .connected(hosts: [])
             case .disconnected: status = .waitingForDaemon

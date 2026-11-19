@@ -126,6 +126,21 @@ Sources/
 
 ## 关键数据流
 
+### 线程边界
+
+主线程只做界面和状态变更：读写会话、通知等内存状态，再交给 SwiftUI 绘制。磁盘、日志、解析和按键监听各自在专属线程或队列上运行，只把结果投递回主线程（`DispatchQueue.main.async`，保持先后顺序）。
+
+| 工作 | 运行位置 |
+|---|---|
+| 全局快捷键（CGEvent tap） | `PeachyPet.EventTap` 专用线程 |
+| 持久化（编码、脱敏、写盘） | `LocalStorage` 串行写队列；退出时 `LocalStorage.flush()` |
+| Codex 日志轮询与解析 | `PeachyPet.CodexSessionMonitor` 队列 |
+| 会话标题与项目名扫描 | `PeachyPet.SessionMetadataMonitor` 队列 |
+| Paseo 桥接的输出分行与解码 | 管道读取队列 |
+| 本地 hook 服务、服务状态、中断与进程核对 | 网络或全局后台队列 |
+
+新增定时器、文件读取或子进程时，不要挂在主 RunLoop 或 `.main` 队列上。
+
 ### Claude Code hooks → PeachyPet
 
 - 目标：把 Claude Code 的事件流转为应用内状态与 UI 展示

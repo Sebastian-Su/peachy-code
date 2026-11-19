@@ -134,7 +134,8 @@ private func jsonObject(_ line: String) -> [String: Any]? {
 ///
 /// - Thread safety: must be used exclusively on the main thread / main actor.
 /// - Scope: only sessions supplied via `start(activeSessions:)` / `update(activeSessions:)`.
-final class SessionMetadataMonitor {
+/// Confined to `queue`: every method runs there.
+final class SessionMetadataMonitor: @unchecked Sendable {
 
     // MARK: Configuration
 
@@ -165,7 +166,9 @@ final class SessionMetadataMonitor {
     private var lastGlobalStateMtime: Date? = nil
 
     // Timer
-    private var timer: Timer?
+    private var timer: DispatchSourceTimer?
+    /// Where scanning runs and updates are delivered; every call must be made on it.
+    let queue: DispatchQueue
 
     // MARK: Derived paths
 
@@ -186,8 +189,10 @@ final class SessionMetadataMonitor {
     init(
         homeDirectory: String = NSHomeDirectory(),
         pollInterval: TimeInterval = 1.0,
+        queue: DispatchQueue = .main,
         onUpdate: @escaping (SessionMetadataUpdate) -> Void
     ) {
+        self.queue = queue
         self.homeDirectory = homeDirectory
         self.pollInterval = pollInterval
         self.onUpdate = onUpdate
@@ -221,7 +226,7 @@ final class SessionMetadataMonitor {
 
     /// Stop polling and clear all state.
     func stop() {
-        timer?.invalidate()
+        timer?.cancel()
         timer = nil
         transcriptOffsets.removeAll()
         transcriptPartialLines.removeAll()
@@ -238,11 +243,13 @@ final class SessionMetadataMonitor {
     // MARK: - Timer
 
     private func scheduleTimer() {
-        timer?.invalidate()
-        let t = Timer(timeInterval: pollInterval, repeats: true) { [weak self] _ in
+        timer?.cancel()
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now() + pollInterval, repeating: pollInterval)
+        t.setEventHandler { [weak self] in
             self?.scanAll(fromZero: false)
         }
-        RunLoop.main.add(t, forMode: .common)
+        t.resume()
         timer = t
     }
 
