@@ -114,3 +114,28 @@ final class SessionSwitcherShortcutTests: XCTestCase {
         XCTAssertNil(GlobalHotkeyManager.switcherPage(keyCode: 0, card: .sessionSwitcher))
     }
 }
+
+final class SessionSwitcherOrderTests: XCTestCase {
+    private func session(_ id: String, _ phase: AgentSession.Phase, ago: TimeInterval) -> AgentSession {
+        AgentSession(id: id, projectDir: nil, projectName: id, agentSource: .codex, status: .active, phase: phase,
+                     eventCount: 1, startedAt: Date().addingTimeInterval(-ago), lastEventAt: Date().addingTimeInterval(-ago))
+    }
+
+    /// ⌘N picks the row drawn at N. A refresh while the switcher is open (a remote turn
+    /// starting or ending) must not reorder the rows under the user's finger.
+    func testRefreshKeepsTheOrderTheUserSees() {
+        let store = SessionSwitcherStore()
+        store.open(sessions: [session("a", .idle, ago: 10), session("b", .idle, ago: 20), session("c", .idle, ago: 30)])
+        XCTAssertEqual(store.sessions.map(\.id), ["a", "b", "c"])
+
+        // "c" starts running and "d" appears.
+        store.refresh(sessions: [session("a", .idle, ago: 10), session("b", .idle, ago: 20),
+                                 session("c", .running, ago: 0), session("d", .idle, ago: 5)])
+        XCTAssertEqual(store.sessions.map(\.id), ["a", "b", "c", "d"])
+        XCTAssertEqual(store.sessions[2].phase, .running, "rows still show the latest state")
+
+        store.selectIndex(1)
+        XCTAssertEqual(store.confirm()?.id, "b")
+        store.close()
+    }
+}

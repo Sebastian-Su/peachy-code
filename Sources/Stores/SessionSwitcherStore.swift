@@ -77,14 +77,15 @@ final class SessionSwitcherStore {
     }
 
     /// Refresh the session list while keeping the current selection if possible.
+    /// Rows keep the order they had when the switcher opened, since ⌘N picks the row drawn
+    /// at N: updated sessions stay in place, new ones are appended, ended ones drop out.
     func refresh(sessions: [AgentSession]) {
         guard isActive else { return }
         let previousId = selectedSession?.id
-        self.sessions = sessions.sorted {
-            if $0.phase == .running && $1.phase != .running { return true }
-            if $0.phase != .running && $1.phase == .running { return false }
-            return ($0.lastEventAt ?? $0.startedAt) > ($1.lastEventAt ?? $1.startedAt)
-        }
+        let latest = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let kept = self.sessions.compactMap { latest[$0.id] }
+        let keptIds = Set(kept.map(\.id))
+        self.sessions = kept + sessions.filter { !keptIds.contains($0.id) }
         if let previousId, let newIdx = self.sessions.firstIndex(where: { $0.id == previousId }) {
             selectedIndex = newIdx
         } else {

@@ -32,7 +32,8 @@ final class SessionSwitcherStoreTests: XCTestCase {
             session(id: "B", subagents: 2, date: now.addingTimeInterval(1)),
         ])
 
-        XCTAssertEqual(store.sessions.map(\.id), ["B", "A"])
+        // Rows keep their opened order so ⌘N still points at the row the user sees.
+        XCTAssertEqual(store.sessions.map(\.id), ["A", "B"])
         XCTAssertEqual(store.selectedSession?.id, "B")
         XCTAssertEqual(store.selectedSession?.activeSubagentCount, 2)
         XCTAssertEqual(store.sessions.first(where: { $0.id == "A" })?.activeSubagentCount, 3)
