@@ -31,9 +31,15 @@ enum ServiceValidity: Equatable {
     }
 
     /// First word that names a program: skips `VAR=value` assignments and `exec`/`env`.
+    /// An assignment from a command substitution (`pid=$(…)`) makes the command a script,
+    /// and an option is never a program; neither can be checked statically.
     static func firstExecutable(_ command: String) -> String? {
         for token in command.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init) {
-            if token.contains("=") && !token.hasPrefix("/") && !token.hasPrefix(".") { continue }
+            if token.hasPrefix("-") { return nil }
+            if token.contains("=") && !token.hasPrefix("/") && !token.hasPrefix(".") {
+                if token.contains("$(") || token.contains("`") { return nil }
+                continue
+            }
             if ["exec", "env", "nohup", "command"].contains(token) { continue }
             return ServiceRegistry.expandTilde(token)
         }
