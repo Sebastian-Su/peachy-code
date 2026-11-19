@@ -24,7 +24,7 @@ final class ApprovalHistoryStore {
     private func persistNow() {
         guard isDirty else { return }
         isDirty = false
-        LocalStorage.save(history, to: Self.filename)
+        LocalStorage.saveInBackground(history, to: Self.filename)
     }
 
     func append(_ record: ApprovalRecord) {

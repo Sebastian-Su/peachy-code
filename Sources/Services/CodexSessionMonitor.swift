@@ -1,7 +1,7 @@
 import Foundation
 
 /// Tails Codex session JSONL logs and maps them to `AgentEvent` for reuse in the existing pipeline.
-final class CodexSessionMonitor {
+final class CodexSessionMonitor: @unchecked Sendable {
     private struct TrackedFile {
         var offset: UInt64
         var partialLine: String
@@ -33,6 +33,10 @@ final class CodexSessionMonitor {
     private var sessionContexts: [String: CodexSessionContext] = [:]
     private var pollSource: DispatchSourceTimer?
     private var isBootstrapping = false
+    /// Where polling, file reads and parsing run; events are delivered on it too.
+    let queue: DispatchQueue
+    private let runningLock = NSLock()
+    private var running = false
 
     private static let recordTimestampFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -40,7 +44,8 @@ final class CodexSessionMonitor {
         return formatter
     }()
 
-    var isRunning: Bool { pollSource != nil }
+    /// Safe to read from any thread.
+    var isRunning: Bool { runningLock.withLock { running } }
 
     var onEventReceived: ((AgentEvent) -> Void)?
 
@@ -49,8 +54,10 @@ final class CodexSessionMonitor {
         pollInterval: TimeInterval = 1.0,
         bootstrapRecentWindow: TimeInterval = 15 * 60,
         bootstrapTailBytes: UInt64 = 262_144,
-        forkReplayTolerance: TimeInterval = 2.0
+        forkReplayTolerance: TimeInterval = 2.0,
+        queue: DispatchQueue = .main
     ) {
+        self.queue = queue
         self.rootURL = rootURL
         self.pollInterval = pollInterval
         self.bootstrapRecentWindow = bootstrapRecentWindow
@@ -58,23 +65,26 @@ final class CodexSessionMonitor {
         self.forkReplayTolerance = forkReplayTolerance
     }
 
+    /// Runs on the caller's thread; call it on `queue`.
     func start(bootstrapRecentFiles: Bool = true) {
         guard pollSource == nil else { return }
         isBootstrapping = true
         bootstrapExistingFiles(bootstrapRecentFiles: bootstrapRecentFiles)
         isBootstrapping = false
-        let source = DispatchSource.makeTimerSource(queue: .main)
+        let source = DispatchSource.makeTimerSource(queue: queue)
         source.schedule(deadline: .now() + pollInterval, repeating: pollInterval)
         source.setEventHandler { [weak self] in
             self?.pollOnce()
         }
         source.resume()
         pollSource = source
+        runningLock.withLock { running = true }
     }
 
     func stop() {
         pollSource?.cancel()
         pollSource = nil
+        runningLock.withLock { running = false }
         trackedFiles.removeAll()
         sessionContexts.removeAll()
     }

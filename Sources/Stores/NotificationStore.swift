@@ -27,7 +27,7 @@ final class NotificationStore {
     private func persistNow() {
         guard isDirty else { return }
         isDirty = false
-        LocalStorage.save(notifications, to: Self.filename)
+        LocalStorage.saveInBackground(notifications, to: Self.filename)
     }
 
     private func recalculateUnreadCount() {

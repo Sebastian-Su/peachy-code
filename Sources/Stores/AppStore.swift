@@ -149,8 +149,11 @@ final class AppStore {
             notificationStore: notificationStore,
             notificationService: notificationService
         )
-        self.sessionMetadataMonitor = SessionMetadataMonitor { [weak self] update in
-            self?.sessionStore.updateMetadata(update)
+        // Transcript scans run on their own queue; only the resulting update touches the UI.
+        self.sessionMetadataMonitor = SessionMetadataMonitor(
+            queue: DispatchQueue(label: "PeachyPet.SessionMetadataMonitor", qos: .utility)
+        ) { [weak self] update in
+            DispatchQueue.main.async { self?.sessionStore.updateMetadata(update) }
         }
 
         localServer.onSessionResult = { [weak self] event in
@@ -218,7 +221,7 @@ final class AppStore {
             guard let self else { return }
             self.onRefreshOverlay?()
             let activeSessions = self.sessionStore.activeSessions
-            self.sessionMetadataMonitor.update(activeSessions: activeSessions)
+            self.updateMetadataMonitor(activeSessions)
             let activeCount = activeSessions.count
             self.hotkeyManager.activeSessionCount = activeCount
 
@@ -476,7 +479,7 @@ final class AppStore {
 
     @MainActor private func handleAgentEvent(_ event: AgentEvent, onRecorded: (() -> Void)? = nil) async {
         guard await eventProcessor.process(event, onRecorded: onRecorded) else { return }
-        self.sessionMetadataMonitor.update(activeSessions: self.sessionStore.activeSessions)
+        self.updateMetadataMonitor(self.sessionStore.activeSessions)
 
         // If a subsequent event arrives for a session with pending permissions,
         // the user may have resolved a permission from the terminal - dismiss it.
@@ -531,6 +534,12 @@ final class AppStore {
             self.sessionStore.updateMetadata(PaseoRemoteBridge.metadata(for: turn, sessionId: sessionId))
         }
         _ = sessionResultPlugin.receive(event, allowsContinuation: false)
+    }
+
+    /// The monitor scans on its own queue; hand it a copy of the list.
+    private func updateMetadataMonitor(_ activeSessions: [AgentSession]) {
+        let monitor = sessionMetadataMonitor!
+        monitor.queue.async { monitor.update(activeSessions: activeSessions) }
     }
 
     func updateSessionToast(for event: AgentEvent) {
@@ -636,7 +645,9 @@ final class AppStore {
         }
 
         eventBus.startAll()
-        sessionMetadataMonitor.start(activeSessions: sessionStore.activeSessions)
+        let metadataMonitor = sessionMetadataMonitor!
+        let initialSessions = sessionStore.activeSessions
+        metadataMonitor.queue.async { metadataMonitor.start(activeSessions: initialSessions) }
         if isPaseoRemoteEnabled {
             paseoRemoteBridge.start()
         }
@@ -684,8 +695,11 @@ final class AppStore {
     func stop() {
         eventBus.stopAll()
         paseoRemoteBridge.stop()
-        sessionMetadataMonitor.stop()
+        let metadataMonitor = sessionMetadataMonitor!
+        metadataMonitor.queue.sync { metadataMonitor.stop() }
         sessionStore.stopTimers()
+        // Stores save on a background queue; finish their writes before the process exits.
+        LocalStorage.flush()
         pendingPermissionStore.stopTimers()
         hotkeyManager.stop()
     }

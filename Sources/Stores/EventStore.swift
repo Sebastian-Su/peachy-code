@@ -25,7 +25,7 @@ final class EventStore {
     private func persistNow() {
         guard isDirty else { return }
         isDirty = false
-        LocalStorage.save(events, to: Self.filename)
+        LocalStorage.saveInBackground(events, to: Self.filename)
     }
 
     func append(_ event: AgentEvent) {

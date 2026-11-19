@@ -25,6 +25,20 @@ enum LocalStorage {
         }
     }
 
+    /// One serial queue for every background write: files keep their write order and the
+    /// main thread never encodes, redacts or writes.
+    private static let writer = DispatchQueue(label: "PeachyPet.LocalStorage", qos: .utility)
+
+    /// Saves on the background writer. The value is a copy, so later changes do not race it.
+    static func saveInBackground<T: Encodable>(_ value: T, to filename: String) {
+        writer.async { save(value, to: filename) }
+    }
+
+    /// Waits for queued writes. Call before the process exits.
+    static func flush() {
+        writer.sync {}
+    }
+
     /// Credentials in saved commands and messages never reach disk.
     private static func redacted(_ data: Data) throws -> Data {
         let object = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
