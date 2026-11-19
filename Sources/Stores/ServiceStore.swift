@@ -113,7 +113,9 @@ final class ServiceStore {
                     listener = described[pid] ?? PortListener.describe(pid: pid)
                     described[pid] = listener
                 }
-                result[entry.id] = ServiceStatus.resolve(entry, managedPID: managed, listener: listener)
+                let pidFileProcess = managed == nil && listener == nil ? ServicePIDFile.process(for: entry) : nil
+                result[entry.id] = ServiceStatus.resolve(entry, managedPID: managed, listener: listener,
+                                                         pidFileProcess: pidFileProcess)
             }
             // Finished tasks: record exit code once, then remove the exited job.
             var finished: [String: Int32?] = [:]

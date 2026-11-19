@@ -22,6 +22,8 @@ struct ServiceEntry: Equatable {
     let note: String?
     let fileURL: URL
     let modifiedAt: Date?
+    /// Absolute, with `~` expanded. Holds the PID of an instance started outside PeachyPet.
+    var pidFile: String? = nil
 }
 
 struct ServiceRegistryItem: Identifiable, Equatable {
@@ -118,7 +120,8 @@ enum ServiceRegistry {
             env: (json["env"] as? [String: Any])?.compactMapValues { $0 as? String } ?? [:],
             note: nonEmpty(json["note"]),
             fileURL: fileURL,
-            modifiedAt: modified
+            modifiedAt: modified,
+            pidFile: nonEmpty(json["pidFile"]).map(expandTilde)
         ))
     }
 

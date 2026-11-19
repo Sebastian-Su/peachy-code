@@ -94,12 +94,41 @@ enum ServiceStatus: Equatable {
         })
     }
 
-    static func resolve(_ entry: ServiceEntry, managedPID: Int32?, listener: PortListener?) -> ServiceStatus {
+    /// `pidFileProcess` is the live process named by the registration's PID file. It counts
+    /// only when it matches the registration, since a stale file can name a reused PID.
+    static func resolve(_ entry: ServiceEntry, managedPID: Int32?, listener: PortListener?,
+                        pidFileProcess: PortListener? = nil) -> ServiceStatus {
         if let managedPID { return .running(pid: managedPID) }
-        guard let listener else { return .stopped }
+        guard let listener else {
+            if let process = pidFileProcess, matches(entry, process) {
+                return .external(pid: process.pid, command: process.command)
+            }
+            return .stopped
+        }
         return matches(entry, listener)
             ? .external(pid: listener.pid, command: listener.command)
             : .portBusy(pid: listener.pid, command: listener.command)
+    }
+}
+
+/// A PID written by an instance started outside PeachyPet: plain digits, or a JSON object
+/// with an integer `pid`.
+enum ServicePIDFile {
+    static func read(_ path: String) -> Int32? {
+        guard let data = FileManager.default.contents(atPath: path) else { return nil }
+        if let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           let pid = Int32(text), pid > 0 {
+            return pid
+        }
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let pid = object["pid"] as? Int, pid > 0, pid <= Int(Int32.max) else { return nil }
+        return Int32(pid)
+    }
+
+    /// The live process the file names, described for matching.
+    static func process(for entry: ServiceEntry) -> PortListener? {
+        guard let path = entry.pidFile, let pid = read(path), kill(pid, 0) == 0 || errno == EPERM else { return nil }
+        return PortListener.describe(pid: pid)
     }
 }
 
