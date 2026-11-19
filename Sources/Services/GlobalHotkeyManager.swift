@@ -144,6 +144,26 @@ final class GlobalHotkeyManager {
     /// Called when ⌘P expands the topmost permission to fullscreen.
     var onExpandPermission: (() -> Void)?
 
+    /// Called when ⌘P or ⌘S in the session switcher opens the dashboard.
+    var onOpenDashboard: ((SwitcherPage) -> Void)?
+
+    /// The dashboard page a session switcher shortcut opens.
+    enum SwitcherPage: Equatable {
+        /// ⌘P: the page the dashboard was left on.
+        case current
+        /// ⌘S: Services.
+        case services
+    }
+
+    static func switcherPage(keyCode: Int64, card: ActiveCard) -> SwitcherPage? {
+        guard card == .sessionSwitcher else { return nil }
+        switch keyCode {
+        case 35: return .current // P
+        case 1: return .services // S
+        default: return nil
+        }
+    }
+
     /// Called when double-tap Cmd opens the session switcher.
     var onSessionSwitcherOpen: (() -> Void)?
     var onResultHistoryOpen: (@MainActor () -> Void)?
@@ -408,15 +428,15 @@ final class GlobalHotkeyManager {
     func toggleFocus() {
         // For a menu bar app, toggle the dashboard window (not NSApp activation)
         // Check for any visible non-panel window (isKeyWindow may be false for menu bar apps)
-        if let dashboardWindow = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey && !($0 is NSPanel) }) {
-            // Dashboard is visible — hide it and return to previous app
-            dashboardWindow.close()
-            NSApp.setActivationPolicy(.accessory)
+        if NSApp.isActive,
+           NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeKey && !($0 is NSPanel) }) {
+            // Dashboard is in front — return to the previous app. The window stays open:
+            // only its close button hides it.
             if let app = previousApp {
                 app.activate(options: [])
             }
             previousApp = nil
-            Self.debugLog("toggleFocus: closed dashboard")
+            Self.debugLog("toggleFocus: left dashboard")
         } else {
             // Dashboard is hidden — remember current app and show dashboard
             if let frontmost = NSWorkspace.shared.frontmostApplication,
@@ -628,6 +648,12 @@ private func globalHotkeyCallback(
         // ⌘L: collapse permission (permission or expanded permission)
         if keyCode == 37, card == .permission || card == .expandedPermission {
             DispatchQueue.main.async { manager.onCollapsePermission?() }
+            return nil
+        }
+
+        // ⌘P / ⌘S in the session switcher: open the dashboard (current page / Services)
+        if let page = GlobalHotkeyManager.switcherPage(keyCode: keyCode, card: card) {
+            DispatchQueue.main.async { manager.onOpenDashboard?(page) }
             return nil
         }
 

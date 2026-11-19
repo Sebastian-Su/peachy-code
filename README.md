@@ -133,6 +133,8 @@ All shortcuts work globally — no need to focus the app.
 | `↑ / ↓` | Navigate session switcher |
 | `Tab / Shift+Tab` | Cycle sessions |
 | `Enter` | Confirm session selection |
+| `⌘P` | Open the main window from the session switcher, on the page you left it |
+| `⌘S` | Open the Services page from the session switcher |
 | `Esc` | Close session switcher |
 
 The focus toggle shortcut can be rebound to any key combination in Settings → Shortcuts, and global shortcuts can be turned off there.

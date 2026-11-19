@@ -4,7 +4,8 @@ import CoreText
 import Sparkle
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var closeObserver: Any?
+    /// Target for the dashboard close button (see `configureDashboardWindow`)
+    private static let closeTarget = DashboardCloseTarget()
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Menu bar only — no dock icon
@@ -75,22 +76,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let window = NSApp.windows.first(where: { $0.canBecomeKey && !($0 is NSPanel) }) {
             // Disable minimize button — prevents minimize-to-dock
             window.styleMask.remove(.miniaturizable)
-            window.makeKeyAndOrderFront(nil)
-
-            // Observe close to go back to menu-bar-only mode
-            // (Don't override window.delegate — SwiftUI needs it for environment propagation)
-            let appDelegate = NSApp.delegate as? AppDelegate
-            if appDelegate?.closeObserver == nil {
-                appDelegate?.closeObserver = NotificationCenter.default.addObserver(
-                    forName: NSWindow.willCloseNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak appDelegate] _ in
-                    appDelegate?.closeObserver = nil
-                    NSApp.setActivationPolicy(.accessory)
-                }
+            // SwiftUI destroys a closed WindowGroup window. Route the close button (and ⌘W,
+            // which clicks it) to hiding instead, which also keeps the current page.
+            // (Don't override window.delegate — SwiftUI needs it for environment propagation.)
+            if let closeButton = window.standardWindowButton(.closeButton) {
+                closeButton.target = closeTarget
+                closeButton.action = #selector(DashboardCloseTarget.hide(_:))
             }
+            window.makeKeyAndOrderFront(nil)
         }
+    }
+
+    /// Hide the dashboard window without destroying it, and go back to menu-bar-only mode
+    static func hideDashboard() {
+        NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey && !($0 is NSPanel) })?.orderOut(nil)
+        NSApp.setActivationPolicy(.accessory)
     }
 
     /// When all windows close, go back to menu bar only
@@ -101,6 +101,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.setActivationPolicy(.accessory)
         }
     }
+}
+
+private final class DashboardCloseTarget: NSObject {
+    @objc func hide(_ sender: Any?) { AppDelegate.hideDashboard() }
 }
 
 /// Observable wrapper around Sparkle's updater for SwiftUI environment injection.

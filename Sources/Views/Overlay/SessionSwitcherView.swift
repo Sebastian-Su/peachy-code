@@ -61,7 +61,7 @@ struct SessionSwitcherView: View {
 
                 // Hint bar — always visible
                 Divider()
-                Text("⌘⌘ switch · ⌘↵ focus · esc cancel")
+                Text("⌘⌘ switch · ⌘↵ focus · ⌘P panel · ⌘S services · esc cancel")
                     .font(.system(size: 8, weight: .medium, design: .rounded))
                     .foregroundStyle(Constants.textPrimary.opacity(0.35))
                     .padding(.horizontal, 12)

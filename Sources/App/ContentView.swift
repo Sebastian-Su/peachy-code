@@ -96,6 +96,11 @@ struct ContentView: View {
         .onChange(of: appStore.sessionResults.navigation, initial: true) { _, navigation in
             if navigation != nil { selectedSection = .results }
         }
+        .onChange(of: appStore.requestedDashboardSection, initial: true) { _, section in
+            guard let section else { return }
+            selectedSection = section
+            appStore.requestedDashboardSection = nil
+        }
         .onChange(of: appStore.navigateToMascotId) { _, newId in
             if newId != nil {
                 selectedSection = .pets
