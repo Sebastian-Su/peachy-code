@@ -20,6 +20,8 @@ final class SessionFinishedStore {
         let kind: Kind
         let sessionId: String
         let projectName: String
+        /// The session runs on another host; the card shows the remote host icon.
+        var isRemote = false
         let duration: TimeInterval
     }
 
@@ -36,7 +38,7 @@ final class SessionFinishedStore {
         set { UserDefaults.standard.set(newValue, forKey: Self.durationKey) }
     }
 
-    func show(kind: Kind, sessionId: String, projectName: String) {
+    func show(kind: Kind, sessionId: String, projectName: String, isRemote: Bool = false) {
         guard isEnabled else { return }
         // Repeated events for the same session/kind keep the existing card and timer
         // rather than resetting the countdown (e.g. duplicate idle_prompt notifications).
@@ -48,6 +50,7 @@ final class SessionFinishedStore {
             kind: kind,
             sessionId: sessionId,
             projectName: projectName,
+            isRemote: isRemote,
             duration: duration
         )
         current = toast

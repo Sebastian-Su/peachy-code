@@ -2,7 +2,7 @@
 // PeachyPet. Output is one JSON object per stdout line; diagnostics go to stderr.
 // Local agents are skipped: PeachyPet already receives their hooks directly.
 import { createPaseoClient } from "@getpaseo/client";
-import { endedTurn, finalReply, finishedWhileAway, isReportable } from "./turns.mjs";
+import { endedTurn, finalReply, finishedWhileAway, isReportable, startedTurn } from "./turns.mjs";
 
 const url = process.env.PASEO_URL || "ws://127.0.0.1:6767/ws";
 const HOST_SYNC_MS = 30_000;
@@ -20,6 +20,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 process.stdin.on("end", () => process.exit(0));
 process.stdin.resume();
 
+function describe(type, host, agent) {
+  return {
+    type,
+    serverId: host.serverId,
+    host: host.label,
+    agentId: agent.id,
+    provider: agent.provider,
+    title: agent.title ?? null,
+    cwd: agent.cwd ?? null,
+    status: agent.status,
+  };
+}
+
 async function report(remote, host, agent) {
   let lastMessage = null;
   try {
@@ -30,17 +43,7 @@ async function report(remote, host, agent) {
   } catch (error) {
     log(`timeline ${host.label}/${agent.id}: ${error?.message ?? error}`);
   }
-  emit({
-    type: "turn_ended",
-    serverId: host.serverId,
-    host: host.label,
-    agentId: agent.id,
-    provider: agent.provider,
-    title: agent.title ?? null,
-    cwd: agent.cwd ?? null,
-    status: agent.status,
-    lastMessage,
-  });
+  emit({ ...describe("turn_ended", host, agent), lastMessage });
 }
 
 async function watch(client, host) {
@@ -49,6 +52,7 @@ async function watch(client, host) {
     const key = `${host.serverId}/${agent.id}`;
     const previous = statuses.get(key);
     statuses.set(key, agent.status);
+    if (startedTurn(previous, agent) && isReportable(agent)) emit(describe("turn_started", host, agent));
     const since = previousSnapshotAt == null ? undefined : Math.max(previousSnapshotAt, reported.get(key) ?? 0);
     if (!(endedTurn(previous, agent) || finishedWhileAway(agent, since)) || !isReportable(agent)) return;
     reported.set(key, Date.now());

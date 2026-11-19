@@ -47,6 +47,12 @@ struct AgentSession: Identifiable, Codable {
             ?? "Session"
     }
 
+    /// The completion card's name: a remote session reads "host · session title".
+    var toastLabel: String {
+        isRemote ? formatSessionSwitcherProjectLabel(project: displayProjectName, title: displaySessionTitle)
+            : displayProjectName
+    }
+
     /// The project as the inbox names it; a remote session leads with its host.
     var inboxProjectLabel: String? {
         guard isRemote else { return projectName }

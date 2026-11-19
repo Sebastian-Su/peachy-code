@@ -182,7 +182,7 @@ final class AppStore {
             Task { @MainActor in await self.handleAgentEvent(event) }
         }
 
-        paseoRemoteBridge.onTurnEnded = { [weak self] turn in
+        paseoRemoteBridge.onRemoteTurn = { [weak self] turn in
             guard let self else { return }
             Task { @MainActor in await self.handleRemoteTurn(turn) }
         }
@@ -523,7 +523,7 @@ final class AppStore {
 
     /// A turn that ended on another host. It is shown like a local Stop, and its final reply
     /// goes through that agent's result hook; a remote session has no hook to continue.
-    @MainActor private func handleRemoteTurn(_ turn: PaseoRemoteBridge.TurnEnded) async {
+    @MainActor private func handleRemoteTurn(_ turn: PaseoRemoteBridge.RemoteTurn) async {
         let event = PaseoRemoteBridge.event(for: turn)
         guard let sessionId = event.sessionId else { return }
         await handleAgentEvent(event) {
@@ -537,13 +537,12 @@ final class AppStore {
         if event.eventType == .stop,
            event.reason != "interrupted",
            !pendingPermissionStore.pending.contains(where: { $0.event.sessionId == event.sessionId }) {
-            let projectName = event.sessionId
-                .flatMap { sid in sessionStore.activeSessions.first(where: { $0.id == sid }) }?
-                .displayProjectName ?? event.projectName ?? "Project"
+            let session = event.sessionId.flatMap { sid in sessionStore.activeSessions.first(where: { $0.id == sid }) }
             presentToast(
                 kind: .completed,
                 sessionId: event.sessionId ?? "",
-                projectName: projectName
+                projectName: session?.toastLabel ?? event.projectName ?? "Project",
+                isRemote: session?.isRemote ?? false
             )
             return
         }
@@ -557,13 +556,16 @@ final class AppStore {
             presentToast(
                 kind: .waitingInput,
                 sessionId: sessionId,
-                projectName: session.displayProjectName
+                projectName: session.toastLabel,
+                isRemote: session.isRemote
             )
             return
         }
 
         if event.eventType == .userPromptSubmit {
-            if sessionFinishedStore.current?.kind == .completed {
+            // A turn starting on another host says nothing about the card in front of the user.
+            let isRemote = event.client?.hasSuffix(PaseoRemoteBridge.clientSuffix) == true
+            if sessionFinishedStore.current?.kind == .completed, !isRemote {
                 sessionFinishedStore.dismiss()
             } else if let sessionId = event.sessionId {
                 sessionFinishedStore.dismiss(sessionId: sessionId)
@@ -582,12 +584,14 @@ final class AppStore {
     private func presentToast(
         kind: SessionFinishedStore.Kind,
         sessionId: String,
-        projectName: String
+        projectName: String,
+        isRemote: Bool
     ) {
         sessionFinishedStore.show(
             kind: kind,
             sessionId: sessionId,
-            projectName: projectName
+            projectName: projectName,
+            isRemote: isRemote
         )
         syncActiveCard()
         onToastChanged?()
