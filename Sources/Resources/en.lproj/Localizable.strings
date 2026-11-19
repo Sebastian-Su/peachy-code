@@ -462,3 +462,6 @@
 "settings.paseo_remote_bridge_missing" = "This build does not include the Paseo bridge script.";
 "settings.paseo_remote_exited" = "The Paseo bridge exited (%d). Turn it off and on again to retry.";
 "sessions.remote_host" = "Remote host";
+"result_hook.skip_chinese" = "Skip Chinese replies";
+"result_hook.skip_chinese_hint" = "When the prose, without code, links and paths, is mostly Chinese, the local tool is not run and no card appears.";
+"result_hook.skip_marker_hint" = "When there is nothing to show, have the tool output only %@. PeachyPet then shows no card and saves no history.";

@@ -462,3 +462,6 @@
 "settings.paseo_remote_bridge_missing" = "此构建未包含 Paseo 桥接脚本。";
 "settings.paseo_remote_exited" = "Paseo 桥接已退出（%d），关闭后重新打开可重试。";
 "sessions.remote_host" = "远程主机";
+"result_hook.skip_chinese" = "中文回复不处理";
+"result_hook.skip_chinese_hint" = "正文去掉代码、链接和路径后以中文为主时，不调用本地工具，也不弹卡片。";
+"result_hook.skip_marker_hint" = "无需展示时，让工具只输出 %@，PeachyPet 就不弹卡片、不记入历史。";

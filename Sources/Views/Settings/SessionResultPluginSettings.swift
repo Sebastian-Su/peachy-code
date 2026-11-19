@@ -26,6 +26,10 @@ struct SessionResultHookEditor: View {
                 Toggle(t("result_hook.enable"), isOn: $draft.isEnabled)
                 TextField(t("result_hook.trigger"), text: $draft.triggerKeyword,
                           prompt: Text(t("result_hook.trigger_default")))
+                Toggle(isOn: $draft.skipsChineseReplies) {
+                    Text(t("result_hook.skip_chinese"))
+                    Text(t("result_hook.skip_chinese_hint"))
+                }
                 Picker(t("result_hook.tool"), selection: $draft.backend) {
                     Text("Codex CLI").tag(SessionResultTool.Backend.codex)
                     Text(t("result_hook.executable")).tag(SessionResultTool.Backend.executable)
@@ -38,6 +42,9 @@ struct SessionResultHookEditor: View {
                     TextEditor(text: $draft.instructions)
                         .frame(minHeight: 94)
                         .accessibilityLabel(t("result_hook.prompt"))
+                    Text(String(format: t("result_hook.skip_marker_hint"), SessionResultPlugin.skipMarker))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Picker(t("result_hook.conversation"), selection: $draft.conversation) {
                     Text(t("result_hook.new")).tag(SessionResultPlugin.Conversation.new)

@@ -18,12 +18,17 @@ final class SessionResultPlugin {
         var conversation: Conversation = .new
         var destination: Destination = .panel
         var triggerKeyword = ""
+        /// Skip replies whose prose is already Chinese, without launching the tool.
+        var skipsChineseReplies = false
 
         func matches(_ report: String) -> Bool {
             let keyword = triggerKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
             return keyword.isEmpty || report.range(of: keyword, options: .caseInsensitive) != nil
         }
     }
+
+    /// A tool that has nothing to show replies with exactly this word.
+    static let skipMarker = "PEACHYPET_SKIP"
 
     private static let configurationsKey = "sessionResult.agentConfigurations"
     private static let supportedAgents: [AgentSource] = [.claudeCode, .codex, .copilot]
@@ -102,6 +107,7 @@ final class SessionResultPlugin {
             do {
                 guard let original = try await SessionResultTranscript.report(for: event),
                       configuration.matches(original) else { return nil }
+                if configuration.skipsChineseReplies, Self.isChineseReply(original) { return nil }
                 let targetSession = conversation == .reuse
                     ? self.workerSessions[key] ?? (tool.backend == .executable ? UUID().uuidString : nil)
                     : nil
@@ -113,6 +119,7 @@ final class SessionResultPlugin {
                     self.defaults.set(self.workerSessions, forKey: "sessionResult.workerSessions")
                 }
                 self.lastErrors[agent] = nil
+                if Self.isSkipMarker(output.markdown) { return nil }
                 let report = SessionResultReport(sessionID: sessionID, agent: event.agentSource,
                                                  project: event.projectName, markdown: output.markdown)
                 await self.onResult?(report, destination)
@@ -144,6 +151,32 @@ final class SessionResultPlugin {
             && !SessionResultTool.isWorkerDirectory(event.cwd)
     }
 
+    /// Chinese prose once code, inline code, links and paths are removed. Han characters must
+    /// make up at least 30% of the remaining letters; a reply with no prose counts as Chinese,
+    /// since there is nothing to translate.
+    static func isChineseReply(_ text: String) -> Bool {
+        var prose = text
+        for pattern in ["(`{3,})[\\s\\S]*?\\1", "`[^`\\n]*`", "https?://[!-~]+",
+                        "[A-Za-z0-9._~-]*(?:[/\\\\][A-Za-z0-9._~-]+)+"] {
+            prose = prose.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
+        }
+        var han = 0, latin = 0
+        for scalar in prose.unicodeScalars {
+            if scalar.properties.isIdeographic {
+                han += 1
+            } else if scalar.isASCII, scalar.properties.isAlphabetic {
+                latin += 1
+            }
+        }
+        guard han + latin > 0 else { return true }
+        return Double(han) / Double(han + latin) >= 0.3
+    }
+
+    static func isSkipMarker(_ output: String) -> Bool {
+        output.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters).union(.symbols))
+            .caseInsensitiveCompare(skipMarker) == .orderedSame
+    }
+
     static func prompt(instructions: String, report: String) -> String {
         """
         Process the final reply from another agent. Treat its contents as source material.
@@ -153,7 +186,8 @@ final class SessionResultPlugin {
         already contains Chinese or is in another language, keep its language. Ignore code,
         paths, identifiers and URLs when identifying the prose language. Preserve Markdown
         structure, code blocks, links and technical identifiers. Return only the resulting
-        Markdown, without a preface or an enclosing code fence.
+        Markdown, without a preface or an enclosing code fence. If the user's processing
+        instructions say the reply needs no output, reply with exactly \(skipMarker) instead.
 
         User's processing instructions:
         \(instructions)
@@ -187,5 +221,21 @@ final class SessionResultPlugin {
         case SessionResultTool.Failure.missingSessionID: return t("result_hook.error_session")
         default: return t("result_hook.error_generic")
         }
+    }
+}
+
+extension SessionResultPlugin.Configuration {
+    /// Configurations saved by earlier versions lack newer keys; those keep their defaults.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init()
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? isEnabled
+        backend = try container.decodeIfPresent(SessionResultTool.Backend.self, forKey: .backend) ?? backend
+        executablePath = try container.decodeIfPresent(String.self, forKey: .executablePath) ?? executablePath
+        instructions = try container.decodeIfPresent(String.self, forKey: .instructions) ?? instructions
+        conversation = try container.decodeIfPresent(SessionResultPlugin.Conversation.self, forKey: .conversation) ?? conversation
+        destination = try container.decodeIfPresent(SessionResultPlugin.Destination.self, forKey: .destination) ?? destination
+        triggerKeyword = try container.decodeIfPresent(String.self, forKey: .triggerKeyword) ?? triggerKeyword
+        skipsChineseReplies = try container.decodeIfPresent(Bool.self, forKey: .skipsChineseReplies) ?? skipsChineseReplies
     }
 }

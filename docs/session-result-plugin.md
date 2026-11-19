@@ -7,8 +7,9 @@ A new hook defaults to Codex CLI, a new tool conversation for each reply, and a 
 | Setting | What it controls |
 | --- | --- |
 | Final reply contains | Matches a literal keyword or phrase in the original reply, ignoring case. An empty field processes every final reply. |
+| Skip Chinese replies | Removes code blocks, inline code, links and paths, then skips the reply when Han characters make up at least 30% of the remaining letters. The tool is not launched and no card or history entry appears. |
 | Local tool | Codex CLI uses the installed executable and its model configuration. Custom executable accepts an absolute path to a program that implements the input/output contract below. |
-| Processing instructions | The tool receives these instructions and the full reply. Its prompt asks for Simplified Chinese when the resulting prose is entirely in English or Korean and asks to preserve Markdown, code, links, and identifiers. |
+| Processing instructions | The tool receives these instructions and the full reply. When the instructions decide there is nothing to show, the tool can output only `PEACHYPET_SKIP`; PeachyPet then shows no card, saves no history and does not continue the source session. Its prompt asks for Simplified Chinese when the resulting prose is entirely in English or Korean and asks to preserve Markdown, code, links, and identifiers. |
 | Tool conversation | **Start a new conversation** processes each reply independently. **Reuse for the same source session** keeps processing context separate for each source agent and session. |
 | Send result to | **PeachyPet floating bubble** shows a short preview for 30 seconds. Hover pauses the countdown, and **Read report** opens the full Markdown in Result History. **Original Agent session** passes that output back through the pending Stop Hook to continue the source session once. This option waits for the tool before letting the source session finish. |
 
