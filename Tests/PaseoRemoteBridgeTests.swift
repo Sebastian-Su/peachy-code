@@ -3,8 +3,8 @@ import XCTest
 
 final class PaseoRemoteBridgeTests: XCTestCase {
     private func turn(provider: String = "codex", status: String = "idle",
-                      lastMessage: String? = "All checks passed.") -> PaseoRemoteBridge.TurnEnded {
-        PaseoRemoteBridge.TurnEnded(serverId: "srv_mini", host: "MacMini", agentId: "a1", provider: provider,
+                      lastMessage: String? = "All checks passed.") -> PaseoRemoteBridge.RemoteTurn {
+        PaseoRemoteBridge.RemoteTurn(serverId: "srv_mini", host: "MacMini", agentId: "a1", provider: provider,
                                     title: "Merge regression", cwd: "/Users/someone/project", status: status,
                                     lastMessage: lastMessage)
     }
@@ -118,6 +118,28 @@ final class PaseoRemoteBridgeTests: XCTestCase {
 
         store.recordEvent(AgentEvent(hookEventName: "Stop", sessionId: "local", cwd: "/Users/u/masko-code", client: "codex-cli"))
         XCTAssertEqual(store.sessions.first { $0.id == "local" }?.inboxProjectLabel, "masko-code")
+    }
+
+    func testRemoteTurnStartShowsTheSessionRunning() throws {
+        let line = #"{"type":"turn_started","serverId":"srv_mini","host":"MacMini","agentId":"a1","provider":"claude","title":"Merge regression","cwd":"/Users/someone/project","status":"running"}"#
+        let started = PaseoRemoteBridge.RemoteTurn(serverId: "srv_mini", host: "MacMini", agentId: "a1", provider: "claude",
+                                                   title: "Merge regression", cwd: "/Users/someone/project",
+                                                   status: "running", lastMessage: nil)
+        XCTAssertEqual(PaseoRemoteBridge.decode(line: Data(line.utf8)), .turnStarted(started))
+
+        let event = PaseoRemoteBridge.event(for: started)
+        XCTAssertEqual(event.eventType, .userPromptSubmit)
+        XCTAssertFalse(SessionResultPlugin.accepts(event))
+
+        let store = SessionStore()
+        defer { store.stopTimers() }
+        let sessionId = try XCTUnwrap(event.sessionId)
+        store.recordEvent(PaseoRemoteBridge.event(for: turn(provider: "claude")))
+        store.recordEvent(AgentEvent(hookEventName: HookEventType.sessionEnd.rawValue, sessionId: sessionId))
+        store.recordEvent(event)
+        let session = try XCTUnwrap(store.activeSessions.first { $0.id == sessionId })
+        XCTAssertEqual(session.phase, .running)
+        XCTAssertNil(session.firstUserPrompt)
     }
 
     func testOnlyAgentsOnAnotherHostAreRemote() {

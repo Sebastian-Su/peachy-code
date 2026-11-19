@@ -135,3 +135,49 @@ final class AppStoreWaitingInputTests: XCTestCase {
         XCTAssertNil(app.sessionFinishedStore.current)
     }
 }
+
+@MainActor
+final class AppStoreRemoteToastTests: XCTestCase {
+    func testRemoteCompletionNamesHostAndSessionAndOnlyItsOwnStartDismissesIt() {
+        let app = AppStore()
+        defer { app.sessionStore.stopTimers() }
+        let previous = UserDefaults.standard.object(forKey: SessionFinishedStore.enabledKey)
+        UserDefaults.standard.set(true, forKey: SessionFinishedStore.enabledKey)
+        defer {
+            if let previous {
+                UserDefaults.standard.set(previous, forKey: SessionFinishedStore.enabledKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: SessionFinishedStore.enabledKey)
+            }
+            app.sessionFinishedStore.dismiss()
+        }
+        let local = "local-\(UUID().uuidString)"
+        app.sessionStore.injectSessionForTesting(AgentSession(
+            id: local, projectDir: "/tmp/masko-code", projectName: "masko-code", agentSource: .codex,
+            status: .active, phase: .idle, eventCount: 1, startedAt: Date(), lastEventAt: Date()))
+        app.updateSessionToast(for: AgentEvent(hookEventName: "Stop", sessionId: local, client: "codex-cli"))
+        XCTAssertEqual(app.sessionFinishedStore.current?.projectName, "masko-code")
+        XCTAssertEqual(app.sessionFinishedStore.current?.isRemote, false)
+
+        // Another host starting a turn leaves the local card alone.
+        let turn = PaseoRemoteBridge.RemoteTurn(serverId: "srv_us", host: "Mac US", agentId: "a9", provider: "claude",
+                                                title: "提测", cwd: "/Users/u/namiwork-desktop", status: "running",
+                                                lastMessage: nil)
+        let start = PaseoRemoteBridge.event(for: turn)
+        let sessionId = start.sessionId!
+        app.sessionStore.recordEvent(start)
+        app.sessionStore.assignHost(PaseoRemoteBridge.host(for: turn), toSession: sessionId)
+        app.sessionStore.updateMetadata(PaseoRemoteBridge.metadata(for: turn, sessionId: sessionId))
+        app.updateSessionToast(for: start)
+        XCTAssertEqual(app.sessionFinishedStore.current?.sessionId, local)
+
+        app.sessionFinishedStore.dismiss()
+        let end = PaseoRemoteBridge.event(for: PaseoRemoteBridge.RemoteTurn(
+            serverId: "srv_us", host: "Mac US", agentId: "a9", provider: "claude", title: "提测",
+            cwd: "/Users/u/namiwork-desktop", status: "idle", lastMessage: "done"))
+        app.sessionStore.recordEvent(end)
+        app.updateSessionToast(for: end)
+        XCTAssertEqual(app.sessionFinishedStore.current?.projectName, "Mac US · 提测")
+        XCTAssertEqual(app.sessionFinishedStore.current?.isRemote, true)
+    }
+}

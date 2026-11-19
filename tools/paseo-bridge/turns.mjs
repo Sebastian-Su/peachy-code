@@ -1,5 +1,10 @@
 // Pure helpers shared by the bridge and its tests.
 
+/** A turn starts when an agent begins running; one already running when first seen counts too. */
+export function startedTurn(previousStatus, agent) {
+  return agent.status === "running" && previousStatus !== "running";
+}
+
 /** A turn ends when an agent we saw running becomes idle or errors. */
 export function endedTurn(previousStatus, agent) {
   return previousStatus === "running" && (agent.status === "idle" || agent.status === "error");

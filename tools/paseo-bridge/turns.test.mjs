@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { endedTurn, finalReply, finishedWhileAway, isReportable } from "./turns.mjs";
+import { endedTurn, finalReply, finishedWhileAway, isReportable, startedTurn } from "./turns.mjs";
 
 test("a turn ends only on a running to idle or error transition", () => {
   assert.equal(endedTurn("running", { status: "idle" }), true);
@@ -34,4 +34,11 @@ test("a reconnect snapshot reports turns that finished while the link was down",
   assert.equal(finishedWhileAway(agent(null), before), false);
   // The first snapshot after start only seeds state.
   assert.equal(finishedWhileAway(agent("2026-11-18T15:03:37Z"), undefined), false);
+});
+
+test("a turn starts when an agent begins running, including one already running at startup", () => {
+  assert.equal(startedTurn(undefined, { status: "running" }), true);
+  assert.equal(startedTurn("idle", { status: "running" }), true);
+  assert.equal(startedTurn("running", { status: "running" }), false);
+  assert.equal(startedTurn("idle", { status: "idle" }), false);
 });

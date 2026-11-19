@@ -12,7 +12,7 @@ final class PaseoRemoteBridge {
         let watching: Bool
     }
 
-    struct TurnEnded: Decodable, Equatable {
+    struct RemoteTurn: Decodable, Equatable {
         let serverId: String
         let host: String
         let agentId: String
@@ -27,7 +27,8 @@ final class PaseoRemoteBridge {
         case connected
         case disconnected
         case hosts([Host])
-        case turnEnded(TurnEnded)
+        case turnStarted(RemoteTurn)
+        case turnEnded(RemoteTurn)
     }
 
     enum Status: Equatable {
@@ -42,7 +43,7 @@ final class PaseoRemoteBridge {
     }
 
     private(set) var status: Status = .off
-    var onTurnEnded: ((TurnEnded) -> Void)?
+    var onRemoteTurn: ((RemoteTurn) -> Void)?
 
     @ObservationIgnored private var process: Process?
     @ObservationIgnored private var lineBuffer = Data()
@@ -62,17 +63,23 @@ final class PaseoRemoteBridge {
         case "connected": return .connected
         case "disconnected": return .disconnected
         case "hosts": return .hosts(envelope.hosts ?? [])
-        case "turn_ended": return (try? decoder.decode(TurnEnded.self, from: line)).map(Message.turnEnded)
+        case "turn_started": return (try? decoder.decode(RemoteTurn.self, from: line)).map(Message.turnStarted)
+        case "turn_ended": return (try? decoder.decode(RemoteTurn.self, from: line)).map(Message.turnEnded)
         default: return nil
         }
     }
 
-    /// The Stop event a remote turn produces. The client tag keeps the engine ("codex",
-    /// "claude") so it reads like that agent's own event.
-    static func event(for turn: TurnEnded) -> AgentEvent {
+    /// The event a remote turn produces: a prompt when it starts, a Stop when it ends. The
+    /// client tag keeps the engine ("codex", "claude") so it reads like that agent's own event.
+    static func event(for turn: RemoteTurn) -> AgentEvent {
         let engine = turn.provider.split(separator: "/").first.map(String.init) ?? turn.provider
+        let hook: HookEventType = switch turn.status {
+        case "running": .userPromptSubmit // a turn began; shows the session as running
+        case "error": .stopFailure
+        default: .stop
+        }
         return AgentEvent(
-            hookEventName: turn.status == "error" ? HookEventType.stopFailure.rawValue : HookEventType.stop.rawValue,
+            hookEventName: hook.rawValue,
             sessionId: "paseo-remote-\(turn.agentId)",
             cwd: turn.cwd,
             lastAssistantMessage: turn.lastMessage,
@@ -82,12 +89,12 @@ final class PaseoRemoteBridge {
     }
 
     /// Opens the agent on its own host through the local Paseo app.
-    static func host(for turn: TurnEnded) -> SessionHost {
+    static func host(for turn: RemoteTurn) -> SessionHost {
         .paseo(agentId: turn.agentId, serverId: turn.serverId)
     }
 
     /// A remote session reads "host • title" wherever a session is named.
-    static func metadata(for turn: TurnEnded, sessionId: String) -> SessionMetadataUpdate {
+    static func metadata(for turn: RemoteTurn, sessionId: String) -> SessionMetadataUpdate {
         SessionMetadataUpdate(sessionId: sessionId, sessionTitle: turn.title, firstUserPrompt: nil,
                               projectDisplayName: turn.host)
     }
@@ -172,7 +179,7 @@ final class PaseoRemoteBridge {
             case .connected: status = .connected(hosts: [])
             case .disconnected: status = .waitingForDaemon
             case .hosts(let hosts): status = .connected(hosts: hosts)
-            case .turnEnded(let turn): onTurnEnded?(turn)
+            case .turnStarted(let turn), .turnEnded(let turn): onRemoteTurn?(turn)
             }
         }
     }

@@ -13,10 +13,13 @@ struct SessionFinishedToastView: View {
                     .foregroundStyle(Constants.orangePrimary)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(toast.projectName)
-                        .font(Constants.heading(size: 12, weight: .bold))
-                        .foregroundStyle(Constants.textPrimary)
-                        .lineLimit(1)
+                    HStack(spacing: 3) {
+                        if toast.isRemote { RemoteHostIcon(size: 10) }
+                        Text(toast.projectName)
+                            .font(Constants.heading(size: 12, weight: .bold))
+                            .foregroundStyle(Constants.textPrimary)
+                            .lineLimit(1)
+                    }
 
                     Text(t(messageKey(for: toast.kind)))
                         .font(Constants.body(size: 10, weight: .medium))
