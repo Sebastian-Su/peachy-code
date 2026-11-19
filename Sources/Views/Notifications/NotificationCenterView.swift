@@ -147,6 +147,7 @@ struct NotificationRow: View {
     let notification: AppNotification
     var compact: Bool = false
     var project: String? = nil
+    var isRemote = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -172,10 +173,13 @@ struct NotificationRow: View {
                             .background(Constants.chip, in: Capsule())
 
                         if let project {
-                            Text(project)
-                                .font(Constants.body(size: 11))
-                                .foregroundColor(Constants.textMuted)
-                                .lineLimit(1)
+                            HStack(spacing: 3) {
+                                if isRemote { RemoteHostIcon(size: 10) }
+                                Text(project)
+                                    .font(Constants.body(size: 11))
+                                    .foregroundColor(Constants.textMuted)
+                                    .lineLimit(1)
+                            }
                         }
 
                         Spacer()
