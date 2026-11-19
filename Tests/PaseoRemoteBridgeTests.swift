@@ -81,6 +81,30 @@ final class PaseoRemoteBridgeTests: XCTestCase {
         XCTAssertEqual(sessions.sessions.first { $0.id == sessionId }?.host, PaseoRemoteBridge.host(for: remote))
     }
 
+    /// A remote agent only reports turn ends, so its next turn end must bring back a session
+    /// that was hidden after the previous one.
+    func testNextRemoteTurnReactivatesAHiddenSession() throws {
+        let store = SessionStore()
+        defer { store.stopTimers() }
+        let event = PaseoRemoteBridge.event(for: turn())
+        let sessionId = try XCTUnwrap(event.sessionId)
+        store.recordEvent(event)
+        store.recordEvent(AgentEvent(hookEventName: HookEventType.sessionEnd.rawValue, sessionId: sessionId))
+        XCTAssertFalse(store.activeSessions.contains { $0.id == sessionId })
+
+        store.recordEvent(PaseoRemoteBridge.event(for: turn()))
+        let session = try XCTUnwrap(store.activeSessions.first { $0.id == sessionId })
+        XCTAssertEqual(session.phase, .idle)
+        XCTAssertNotNil(session.idleUntil, "it hides again after the usual idle period")
+
+        // A local Stop for an ended session stays a stale event.
+        let local = "local-\(UUID().uuidString)"
+        store.recordEvent(AgentEvent(hookEventName: "Stop", sessionId: local, client: "codex-cli"))
+        store.recordEvent(AgentEvent(hookEventName: HookEventType.sessionEnd.rawValue, sessionId: local, client: "codex-cli"))
+        store.recordEvent(AgentEvent(hookEventName: "Stop", sessionId: local, client: "codex-cli"))
+        XCTAssertFalse(store.activeSessions.contains { $0.id == local })
+    }
+
     func testOnlyAgentsOnAnotherHostAreRemote() {
         var session = AgentSession(id: "s", projectDir: nil, projectName: nil, agentSource: .codex, status: .active,
                                    phase: .idle, eventCount: 1, startedAt: Date(), lastEventAt: Date())
