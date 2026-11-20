@@ -1,5 +1,4 @@
 import AppKit
-import MarkdownUI
 import SwiftUI
 
 struct SessionResultHistoryView: View {
@@ -110,20 +109,8 @@ struct SessionResultHistoryView: View {
             }
             .padding()
             Divider()
-            ScrollView {
-                Markdown(report.markdown)
-                    .markdownImageProvider(ReportImagePlaceholder())
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
-            }
-            .id(source.id)
+            ReportTextView(markdown: report.markdown)
+                .id(source.id)
         }
-    }
-}
-
-private struct ReportImagePlaceholder: ImageProvider {
-    func makeImage(url: URL?) -> some View {
-        Image(systemName: "photo").foregroundStyle(.secondary)
     }
 }
