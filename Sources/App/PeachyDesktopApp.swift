@@ -175,6 +175,7 @@ struct PeachyDesktopApp: App {
                     overlayManager.hotkeyManager = appStore.hotkeyManager
                     overlayManager.sessionSwitcherStore = appStore.sessionSwitcherStore
                     overlayManager.sessionFinishedStore = appStore.sessionFinishedStore
+                    overlayManager.availableMascots = { [weak appStore] in appStore?.mascotStore.mascots ?? [] }
                     overlayManager.sessionResults = appStore.sessionResults
                     overlayManager.onPermissionHUDAvailabilityChange = { [weak appStore] available in
                         appStore?.sessionResultHUDAvailable = available

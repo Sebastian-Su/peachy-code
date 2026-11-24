@@ -59,6 +59,12 @@ final class OverlayManager {
         return MascotStore.loadBundledConfig(named: "clippy")
     }
 
+    /// Closing the mascot clears its saved config, so turning it back on can restore nothing.
+    /// In that case fall back to the startup mascot instead of leaving the screen empty.
+    static func mascotConfigAfterEnabling(isShowing: Bool, mascots: [SavedMascot]) -> PeachyAnimationConfig? {
+        isShowing ? nil : startupMascotConfig(from: mascots)
+    }
+
     // Snooze state
     private(set) var isSnoozed = false
     private(set) var snoozeEndDate: Date?
@@ -94,6 +100,7 @@ final class OverlayManager {
     var sessionSwitcherStore: SessionSwitcherStore = SessionSwitcherStore()
     var sessionFinishedStore: SessionFinishedStore = SessionFinishedStore()
     var sessionResults: SessionResultStore?
+    var availableMascots: () -> [SavedMascot] = { [] }
 
     var currentSizePixels: Int {
         get {
@@ -604,6 +611,18 @@ final class OverlayManager {
         UserDefaults.standard.set(true, forKey: "overlay_enabled")
     }
 
+    /// Re-enable the mascot and show it: the last one if saved, else the startup mascot.
+    func enableMascot() {
+        enableOverlay()
+        restoreIfNeeded()
+        if let config = Self.mascotConfigAfterEnabling(
+            isShowing: isOverlayActive || isSnoozed,
+            mascots: availableMascots()
+        ) {
+            showOverlayWithConfig(config)
+        }
+    }
+
     /// Show just the permission panel + stats in standalone mode (no mascot, no tail, bottom-right).
     /// - Parameter previousStatsFrame: The exact frame of the stats panel before it was closed (for seamless transition).
     func showPermissionPanelStandalone(previousStatsFrame: NSRect? = nil) {
@@ -875,8 +894,7 @@ final class OverlayManager {
                     NSWorkspace.shared.notificationCenter.removeObserver(observer)
                 }
                 self.workspaceObservers.removeAll()
-                self.enableOverlay()
-                self.restoreIfNeeded()
+                self.enableMascot()
             },
             onOpenDashboard: {
                 AppDelegate.showDashboard()
