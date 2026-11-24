@@ -129,6 +129,7 @@ All shortcuts work globally — no need to focus the app.
 | `⌘Enter` | Approve selected permission |
 | `⌘Esc` | Deny / dismiss permission |
 | `⌘L` | Collapse / defer topmost permission |
+| `⌘P` | Expand topmost permission to full screen |
 | `Double-tap ⌘` | Open session switcher (2+ sessions) |
 | `↑ / ↓` | Navigate session switcher |
 | `Tab / Shift+Tab` | Cycle sessions |
