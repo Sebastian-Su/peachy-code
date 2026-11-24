@@ -307,8 +307,7 @@ struct PeachyDashboardView: View {
                     }
                     Spacer()
                     Button(action: {
-                        overlayManager.enableOverlay()
-                        overlayManager.restoreIfNeeded()
+                        overlayManager.enableMascot()
                     }) {
                         Text("Enable")
                             .font(Constants.heading(size: 13, weight: .semibold))

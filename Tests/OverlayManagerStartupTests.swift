@@ -46,6 +46,34 @@ final class OverlayManagerStartupTests: XCTestCase {
         XCTAssertEqual(chosen?.name, "First")
     }
 
+    @MainActor
+    func testEnablingWithNothingRestoredFallsBackToStartupMascot() {
+        let only = SavedMascot(
+            id: UUID(),
+            name: "Only",
+            config: makeConfig(name: "Only"),
+            addedAt: Date(),
+            templateSlug: "only"
+        )
+
+        let chosen = OverlayManager.mascotConfigAfterEnabling(isShowing: false, mascots: [only])
+
+        XCTAssertEqual(chosen?.name, "Only")
+    }
+
+    @MainActor
+    func testEnablingKeepsRestoredMascot() {
+        let only = SavedMascot(
+            id: UUID(),
+            name: "Only",
+            config: makeConfig(name: "Only"),
+            addedAt: Date(),
+            templateSlug: "only"
+        )
+
+        XCTAssertNil(OverlayManager.mascotConfigAfterEnabling(isShowing: true, mascots: [only]))
+    }
+
     private func makeConfig(name: String) -> PeachyAnimationConfig {
         PeachyAnimationConfig(
             version: "1.0",

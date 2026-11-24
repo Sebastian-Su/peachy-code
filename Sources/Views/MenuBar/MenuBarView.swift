@@ -107,8 +107,7 @@ struct MenuBarView: View {
                     if overlayManager.isOverlayEnabled {
                         overlayManager.disableOverlay()
                     } else {
-                        overlayManager.enableOverlay()
-                        overlayManager.restoreIfNeeded()
+                        overlayManager.enableMascot()
                     }
                 }) {
                     Text(overlayManager.isOverlayEnabled ? "Disable" : "Enable")
