@@ -18,6 +18,18 @@ struct ServicesView: View {
                         .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
                 }
                 registeredList(store: store)
+                if !store.systemServicesLoaded {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text(t("services.system_loading"))
+                            .font(Constants.body(size: 13))
+                            .foregroundColor(Constants.textMuted)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Constants.surfaceWhite, in: RoundedRectangle(cornerRadius: Constants.cornerRadiusSmall))
+                    .padding(.top, 10)
+                }
                 systemSection(t("services.section.brew"), store.systemServices.filter { $0.group == .brew }, store: store)
                 systemSection(t("services.section.agents"), store.systemServices.filter { $0.group == .userAgent || $0.group == .daemon }, store: store)
                 appAgentsSection(store.systemServices.filter { $0.group == .appAgent })

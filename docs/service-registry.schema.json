@@ -13,6 +13,7 @@
     "cwd": { "type": "string", "description": "Working directory. ~ is expanded." },
     "url": { "type": "string", "description": "Opened by the Open button." },
     "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Port the service listens on; used for running status." },
+    "pidFile": { "type": "string", "description": "PID file of an instance started outside PeachyPet: plain digits or JSON with an integer pid. ~ is expanded." },
     "env": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Extra environment variables." },
     "note": { "type": "string", "description": "One-line note shown under the name." }
   },

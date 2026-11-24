@@ -14,6 +14,8 @@ final class ServiceStore {
     private(set) var validity: [String: ServiceValidity] = [:]
     /// brew services and LaunchAgents shown below the registered list.
     private(set) var systemServices: [SystemService] = []
+    /// False until the first brew/launchd read lands, so the page can show a loading row.
+    private(set) var systemServicesLoaded = false
     @ObservationIgnored private var brewItems: [BrewServices.Item] = []
     @ObservationIgnored private var lastBrewRead = Date.distantPast
     /// Last run of each `task` registration.
@@ -64,6 +66,7 @@ final class ServiceStore {
             DispatchQueue.main.async {
                 self?.brewItems = brew
                 self?.systemServices = services
+                self?.systemServicesLoaded = true
             }
         }
     }
