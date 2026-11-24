@@ -401,6 +401,7 @@
 "services.section.brew" = "BREW 服务";
 "services.section.agents" = "你的 LaunchAgent";
 "services.section.app_agents" = "应用自带";
+"services.system_loading" = "正在读取 brew 服务和 LaunchAgent…";
 "services.copy_sudo" = "复制 sudo 命令";
 "services.read_only" = "只读";
 "services.autostart" = "开机自启";
