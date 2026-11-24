@@ -3,6 +3,64 @@ import XCTest
 
 @MainActor
 final class EventProcessorDispositionTests: XCTestCase {
+    private let nextMessagePrompt = "This is an app-generated request for a suggested next user message. The user did not write this message.\n\nReturn only JSON matching this schema: {\"suggestion\":null}."
+
+    func testNextMessageSuggestionForkIsRemovedFromSwitcher() async {
+        let (proc, _, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sid = "01a1bf60-00eb-77f2-8d7d-48e8ea2f35c5"
+        await proc.process(AgentEvent(
+            hookEventName: "SessionStart", sessionId: sid, cwd: "/tmp/project",
+            permissionMode: "bypassPermissions", source: "fork", client: "codex-cli"
+        ))
+        let visible = await proc.process(AgentEvent(
+            hookEventName: "UserPromptSubmit", sessionId: sid, cwd: "/tmp/project",
+            permissionMode: "bypassPermissions", prompt: nextMessagePrompt, client: "codex-cli"
+        ))
+        XCTAssertFalse(visible)
+        XCTAssertNil(ss.sessions.first { $0.id == sid })
+        let switcher = SessionSwitcherStore()
+        switcher.open(sessions: ss.activeSessions)
+        defer { switcher.close() }
+        XCTAssertFalse(switcher.sessions.contains { $0.id == sid })
+        let lateStart = await proc.process(AgentEvent(
+            hookEventName: "SessionStart", sessionId: sid, cwd: "/tmp/project",
+            permissionMode: "bypassPermissions", source: "fork", client: "codex-cli"
+        ))
+        XCTAssertFalse(lateStart)
+        XCTAssertNil(ss.sessions.first { $0.id == sid })
+    }
+
+    func testNextMessageSuggestionPromptWithoutStartIsSuppressed() async {
+        let (proc, ns, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sid = "01a1bf60-00eb-77f2-8d7d-48e8ea2f35c6"
+        let visible = await proc.process(AgentEvent(
+            hookEventName: "UserPromptSubmit", sessionId: sid, cwd: "/tmp/project",
+            permissionMode: "bypassPermissions", prompt: nextMessagePrompt, client: "codex-cli"
+        ))
+        XCTAssertFalse(visible)
+        XCTAssertNil(ss.sessions.first { $0.id == sid })
+        XCTAssertFalse(ns.notifications.contains { $0.sessionId == sid })
+    }
+
+    func testRealForkDiscussingNextMessageSuggestionsStaysVisible() async {
+        let (proc, _, ss) = makeProcessor()
+        defer { ss.stopTimers() }
+        let sid = "01a1bf60-00eb-77f2-8d7d-48e8ea2f35c7"
+        await proc.process(AgentEvent(
+            hookEventName: "SessionStart", sessionId: sid, cwd: "/tmp/project",
+            permissionMode: "bypassPermissions", source: "fork", client: "codex-cli"
+        ))
+        let visible = await proc.process(AgentEvent(
+            hookEventName: "UserPromptSubmit", sessionId: sid, cwd: "/tmp/project",
+            permissionMode: "bypassPermissions", prompt: "Explain this prompt: " + nextMessagePrompt,
+            client: "codex-cli"
+        ))
+        XCTAssertTrue(visible)
+        XCTAssertEqual(ss.sessions.first { $0.id == sid }?.phase, .running)
+    }
+
     private func makeProcessor() -> (EventProcessor, NotificationStore, SessionStore) {
         let es = EventStore(); es.clear()
         let ss = SessionStore()
