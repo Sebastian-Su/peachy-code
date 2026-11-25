@@ -495,14 +495,15 @@ final class SessionStore {
         }
     }
 
-    private func applyReconciliation(hasAssistantProcess: Bool) {
+    func applyReconciliation(hasAssistantProcess: Bool) {
         guard !activeSessions.isEmpty else { return }
 
         var changed = false
 
+        // Remote sessions have no local process or transcript; the Paseo bridge ends their turns.
         // 1. If no assistant process at all, end everything
         if !hasAssistantProcess {
-            for i in sessions.indices where sessions[i].status == .active {
+            for i in sessions.indices where sessions[i].status == .active && !sessions[i].isRemote {
                 sessions[i].status = .ended
                 sessions[i].phase = .idle
                 clearSubagents(at: i)
@@ -514,7 +515,7 @@ final class SessionStore {
             // A process exists for a different session - but these old ones are dead.
             let staleThreshold: TimeInterval = 3600 // 1 hour
             let now = Date()
-            for i in sessions.indices where sessions[i].status == .active {
+            for i in sessions.indices where sessions[i].status == .active && !sessions[i].isRemote {
                 if let lastEvent = sessions[i].lastEventAt,
                    now.timeIntervalSince(lastEvent) > staleThreshold {
                     // Check if transcript was recently modified before killing
@@ -653,7 +654,8 @@ final class SessionStore {
                 }
             } else if sessions[i].phase == .running,
                       sessions[i].terminalPid == nil,
-                      sessions[i].transcriptPath == nil {
+                      sessions[i].transcriptPath == nil,
+                      !sessions[i].isRemote {
                 // No terminal and no transcript → nobody is watching this turn and
                 // no log to reconcile against. Such a session may never receive a
                 // Stop (some Codex background tasks don't emit one), so retire it on
@@ -886,7 +888,7 @@ final class SessionStore {
                 // A running/compacting session with no recent events and no terminalPid is a
                 // headless agent (e.g. namiwork Claude Code) that exited without sending Stop.
                 // Treat it the same as idle: expire after idleRetentionDuration from lastEventAt.
-                guard sessions[i].terminalPid == nil else { break }
+                guard sessions[i].terminalPid == nil, !sessions[i].isRemote else { break }
                 let ref = sessions[i].lastEventAt ?? sessions[i].startedAt
                 let staleAt = ref.addingTimeInterval(idleRetentionDuration)
                 if staleAt <= now {
