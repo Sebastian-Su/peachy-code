@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { endedTurn, finalReply, finishedWhileAway, isReportable, startedTurn } from "./turns.mjs";
+import { endedTurn, finalReply, finishedWhileAway, isReportable, pendingInput, startedTurn } from "./turns.mjs";
 
 test("a turn ends only on a running to idle or error transition", () => {
   assert.equal(endedTurn("running", { status: "idle" }), true);
@@ -41,4 +41,14 @@ test("a turn starts when an agent begins running, including one already running 
   assert.equal(startedTurn("idle", { status: "running" }), true);
   assert.equal(startedTurn("running", { status: "running" }), false);
   assert.equal(startedTurn("idle", { status: "idle" }), false);
+});
+
+test("a pending question or permission is the input the agent waits for", () => {
+  const question = { id: "p1", kind: "question", name: "AskUserQuestion", title: "Which commands?", description: "a / b" };
+  assert.deepEqual(pendingInput({ pendingPermissions: [question] }), { id: "p1", text: "Which commands?" });
+  assert.deepEqual(pendingInput({ pendingPermissions: [{ id: "p2", name: "Bash", description: "rm -rf build" }] }),
+    { id: "p2", text: "rm -rf build" });
+  assert.deepEqual(pendingInput({ pendingPermissions: [{ id: "p3", name: "Bash" }] }), { id: "p3", text: "Bash" });
+  assert.equal(pendingInput({ pendingPermissions: [] }), null);
+  assert.equal(pendingInput({}), null);
 });

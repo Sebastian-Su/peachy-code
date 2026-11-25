@@ -189,6 +189,10 @@ final class AppStore {
             guard let self else { return }
             Task { @MainActor in await self.handleRemoteTurn(turn) }
         }
+        paseoRemoteBridge.onRemoteInputNeeded = { [weak self] turn in
+            guard let self else { return }
+            Task { @MainActor in await self.handleRemoteInputNeeded(turn) }
+        }
 
         // Wire event bus -> custom input endpoint
         eventBus.onInput = { [weak self] name, value in
@@ -534,6 +538,16 @@ final class AppStore {
             self.sessionStore.updateMetadata(PaseoRemoteBridge.metadata(for: turn, sessionId: sessionId))
         }
         _ = sessionResultPlugin.receive(event, allowsContinuation: false)
+    }
+
+    /// A remote agent waiting on a question or permission: show the session as waiting for input.
+    @MainActor private func handleRemoteInputNeeded(_ turn: PaseoRemoteBridge.RemoteTurn) async {
+        let event = PaseoRemoteBridge.inputNeededEvent(for: turn)
+        guard let sessionId = event.sessionId else { return }
+        await handleAgentEvent(event) {
+            self.sessionStore.assignHost(PaseoRemoteBridge.host(for: turn), toSession: sessionId)
+            self.sessionStore.updateMetadata(PaseoRemoteBridge.metadata(for: turn, sessionId: sessionId))
+        }
     }
 
     /// The monitor scans on its own queue; hand it a copy of the list.

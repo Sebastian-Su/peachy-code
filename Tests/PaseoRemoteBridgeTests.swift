@@ -165,6 +165,40 @@ final class PaseoRemoteBridgeTests: XCTestCase {
         XCTAssertEqual(kept?.phase, .running)
     }
 
+    /// A remote agent asking a question keeps running; the bridge reports the question, and the
+    /// session waits for input until the next turn start (the question was answered).
+    func testRemoteQuestionPutsTheRunningSessionInWaitingInput() throws {
+        let line = #"{"type":"input_needed","serverId":"srv_mini","host":"MacMini","agentId":"a1","provider":"claude","title":"Merge regression","cwd":"/Users/someone/project","status":"running","question":"Which commands?"}"#
+        let waiting = PaseoRemoteBridge.RemoteTurn(serverId: "srv_mini", host: "MacMini", agentId: "a1", provider: "claude",
+                                                   title: "Merge regression", cwd: "/Users/someone/project",
+                                                   status: "running", lastMessage: nil, question: "Which commands?")
+        XCTAssertEqual(PaseoRemoteBridge.decode(line: Data(line.utf8)), .inputNeeded(waiting))
+
+        let event = PaseoRemoteBridge.inputNeededEvent(for: waiting)
+        XCTAssertEqual(event.eventType, .notification)
+        XCTAssertEqual(event.notificationType, "idle_prompt")
+        XCTAssertEqual(event.message, "Which commands?")
+        XCTAssertFalse(SessionResultPlugin.accepts(event))
+
+        let store = SessionStore()
+        defer { store.stopTimers() }
+        let sessionId = try XCTUnwrap(event.sessionId)
+        store.recordEvent(PaseoRemoteBridge.event(for: turn(provider: "claude", status: "running")))
+        store.assignHost(.paseo(agentId: "a1", serverId: "srv_mini"), toSession: sessionId)
+        store.recordEvent(event)
+        XCTAssertEqual(store.activeSessions.first { $0.id == sessionId }?.phase, .waitingInput)
+
+        store.recordEvent(PaseoRemoteBridge.event(for: turn(provider: "claude", status: "running")))
+        XCTAssertEqual(store.activeSessions.first { $0.id == sessionId }?.phase, .running)
+
+        // A local idle prompt during a running turn still leaves the session running.
+        let local = "local-\(UUID().uuidString)"
+        store.recordEvent(AgentEvent(hookEventName: "UserPromptSubmit", sessionId: local, client: "claude-code"))
+        store.recordEvent(AgentEvent(hookEventName: HookEventType.notification.rawValue, sessionId: local,
+                                     notificationType: "idle_prompt"))
+        XCTAssertEqual(store.activeSessions.first { $0.id == local }?.phase, .running)
+    }
+
     func testOnlyAgentsOnAnotherHostAreRemote() {
         var session = AgentSession(id: "s", projectDir: nil, projectName: nil, agentSource: .codex, status: .active,
                                    phase: .idle, eventCount: 1, startedAt: Date(), lastEventAt: Date())

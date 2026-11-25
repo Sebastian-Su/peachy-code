@@ -21,6 +21,8 @@ final class PaseoRemoteBridge {
         let cwd: String?
         let status: String
         let lastMessage: String?
+        /// The question or permission prompt an `input_needed` turn waits on.
+        var question: String? = nil
     }
 
     enum Message: Equatable {
@@ -29,6 +31,7 @@ final class PaseoRemoteBridge {
         case hosts([Host])
         case turnStarted(RemoteTurn)
         case turnEnded(RemoteTurn)
+        case inputNeeded(RemoteTurn)
     }
 
     enum Status: Equatable {
@@ -44,6 +47,7 @@ final class PaseoRemoteBridge {
 
     private(set) var status: Status = .off
     var onRemoteTurn: ((RemoteTurn) -> Void)?
+    var onRemoteInputNeeded: ((RemoteTurn) -> Void)?
 
     @ObservationIgnored private var process: Process?
 
@@ -64,6 +68,7 @@ final class PaseoRemoteBridge {
         case "hosts": return .hosts(envelope.hosts ?? [])
         case "turn_started": return (try? decoder.decode(RemoteTurn.self, from: line)).map(Message.turnStarted)
         case "turn_ended": return (try? decoder.decode(RemoteTurn.self, from: line)).map(Message.turnEnded)
+        case "input_needed": return (try? decoder.decode(RemoteTurn.self, from: line)).map(Message.inputNeeded)
         default: return nil
         }
     }
@@ -83,6 +88,21 @@ final class PaseoRemoteBridge {
             cwd: turn.cwd,
             lastAssistantMessage: turn.lastMessage,
             client: engine + clientSuffix,
+            originator: turn.host
+        )
+    }
+
+    /// A remote agent waiting on a question or permission reads like a local idle prompt:
+    /// the session waits for input and its card opens the agent in Paseo, where it is answered.
+    static func inputNeededEvent(for turn: RemoteTurn) -> AgentEvent {
+        let base = event(for: turn)
+        return AgentEvent(
+            hookEventName: HookEventType.notification.rawValue,
+            sessionId: base.sessionId,
+            cwd: turn.cwd,
+            message: turn.question,
+            notificationType: "idle_prompt",
+            client: base.client,
             originator: turn.host
         )
     }
@@ -190,6 +210,7 @@ final class PaseoRemoteBridge {
             case .disconnected: status = .waitingForDaemon
             case .hosts(let hosts): status = .connected(hosts: hosts)
             case .turnStarted(let turn), .turnEnded(let turn): onRemoteTurn?(turn)
+            case .inputNeeded(let turn): onRemoteInputNeeded?(turn)
             }
         }
     }
