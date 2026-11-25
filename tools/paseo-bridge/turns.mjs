@@ -20,6 +20,16 @@ export function finishedWhileAway(agent, previousSnapshotAt) {
   return Date.parse(agent.attentionTimestamp) > previousSnapshotAt;
 }
 
+/**
+ * A question or permission prompt the agent waits on. Its status stays "running" meanwhile,
+ * so this is the only sign that the user is needed.
+ */
+export function pendingInput(agent) {
+  const pending = agent.pendingPermissions?.[0];
+  if (!pending) return null;
+  return { id: pending.id, text: pending.title || pending.description || pending.name || null };
+}
+
 /** Children delegated by another agent report to their parent, not to the user. */
 export function isReportable(agent) {
   return !agent.labels?.["paseo.parent-agent-id"];

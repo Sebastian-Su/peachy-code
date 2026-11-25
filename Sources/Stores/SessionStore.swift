@@ -1057,7 +1057,9 @@ final class SessionStore {
                 }
 
             case .notification where event.notificationType == "idle_prompt":
-                guard sessions[index].phase == .idle else { break }
+                // A remote agent asks while its turn is still running.
+                let isRemote = event.client?.hasSuffix(PaseoRemoteBridge.clientSuffix) == true
+                guard sessions[index].phase == .idle || (isRemote && sessions[index].phase == .running) else { break }
                 sessions[index].phase = .waitingInput
                 if sessions[index].idleUntil == nil {
                     setIdleUntil(for: sessionId)

@@ -2,7 +2,7 @@
 // PeachyPet. Output is one JSON object per stdout line; diagnostics go to stderr.
 // Local agents are skipped: PeachyPet already receives their hooks directly.
 import { createPaseoClient } from "@getpaseo/client";
-import { endedTurn, finalReply, finishedWhileAway, isReportable, startedTurn } from "./turns.mjs";
+import { endedTurn, finalReply, finishedWhileAway, isReportable, pendingInput, startedTurn } from "./turns.mjs";
 
 const url = process.env.PASEO_URL || "ws://127.0.0.1:6767/ws";
 const HOST_SYNC_MS = 30_000;
@@ -10,6 +10,7 @@ const CONNECT_RETRY_MS = 10_000;
 
 const statuses = new Map(); // "serverId/agentId" -> last seen status
 const reported = new Map(); // "serverId/agentId" -> when its last turn end was reported (ms)
+const waiting = new Map(); // "serverId/agentId" -> id of the prompt it waits on
 const watches = new Map(); // serverId -> { release }
 
 const emit = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -53,6 +54,15 @@ async function watch(client, host) {
     const previous = statuses.get(key);
     statuses.set(key, agent.status);
     if (startedTurn(previous, agent) && isReportable(agent)) emit(describe("turn_started", host, agent));
+    const input = agent.status === "running" ? pendingInput(agent) : null;
+    const waitedOn = waiting.get(key);
+    if (input) waiting.set(key, input.id); else waiting.delete(key);
+    if (isReportable(agent) && input && input.id !== waitedOn) {
+      emit({ ...describe("input_needed", host, agent), question: input.text });
+    } else if (isReportable(agent) && !input && waitedOn && agent.status === "running") {
+      // Answered and still working: back to running.
+      emit(describe("turn_started", host, agent));
+    }
     const since = previousSnapshotAt == null ? undefined : Math.max(previousSnapshotAt, reported.get(key) ?? 0);
     if (!(endedTurn(previous, agent) || finishedWhileAway(agent, since)) || !isReportable(agent)) return;
     reported.set(key, Date.now());
