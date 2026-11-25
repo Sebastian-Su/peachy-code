@@ -142,6 +142,29 @@ final class PaseoRemoteBridgeTests: XCTestCase {
         XCTAssertNil(session.firstUserPrompt)
     }
 
+    /// A remote turn sends nothing between its start and end, and has no local process or
+    /// transcript, so silence must not end it while it is still running.
+    func testLongRemoteTurnIsNotEndedBySilence() {
+        let store = SessionStore(idleRetentionDuration: 300)
+        defer { store.stopTimers() }
+        store.autoHideInactiveSessions = true
+        let twoHoursAgo = Date(timeIntervalSinceNow: -7200)
+        var session = AgentSession(id: "paseo-remote-a1", projectDir: nil, projectName: nil, agentSource: .claudeCode,
+                                   status: .active, phase: .running, eventCount: 1,
+                                   startedAt: twoHoursAgo, lastEventAt: twoHoursAgo)
+        session.host = .paseo(agentId: "a1", serverId: "srv_mini")
+        store.injectSessionForTesting(session)
+
+        store.applyReconciliation(hasAssistantProcess: true)
+        store.applyReconciliation(hasAssistantProcess: false)
+        store.expireIdleSessions()
+        store.runStartupMigration()
+
+        let kept = store.sessions.first { $0.id == session.id }
+        XCTAssertEqual(kept?.status, .active)
+        XCTAssertEqual(kept?.phase, .running)
+    }
+
     func testOnlyAgentsOnAnotherHostAreRemote() {
         var session = AgentSession(id: "s", projectDir: nil, projectName: nil, agentSource: .codex, status: .active,
                                    phase: .idle, eventCount: 1, startedAt: Date(), lastEventAt: Date())
